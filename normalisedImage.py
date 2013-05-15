@@ -12,15 +12,28 @@ class NormalisedImage:
 		self.im, self.iml, self.imarr = None, None, None
 		self.procShape = None
 		self.params = None
-		
+	
+	def LoadImage(self):
+
+		urlImgHandle = urllib2.urlopen(self.url)
+		self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
+		#self.iml = self.im.load()
+		self.imarr = np.array(self.im)
+
+	def CalcProcrustes(self):
+		modelArr = np.array(self.model)
+		self.procShape, self.params = procrustes.CalcProcrustesOnFrame(\
+			procrustes.FrameToArray(modelArr),\
+			procrustes.FrameToArray(self.meanFace))
+
+	def ClearPilImage(self):
+		self.im, self.iml = None, None
+
 	def GetPixelPos(self, ptNum, x, y):
 
 		#Lazy procrustes calculation
-		modelArr = np.array(self.model)
 		if self.params is None:
-			self.procShape, self.params = procrustes.CalcProcrustesOnFrame(\
-				procrustes.FrameToArray(modelArr),\
-				procrustes.FrameToArray(self.meanFace))
+			self.CalcProcrustes()
 		
 		#Translate in normalised space, then convert back to image space
 		startPoint = self.procShape[ptNum]
@@ -32,10 +45,7 @@ class NormalisedImage:
 
 		#Lazy load of image
 		if self.im is None:
-			urlImgHandle = urllib2.urlopen(self.url)
-			self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
-			#self.iml = self.im.load()
-			self.imarr = np.array(self.im)
+			self.LoadImage()
 
 		imPos = self.GetPixelPos(ptNum, x, y)
 		imLoc = np.array([imPos], dtype=np.float64)
@@ -46,10 +56,7 @@ class NormalisedImage:
 
 		#Lazy load of image
 		if self.im is None:
-			urlImgHandle = urllib2.urlopen(self.url)
-			self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
-			#self.iml = self.im.load()
-			self.imarr = np.array(self.im)
+			self.LoadImage()
 
 		posImgLi = []
 		for pos in pixPosLi:

@@ -13,13 +13,11 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
 	supportPixOff += [offX, offY]
 	return normImage.GetPixels(ptNum, supportPixOff)
 
-if __name__ == "__main__":
-
+def LoadSamplesFromServer():
 	urlHandle = urllib2.urlopen("http://192.168.1.2/photodb/getsamples.php")
 	sampleJson = urlHandle.read()
 
 	meanFace = pickle.load(open("meanFace.dat", "rb"))
-
 	sampleList = json.loads(sampleJson)
 	normalisedSamples = []
 
@@ -31,10 +29,28 @@ if __name__ == "__main__":
 	trainNormSamples = normalisedSamples[:400]
 	testNormSamples = normalisedSamples[400:]
 
+	for i, img in enumerate(normalisedSamples):
+		print i, len(normalisedSamples)
+		img.LoadImage()
+		img.CalcProcrustes()
+		img.ClearPilImage()
+	return normalisedSamples
+
+if __name__ == "__main__":
+
+	if 1:
+		normalisedSamples = LoadSamplesFromServer()
+		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
+	else:
+		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
+
 	#print normalisedSamples[0].model
 	#print normalisedSamples[0].GetPixelPos(0, 0, 0)
 	#print normalisedSamples[0].params
-	#print normalisedSamples[0].GetPixel(0, 0., 0)
+	print normalisedSamples[0].GetPixel(0, 0., 0)
+
+
+	exit(0)
 
 	supportPixOff = np.random.uniform(low=-0.7, high=0.7, size=(50, 2))
 	
@@ -49,8 +65,11 @@ if __name__ == "__main__":
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
+		pixGreyNorm = np.array(pixGrey)
+		pixGreyNorm -= pixGreyNorm.mean()
+
 		#print pixGrey
-		trainInt.append(pixGrey)
+		trainInt.append(pixGreyNorm)
 		trainOff.append(x)
 
 	reg = GradientBoostingRegressor()
@@ -70,7 +89,10 @@ if __name__ == "__main__":
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
-		pred = reg.predict([pixGrey])[0]
+		pixGreyNorm = np.array(pixGrey)
+		pixGreyNorm -= pixGreyNorm.mean()
+
+		pred = reg.predict([pixGreyNorm])[0]
 		#print x, pred, valid, sum(valid)
 		testOff.append(x)
 		testPred.append(pred)
