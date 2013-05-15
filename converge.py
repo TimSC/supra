@@ -50,7 +50,7 @@ if __name__ == "__main__":
 	print normalisedSamples[0].GetPixel(0, 0., 0)
 
 
-	print normalisedSamples[0].info
+	print np.array(normalisedSamples[0].model).std(axis=0)
 
 	exit(0)
 
