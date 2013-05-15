@@ -36,6 +36,25 @@ def LoadSamplesFromServer():
 		img.ClearPilImage()
 	return normalisedSamples
 
+def DumpNormalisedImages(filteredSamples):
+	for i, sample in enumerate(filteredSamples):
+		print i
+		im = Image.new("RGB",(300,300))
+		iml = im.load()
+		pos, posIm = [], []
+		for x in range(300):
+			for y in range(300):
+				nx = (x - 150) / 50.
+				ny = (y - 150) / 50.
+				pos.append((nx,ny))
+				posIm.append((x,y))
+		
+		posInts, intValid = sample.GetPixelsImPos(pos)
+		for p, px in zip(posIm, posInts):
+			#print posIm, px
+			iml[p[0], p[1]] = tuple(map(int,map(round,px)))
+		im.save("img{0}.jpg".format(i))
+
 if __name__ == "__main__":
 
 	if 0:
@@ -61,14 +80,16 @@ if __name__ == "__main__":
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	supportPixOff = np.random.uniform(low=-0.7, high=0.7, size=(50, 2))
+	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
 
+	DumpNormalisedImages(filteredSamples)
 
+	exit(0)
 
 	trainInt = []
 	trainOff = []
 
-	while len(trainOff) < 1000:
+	while len(trainOff) < 10000:
 		x = np.random.normal(scale=0.5)
 		print len(trainOff), x
 		
@@ -92,7 +113,7 @@ if __name__ == "__main__":
 
 	testOff = []
 	testPred = []
-	while len(testOff) < 100:
+	while len(testOff) < 500:
 		x = np.random.normal(scale=0.5)
 		print len(testOff), x
 
