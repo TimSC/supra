@@ -26,17 +26,16 @@ class NormalisedImage:
 		startPoint = self.procShape[ptNum]
 		modPoint = [startPoint[0]+x, startPoint[1]+y]
 		imgPos = procrustes.ToImageSpace(np.array([modPoint]), self.params)
-		return imgPos
+		return imgPos[0]
 
 	def GetPixel(self, ptNum, x, y):
 
 		#Lazy load of image
-		if self.im is not None:
+		if self.im is None:
 			urlImgHandle = urllib2.urlopen(self.url)
 			self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
 			self.iml = self.im.load()
 
 		imPos = self.GetPixelPos(ptNum, x, y)
-		
-		print self.iml[imPos[0], imPos[1]]
+		return self.iml[imPos[0], imPos[1]]
 
