@@ -1,6 +1,6 @@
 
 import urllib2
-import json, pickle, math, StringIO
+import json, pickle, math, StringIO, random
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
@@ -28,6 +28,9 @@ if __name__ == "__main__":
 		url = "http://192.168.1.2/photodb/roiimg.php?roiId="+str(sample['roiId'])
 		normalisedSamples.append(normalisedImage.NormalisedImage(url, sample['model'], meanFace))
 		
+	trainNormSamples = normalisedSamples[:400]
+	testNormSamples = normalisedSamples[400:]
+
 	#print normalisedSamples[0].model
 	#print normalisedSamples[0].GetPixelPos(0, 0, 0)
 	#print normalisedSamples[0].params
@@ -40,9 +43,9 @@ if __name__ == "__main__":
 
 	while len(trainOff) < 1000:
 		x = np.random.normal(scale=0.5)
-		#print len(trainOff), x
+		print len(trainOff), x
 		
-		pix, valid = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0.+x, 0.)
+		pix, valid = ExtractSupportIntensity(random.sample(trainNormSamples,1)[0], supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
@@ -53,15 +56,17 @@ if __name__ == "__main__":
 	reg = GradientBoostingRegressor()
 	reg.fit(trainInt, trainOff)
 
-	trainPred = reg.predict(trainInt)
-	plt.plot(trainOff, trainPred, 'x')
-	plt.show()
+	#trainPred = reg.predict(trainInt)
+	#plt.plot(trainOff, trainPred, 'x')
+	#plt.show()
 
 	testOff = []
 	testPred = []
 	while len(testOff) < 100:
 		x = np.random.normal(scale=0.5)
-		pix, valid = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0.+x, 0.)
+		print len(testOff), x
+
+		pix, valid = ExtractSupportIntensity(random.sample(testNormSamples,1)[0], supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
