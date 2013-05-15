@@ -4,16 +4,12 @@ import json, pickle, math, StringIO
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-import procrustes
+import procrustes, pxutil
 import normalisedImage
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
-	out = []	
-	for suppI in range(supportPixOff.shape[0]):
-		suppOff = supportPixOff[suppI,:]
-		pixInt = normImage.GetPixel(ptNum, suppOff[0]+offX, suppOff[1]+offY)
-		out.append(pixInt)
-	return out
+	supportPixOff += [offX, offY]
+	return normImage.GetPixels(ptNum, supportPixOff)
 
 if __name__ == "__main__":
 
@@ -33,9 +29,11 @@ if __name__ == "__main__":
 	#print normalisedSamples[0].model
 	#print normalisedSamples[0].GetPixelPos(0, 0, 0)
 	#print normalisedSamples[0].params
-	#print normalisedSamples[0].GetPixel(0, 10., 0)
+	#print normalisedSamples[0].GetPixel(0, 0., 0)
 
 	supportPixOff = np.random.uniform(low=-0.7, high=0.7, size=(50, 2))
 	
-	print ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0., 0.)
+	pix = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0., 0.)
+	pixGrey = [pxutil.ToGrey(p) for p in pix]
+	print pixGrey
 
