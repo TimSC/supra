@@ -24,7 +24,7 @@ def LoadSamplesFromServer():
 	for sample in sampleList:
 		if sample['model'] is None: continue
 		url = "http://192.168.1.2/photodb/roiimg.php?roiId="+str(sample['roiId'])
-		normalisedSamples.append(normalisedImage.NormalisedImage(url, sample['model'], meanFace))
+		normalisedSamples.append(normalisedImage.NormalisedImage(url, sample['model'], meanFace, sample))
 		
 	trainNormSamples = normalisedSamples[:400]
 	testNormSamples = normalisedSamples[400:]
@@ -49,6 +49,8 @@ if __name__ == "__main__":
 	#print normalisedSamples[0].params
 	print normalisedSamples[0].GetPixel(0, 0., 0)
 
+
+	print normalisedSamples[0].info
 
 	exit(0)
 

@@ -5,13 +5,14 @@ from PIL import Image
 import numpy as np
 
 class NormalisedImage:
-	def __init__(self, urlIn, modelIn, meanFaceIn):
+	def __init__(self, urlIn, modelIn, meanFaceIn, sampleInfo):
 		self.url = urlIn
 		self.model = modelIn
 		self.meanFace = meanFaceIn
 		self.im, self.iml, self.imarr = None, None, None
 		self.procShape = None
 		self.params = None
+		self.info = sampleInfo
 	
 	def LoadImage(self):
 
