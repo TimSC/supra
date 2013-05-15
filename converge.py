@@ -75,6 +75,7 @@ if __name__ == "__main__":
 		testOff.append(x)
 		testPred.append(pred)
 
+	print np.corrcoef(testOff, testPred)[0,1]
 	plt.plot(testOff, testPred, 'x')
 	plt.show()
 
