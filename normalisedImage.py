@@ -9,15 +9,11 @@ class NormalisedImage:
 		self.url = urlIn
 		self.model = modelIn
 		self.meanFace = meanFaceIn
-		self.im = None
+		self.im, self.iml = None, None
 		self.procShape = None
 		self.params = None
 		
 	def GetPixelPos(self, ptNum, x, y):
-		#Lazy load of image
-		if self.im is not None:
-			urlImgHandle = urllib2.urlopen(self.url)
-			self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
 
 		#Lazy procrustes calculation
 		modelArr = np.array(self.model)
@@ -31,4 +27,16 @@ class NormalisedImage:
 		modPoint = [startPoint[0]+x, startPoint[1]+y]
 		imgPos = procrustes.ToImageSpace(np.array([modPoint]), self.params)
 		return imgPos
+
+	def GetPixel(self, ptNum, x, y):
+
+		#Lazy load of image
+		if self.im is not None:
+			urlImgHandle = urllib2.urlopen(self.url)
+			self.im = Image.open(StringIO.StringIO(urlImgHandle.read()))
+			self.iml = self.im.load()
+
+		imPos = self.GetPixelPos(ptNum, x, y)
+		
+		print self.iml[imPos[0], imPos[1]]
 
