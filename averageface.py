@@ -33,11 +33,12 @@ if __name__ == "__main__":
 	#plt.plot(meanFace[:,0],-meanFace[:,1],'x')
 	#plt.show()
 
-	for sample in sampleList:
-		if sample['model'] is None: continue
-		modelArr = np.array(sample['model'])
-		procShape, params = procrustes.CalcProcrustesOnFrame(procrustes.FrameToArray(modelArr), procrustes.FrameToArray(meanFace))
+	if 0:
+		for sample in sampleList:
+			if sample['model'] is None: continue
+			modelArr = np.array(sample['model'])
+			procShape, params = procrustes.CalcProcrustesOnFrame(procrustes.FrameToArray(modelArr), procrustes.FrameToArray(meanFace))
 
-		procSpaceModel = procrustes.ToProcSpace(modelArr, params)
-		imgSpaceModel = procrustes.ToImageSpace(procSpaceModel, params)
+			procSpaceModel = procrustes.ToProcSpace(modelArr, params)
+			imgSpaceModel = procrustes.ToImageSpace(procSpaceModel, params)
 
