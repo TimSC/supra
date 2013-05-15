@@ -70,12 +70,12 @@ if __name__ == "__main__":
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
-		pred = reg.predict([pixGrey])
+		pred = reg.predict([pixGrey])[0]
 		#print x, pred, valid, sum(valid)
 		testOff.append(x)
 		testPred.append(pred)
 
-	print np.corrcoef(testOff, testPred)[0,1]
+	print np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
 	plt.plot(testOff, testPred, 'x')
 	plt.show()
 
