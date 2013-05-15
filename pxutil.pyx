@@ -7,7 +7,7 @@ import cmath, math
 cimport numpy as np
 import numpy as np
 
-cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
+cdef int BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 	float x, float y, 
 	np.ndarray[np.float64_t, ndim=2] p, #Temporary storage
 	np.ndarray[np.float64_t, ndim=2] out,
@@ -22,9 +22,9 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 
 	#Check bounds
 	if xi < 0 or xi + 1 >= imgPix.shape[1]:
-		raise IndexError("Pixel location outside image")
+		return 0
 	if yi < 0 or yi + 1 >= imgPix.shape[0]:
-		raise IndexError("Pixel location outside image")
+		return 0
 
 	#Get surrounding pixels
 	for c in range(imgPix.shape[2]):
@@ -38,10 +38,13 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 		c2 = p[2,c] * (1.-xfrac) + p[3,c] * xfrac
 		out[row,c] = c1 * (1.-yfrac) + c2 * yfrac
 
+	return 1
+
 def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, 
 	np.ndarray[np.float64_t, ndim=2] imLoc):
 
 	cdef np.ndarray[np.float64_t, ndim=2] out = np.zeros((imLoc.shape[0], iml.shape[2]))
+	cdef np.ndarray[np.int_t, ndim=1] valid = np.zeros(imLoc.shape[0], dtype=np.int)
 	cdef double x, y
 	cdef float offsetX, offsetY
 	cdef int offsetNum
@@ -53,11 +56,8 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml,
 		offsetY = imLoc[offsetNum, 1]
 
 		#Get pixel at this location
-		try:
-			BilinearSample(iml, offsetX, offsetY, temp, out, offsetNum)
-		except IndexError:
-			return None
-	return out
+		valid[offsetNum] = BilinearSample(iml, offsetX, offsetY, temp, out, offsetNum)
+	return out, valid
 
 def ITUR6012(col): #ITU-R 601-2
 	return 0.299*col[0] + 0.587*col[1] + 0.114*col[2]

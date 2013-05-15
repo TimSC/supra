@@ -6,8 +6,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import procrustes, pxutil
 import normalisedImage
+from sklearn.ensemble import GradientBoostingRegressor
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
+	supportPixOff = supportPixOff.copy()
 	supportPixOff += [offX, offY]
 	return normImage.GetPixels(ptNum, supportPixOff)
 
@@ -33,7 +35,43 @@ if __name__ == "__main__":
 
 	supportPixOff = np.random.uniform(low=-0.7, high=0.7, size=(50, 2))
 	
-	pix = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0., 0.)
-	pixGrey = [pxutil.ToGrey(p) for p in pix]
-	print pixGrey
+	trainInt = []
+	trainOff = []
+
+	while len(trainOff) < 1000:
+		x = np.random.normal(scale=0.5)
+		#print len(trainOff), x
+		
+		pix, valid = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0.+x, 0.)
+		if sum(valid) != len(valid): continue
+		pixGrey = [pxutil.ToGrey(p) for p in pix]
+
+		#print pixGrey
+		trainInt.append(pixGrey)
+		trainOff.append(x)
+
+	reg = GradientBoostingRegressor()
+	reg.fit(trainInt, trainOff)
+
+	trainPred = reg.predict(trainInt)
+	plt.plot(trainOff, trainPred, 'x')
+	plt.show()
+
+	testOff = []
+	testPred = []
+	while len(testOff) < 100:
+		x = np.random.normal(scale=0.5)
+		pix, valid = ExtractSupportIntensity(normalisedSamples[0], supportPixOff, 0, 0.+x, 0.)
+		if sum(valid) != len(valid): continue
+		pixGrey = [pxutil.ToGrey(p) for p in pix]
+
+		pred = reg.predict([pixGrey])
+		#print x, pred, valid, sum(valid)
+		testOff.append(x)
+		testPred.append(pred)
+
+	plt.plot(testOff, testPred, 'x')
+	plt.show()
+
+
 
