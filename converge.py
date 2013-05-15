@@ -38,7 +38,7 @@ def LoadSamplesFromServer():
 
 if __name__ == "__main__":
 
-	if 1:
+	if 0:
 		normalisedSamples = LoadSamplesFromServer()
 		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
 	else:
@@ -47,15 +47,24 @@ if __name__ == "__main__":
 	#print normalisedSamples[0].model
 	#print normalisedSamples[0].GetPixelPos(0, 0, 0)
 	#print normalisedSamples[0].params
-	print normalisedSamples[0].GetPixel(0, 0., 0)
+	#print normalisedSamples[0].GetPixel(0, 0., 0)
 
+	#Only use larger faces
+	filteredSamples = []
+	for sample in normalisedSamples:
+		if np.array(sample.model).std(axis=1)[0] > 15.:
+			filteredSamples.append(sample)
 
-	print np.array(normalisedSamples[0].model).std(axis=0)
-
-	exit(0)
+	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
+	halfInd = len(filteredSamples)/2
+	random.shuffle(filteredSamples)
+	trainNormSamples = filteredSamples[:halfInd]
+	testNormSamples = filteredSamples[halfInd:]
 
 	supportPixOff = np.random.uniform(low=-0.7, high=0.7, size=(50, 2))
-	
+
+
+
 	trainInt = []
 	trainOff = []
 

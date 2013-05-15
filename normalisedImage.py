@@ -45,7 +45,7 @@ class NormalisedImage:
 	def GetPixel(self, ptNum, x, y):
 
 		#Lazy load of image
-		if self.im is None:
+		if self.imarr is None:
 			self.LoadImage()
 
 		imPos = self.GetPixelPos(ptNum, x, y)
@@ -56,7 +56,7 @@ class NormalisedImage:
 	def GetPixels(self, ptNum, pixPosLi):
 
 		#Lazy load of image
-		if self.im is None:
+		if self.imarr is None:
 			self.LoadImage()
 
 		posImgLi = []
