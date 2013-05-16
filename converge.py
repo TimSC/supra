@@ -62,13 +62,7 @@ class PcaNormImageIntensity():
 		#Get intensity data for each training image
 		imgsSparseInt = []
 		for sample in samples:
-			imgSparseInt = []
-			for pt in range(sample.NumPoints()):
-				pix, valid = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
-				assert sum(valid) == len(valid)
-				pixGrey = [pxutil.ToGrey(p) for p in pix]
-				imgSparseInt.extend(pixGrey)
-			imgsSparseInt.append(imgSparseInt)
+			imgsSparseInt.append(self.ExtractFeatures(sample))
 
 		imgsSparseIntArr = np.array(imgsSparseInt)
 		self.meanInt = imgsSparseIntArr.mean(axis=0)
@@ -87,8 +81,26 @@ class PcaNormImageIntensity():
 
 		reconstructed = np.dot(self.u, np.dot(self.S, self.v))
 
+		#print self.u[0,:]
 		#plt.plot(self.s)
 		#plt.show()
+
+	def ExtractFeatures(self, sample):
+		imgSparseInt = []
+		for pt in range(sample.NumPoints()):
+			pix, valid = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
+			assert sum(valid) == len(valid)
+			pixGrey = [pxutil.ToGrey(p) for p in pix]
+			imgSparseInt.extend(pixGrey)		
+		return imgSparseInt
+
+	def ProjectToPca(self, sample):
+		
+		feat = self.ExtractFeatures(sample)
+		centred = feat - self.meanInt
+
+		return np.dot(centred, self.v.transpose()) / self.s
+		
 
 if __name__ == "__main__":
 
@@ -116,45 +128,7 @@ if __name__ == "__main__":
 	testNormSamples = filteredSamples[halfInd:]
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
-
-	if 0:
-		#Get intensity data for each training image
-		imgsSparseInt = []
-		for sample in filteredSamples:
-			imgSparseInt = []
-			for pt in range(sample.NumPoints()):
-				pix, valid = ExtractSupportIntensity(random.sample(trainNormSamples,1)[0], supportPixOff, 0, 0., 0.)
-				assert sum(valid) == len(valid)
-				pixGrey = [pxutil.ToGrey(p) for p in pix]
-				imgSparseInt.extend(pixGrey)
-			imgsSparseInt.append(imgSparseInt)
-
-		imgsSparseIntArr = np.array(imgsSparseInt)
-		imgsSparseIntCent = imgsSparseIntArr - imgsSparseIntArr.mean(axis=0)
-
-		print imgsSparseIntCent
-
-		u, s, v = np.linalg.svd(imgsSparseIntCent)
-
-		print u
-
-		print u.shape
-		print s.shape
-		print v.shape
-
-		S = np.zeros((406, 250))
-		S[:250, :250] = np.diag(s)
-
-		print np.dot(u, np.dot(S, v))
-
-		plt.plot(s)
-		plt.show()
-
-	PcaNormImageIntensity(filteredSamples)
-
-	exit(0)
-	
-
+	pcaInt = PcaNormImageIntensity(filteredSamples)
 
 	#DumpNormalisedImages(filteredSamples)
 
@@ -164,16 +138,21 @@ if __name__ == "__main__":
 	while len(trainOff) < 10000:
 		x = np.random.normal(scale=0.3)
 		print len(trainOff), x
-		
-		pix, valid = ExtractSupportIntensity(random.sample(trainNormSamples,1)[0], supportPixOff, 0, 0.+x, 0.)
+		sample = random.sample(trainNormSamples,1)[0]		
+
+		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
 
+		eigenPca = pcaInt.ProjectToPca(sample)[:20]
+
 		#print pixGrey
-		trainInt.append(pixGreyNorm)
+		feat = np.concatenate([pixGreyNorm, eigenPca])
+
+		trainInt.append(feat)
 		trainOff.append(x)
 
 	reg = GradientBoostingRegressor()
@@ -188,15 +167,22 @@ if __name__ == "__main__":
 	while len(testOff) < 500:
 		x = np.random.normal(scale=0.3)
 		print len(testOff), x
+		sample = random.sample(trainNormSamples,1)[0]	
 
-		pix, valid = ExtractSupportIntensity(random.sample(testNormSamples,1)[0], supportPixOff, 0, 0.+x, 0.)
+		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
 		pixGrey = [pxutil.ToGrey(p) for p in pix]
 
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
 
-		pred = reg.predict([pixGreyNorm])[0]
+		eigenPca = pcaInt.ProjectToPca(sample)[:20]
+
+		#print pixGrey
+		feat = pixGreyNorm
+		feat.extend(eigenPca)
+
+		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
 		testOff.append(x)
 		testPred.append(pred)
