@@ -49,7 +49,7 @@ def DumpNormalisedImages(filteredSamples):
 				pos.append((nx,ny))
 				posIm.append((x,y))
 		
-		posInts, intValid = sample.GetPixelsImPos(pos)
+		posInts = sample.GetPixelsImPos(pos)
 		for p, px in zip(posIm, posInts):
 			#print posIm, px
 			iml[p[0], p[1]] = tuple(map(int,map(round,px)))
@@ -88,8 +88,7 @@ class PcaNormImageIntensity():
 	def ExtractFeatures(self, sample):
 		imgSparseInt = []
 		for pt in range(sample.NumPoints()):
-			pix, valid = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
-			assert sum(valid) == len(valid)
+			pix = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 			imgSparseInt.extend(pixGrey)		
 		return imgSparseInt
@@ -143,7 +142,8 @@ class PcaNormShape():
 		return np.dot(centred, self.v.transpose()) / self.s
 
 def ColConv(px):
-	return col.rgb2xyz([[px]])[0][0]
+	out = col.rgb2xyz([[px]])[0][0]
+	return out
 
 def RunTest(log):
 
@@ -170,6 +170,26 @@ def RunTest(log):
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
+	if 0:
+		sampPix = []
+		for sample in filteredSamples:
+			xran = np.arange(-1.,1.,0.01)
+			pix = []
+		
+			for x in xran: 
+				ps = sample.GetPixel(0, x, 0.)
+				pix.append(ps)
+			sampPix.append(pix)
+
+			pix = np.array(pix)
+			#plt.plot(xran, pix[:,0])
+
+		sampPix = np.array(sampPix)
+		plt.plot(xran, sampPix.mean(axis=0))
+		plt.show()
+		exit(0)
+
+
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
@@ -184,8 +204,7 @@ def RunTest(log):
 		print len(trainOff), x
 		sample = random.sample(trainNormSamples,1)[0]		
 
-		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
-		if sum(valid) != len(valid): continue
+		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
@@ -216,8 +235,7 @@ def RunTest(log):
 		print len(testOff), x
 		sample = random.sample(trainNormSamples,1)[0]	
 
-		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
-		if sum(valid) != len(valid): continue
+		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
