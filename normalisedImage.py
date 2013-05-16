@@ -92,3 +92,6 @@ class NormalisedImage:
 		
 		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc)
 
+	def NumPoints(self):
+		return len(self.model)
+
