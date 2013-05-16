@@ -1,6 +1,6 @@
 
 import urllib2
-import json, pickle, math, StringIO, random
+import json, pickle, math, StringIO, random, skimage.color as col
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
@@ -142,6 +142,9 @@ class PcaNormShape():
 
 		return np.dot(centred, self.v.transpose()) / self.s
 
+def ColConv(px):
+	return col.rgb2xyz([[px]])[0][0]
+
 def RunTest(log):
 
 	if 0:
@@ -183,16 +186,18 @@ def RunTest(log):
 
 		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
-		pixGrey = [pxutil.ToGrey(p) for p in pix]
+		pixConv = []
+		for px in pix:
+			pixConv.extend(ColConv(px))
 
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
+		pixNorm = np.array(pixConv)
+		pixNorm -= pixNorm.mean()
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -213,16 +218,18 @@ def RunTest(log):
 
 		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
-		pixGrey = [pxutil.ToGrey(p) for p in pix]
+		pixConv = []
+		for px in pix:
+			pixConv.extend(ColConv(px))
 
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
+		pixNorm = np.array(pixConv)
+		pixNorm -= pixNorm.mean()
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
@@ -238,7 +245,7 @@ def RunTest(log):
 
 if __name__ == "__main__":
 
-	log = open("shapeandint.txt","wt")
+	log = open("log.txt","wt")
 	while 1:
 		RunTest(log)
 	
