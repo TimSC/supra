@@ -79,7 +79,7 @@ class PcaNormImageIntensity():
 		self.S = np.zeros((self.u.shape[0], self.v.shape[0]))
 		self.S[:self.v.shape[0], :self.v.shape[0]] = np.diag(self.s)
 
-		reconstructed = np.dot(self.u, np.dot(self.S, self.v))
+		#reconstructed = np.dot(self.u, np.dot(self.S, self.v))
 
 		#print self.u[0,:]
 		#plt.plot(self.s)
@@ -101,6 +101,47 @@ class PcaNormImageIntensity():
 
 		return np.dot(centred, self.v.transpose()) / self.s
 		
+
+class PcaNormShape():
+	def __init__(self, samples):
+
+		#Get shape data for each training image
+		shapes = []
+		for sample in samples:
+			sampleModel = np.array(sample.model)
+			sampleModel = sampleModel.reshape(sampleModel.size)
+			shapes.append(sampleModel)
+
+		shapesArr = np.array(shapes)
+		self.meanShape = shapesArr.mean(axis=0)
+		meanShapeCent = shapesArr - self.meanShape
+	
+		self.u, self.s, self.v = np.linalg.svd(meanShapeCent)
+
+		#print meanShapeCent
+
+		#print self.u.shape
+		#print self.s.shape
+		#print self.v.shape
+
+		self.S = np.zeros((self.u.shape[0], self.v.shape[0]))
+		self.S[:self.v.shape[0], :self.v.shape[0]] = np.diag(self.s)
+
+		#reconstructed = np.dot(self.u, np.dot(self.S, self.v))
+		#print reconstructed
+
+		#print self.u[0,:]
+		#plt.plot(self.s)
+		#plt.show()
+
+	def ProjectToPca(self, sample):
+		
+		sampleModel = np.array(sample.model)
+		sampleModel = sampleModel.reshape(sampleModel.size)
+
+		centred = sampleModel - self.meanShape
+
+		return np.dot(centred, self.v.transpose()) / self.s
 
 if __name__ == "__main__":
 
@@ -128,6 +169,7 @@ if __name__ == "__main__":
 	testNormSamples = filteredSamples[halfInd:]
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
 
 	#DumpNormalisedImages(filteredSamples)
@@ -147,10 +189,11 @@ if __name__ == "__main__":
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
 
-		eigenPca = pcaInt.ProjectToPca(sample)[:20]
+		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
+		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, eigenPca])
+		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -176,11 +219,11 @@ if __name__ == "__main__":
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
 
-		eigenPca = pcaInt.ProjectToPca(sample)[:20]
+		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
+		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = pixGreyNorm
-		feat.extend(eigenPca)
+		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
