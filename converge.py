@@ -99,8 +99,7 @@ class PcaNormImageIntensity():
 		feat = self.ExtractFeatures(sample)
 		centred = feat - self.meanInt
 
-		return np.dot(centred, self.v.transpose()) / self.s
-		
+		return np.dot(centred, self.v.transpose()) / self.s		
 
 class PcaNormShape():
 	def __init__(self, samples):
@@ -143,7 +142,7 @@ class PcaNormShape():
 
 		return np.dot(centred, self.v.transpose()) / self.s
 
-if __name__ == "__main__":
+def RunTest(log):
 
 	if 0:
 		normalisedSamples = LoadSamplesFromServer()
@@ -230,9 +229,16 @@ if __name__ == "__main__":
 		testOff.append(x)
 		testPred.append(pred)
 
-	print np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
-	plt.plot(testOff, testPred, 'x')
-	plt.show()
+	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
+	print correl
+	log.write(str(correl)+"\n")
+	log.flush()
+	#plt.plot(testOff, testPred, 'x')
+	#plt.show()
 
+if __name__ == "__main__":
 
-
+	log = open("shapeandint.txt","wt")
+	while 1:
+		RunTest(log)
+	
