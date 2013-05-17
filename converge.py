@@ -152,11 +152,13 @@ class PcaAsmIntensitySlice():
 		self.endDist = 0.3
 		self.stepDist = 0.01
 		self.pxSamples = []
+		self.dx = 1.
+		self.dy = 0.
 
 	def AddSample(self, sample, xOff, yOff):
 		px = []
-		for x in np.arange(self.startdist, self.endDist, self.stepDist):
-			px.extend(ColConv(sample.GetPixel(self.ptNum, x + xOff, 0. + yOff)))
+		for dist in np.arange(self.startdist, self.endDist, self.stepDist):
+			px.extend(ColConv(sample.GetPixel(self.ptNum, self.dx * dist + xOff, self.dy * dist + yOff)))
 		self.pxSamples.append(px)
 
 	def Prepare(self):
@@ -172,8 +174,8 @@ class PcaAsmIntensitySlice():
 
 	def GetFeatures(self, sample, xOff=0., yOff=0.):
 		px = []
-		for x in np.arange(self.startdist, self.endDist, self.stepDist):
-			px.extend(ColConv(sample.GetPixel(self.ptNum, x+xOff, 0.+yOff)))
+		for dist in np.arange(self.startdist, self.endDist, self.stepDist):
+			px.extend(ColConv(sample.GetPixel(self.ptNum, self.dx * dist + xOff, self.dy * dist + yOff)))
 		px = np.array(px)
 		centred = px - self.mean
 
@@ -228,12 +230,26 @@ def RunTest(log):
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
-	asmSlice = PcaAsmIntensitySlice()
+	asmSlice1 = PcaAsmIntensitySlice()
+	asmSlice2 = PcaAsmIntensitySlice()
+	asmSlice2.dx = -1.
+	asmSlice3 = PcaAsmIntensitySlice()
+	asmSlice3.dx = 0.
+	asmSlice3.dy = 1.
+	asmSlice4 = PcaAsmIntensitySlice()
+	asmSlice4.dx = 0.
+	asmSlice4.dy = -1.
 	for sample in filteredSamples:
 		x = np.random.normal(scale=0.3)
 		for i in range(10):
-			asmSlice.AddSample(sample, x, 0.)
-	asmSlice.Prepare()
+			asmSlice1.AddSample(sample, x, 0.)
+			asmSlice2.AddSample(sample, x, 0.)
+			asmSlice3.AddSample(sample, x, 0.)
+			asmSlice4.AddSample(sample, x, 0.)
+	asmSlice1.Prepare()
+	asmSlice2.Prepare()
+	asmSlice3.Prepare()
+	asmSlice4.Prepare()
 	#DumpNormalisedImages(filteredSamples)
 
 	trainInt = []
@@ -256,10 +272,13 @@ def RunTest(log):
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		asmFeat = asmSlice.GetFeatures(sample, x, 0.)[:10]
+		asmFeat1 = asmSlice1.GetFeatures(sample, x, 0.)[:10]
+		asmFeat2 = asmSlice2.GetFeatures(sample, x, 0.)[:10]
+		asmFeat3 = asmSlice3.GetFeatures(sample, x, 0.)[:10]
+		asmFeat4 = asmSlice4.GetFeatures(sample, x, 0.)[:10]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat1, asmFeat2, asmFeat3, asmFeat4])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -288,10 +307,13 @@ def RunTest(log):
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		asmFeat = asmSlice.GetFeatures(sample, x, 0.)[:10]
+		asmFeat1 = asmSlice1.GetFeatures(sample, x, 0.)[:10]
+		asmFeat2 = asmSlice2.GetFeatures(sample, x, 0.)[:10]
+		asmFeat3 = asmSlice3.GetFeatures(sample, x, 0.)[:10]
+		asmFeat4 = asmSlice4.GetFeatures(sample, x, 0.)[:10]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat1, asmFeat2, asmFeat3, asmFeat4])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
