@@ -1,7 +1,8 @@
 
 import urllib2
-import json, pickle, math, StringIO, random, skimage.color as col
-from PIL import Image
+import json, pickle, math, StringIO, random
+import skimage.color as col, skimage.feature as feature, skimage.filter as filt
+from PIL import Image, ImageOps
 import numpy as np
 import matplotlib.pyplot as plt
 import procrustes, pxutil
@@ -53,6 +54,20 @@ def DumpNormalisedImages(filteredSamples):
 		for p, px in zip(posIm, posInts):
 			#print posIm, px
 			iml[p[0], p[1]] = tuple(map(int,map(round,px)))
+		#imarr = col.rgb2xyz(np.array(im))
+		#imarr = np.array(ImageOps.equalize(im))
+
+		if 0:		
+			imarr = col.rgb2xyz(np.array(im))
+			imarr = (imarr[0:-1,:,:] - imarr[1:,:,:])
+			im2 = Image.fromarray(np.array(128 + imarr * 128., dtype=np.uint8))
+
+		if 0:
+			imarr = col.rgb2grey(np.array(im))
+			imarr = filt.hsobel(np.array(imarr))
+			im2 = Image.fromarray(np.array(128 + imarr * 128., dtype=np.uint8))
+
+		#im2 = ImageOps.equalize(im2)
 		im.save("img{0}.jpg".format(i))
 
 class PcaNormImageIntensity():
@@ -145,41 +160,7 @@ def ColConv(px):
 	out = col.rgb2xyz([[px]])[0][0]
 	return out
 
-class PcaAsmIntensitySlice():
-	def __init__(self):
-		self.ptNum = 0
-		self.startdist = 0.
-		self.endDist = 0.3
-		self.stepDist = 0.01
-		self.pxSamples = []
-		self.dx = 1.
-		self.dy = 0.
 
-	def AddSample(self, sample, xOff, yOff):
-		px = []
-		for dist in np.arange(self.startdist, self.endDist, self.stepDist):
-			px.extend(ColConv(sample.GetPixel(self.ptNum, self.dx * dist + xOff, self.dy * dist + yOff)))
-		self.pxSamples.append(px)
-
-	def Prepare(self):
-
-		pxSamplesArr = np.array(self.pxSamples)
-		self.mean = pxSamplesArr.mean(axis=0)
-		pxSamplesCent = pxSamplesArr - self.mean
-	
-		self.u, self.s, self.v = np.linalg.svd(pxSamplesCent)		
-		#print self.u[0,:]
-		#plt.plot(self.s)
-		#plt.show()
-
-	def GetFeatures(self, sample, xOff=0., yOff=0.):
-		px = []
-		for dist in np.arange(self.startdist, self.endDist, self.stepDist):
-			px.extend(ColConv(sample.GetPixel(self.ptNum, self.dx * dist + xOff, self.dy * dist + yOff)))
-		px = np.array(px)
-		centred = px - self.mean
-
-		return np.dot(centred, self.v.transpose()) / self.s
 
 def RunTest(log):
 
@@ -188,11 +169,6 @@ def RunTest(log):
 		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
 	else:
 		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
-
-	#print normalisedSamples[0].model
-	#print normalisedSamples[0].GetPixelPos(0, 0, 0)
-	#print normalisedSamples[0].params
-	#print normalisedSamples[0].GetPixel(0, 0., 0)
 
 	#Only use larger faces
 	filteredSamples = []
@@ -206,51 +182,15 @@ def RunTest(log):
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	if 0:
-		sampPix = []
-		for sample in filteredSamples:
-			xran = np.arange(-1.,1.,0.01)
-			pix = []
-		
-			for x in xran: 
-				ps = sample.GetPixel(0, x, 0.)
-				pix.append(ps)
-			sampPix.append(pix)
-
-			pix = np.array(pix)
-			#plt.plot(xran, pix[:,0])
-
-		sampPix = np.array(sampPix)
-		plt.plot(xran, sampPix.mean(axis=0))
-		plt.show()
-		exit(0)
+	#DumpNormalisedImages(filteredSamples)
+	#exit(0)
 
 	print "Preparing encoding PCA"
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+	supportPixOffSobelV = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
-	asmSlice1 = PcaAsmIntensitySlice()
-	asmSlice2 = PcaAsmIntensitySlice()
-	asmSlice2.dx = -1.
-	asmSlice3 = PcaAsmIntensitySlice()
-	asmSlice3.dx = 0.
-	asmSlice3.dy = 1.
-	asmSlice4 = PcaAsmIntensitySlice()
-	asmSlice4.dx = 0.
-	asmSlice4.dy = -1.
-	for sample in filteredSamples:
-		x = np.random.normal(scale=0.3)
-		for i in range(10):
-			asmSlice1.AddSample(sample, x, 0.)
-			asmSlice2.AddSample(sample, x, 0.)
-			asmSlice3.AddSample(sample, x, 0.)
-			asmSlice4.AddSample(sample, x, 0.)
-	asmSlice1.Prepare()
-	asmSlice2.Prepare()
-	asmSlice3.Prepare()
-	asmSlice4.Prepare()
-	#DumpNormalisedImages(filteredSamples)
 
 	trainInt = []
 	trainOff = []
@@ -261,24 +201,26 @@ def RunTest(log):
 		x = np.random.normal(scale=0.3)
 		print len(trainOff), x
 		sample = random.sample(trainNormSamples,1)[0]
+		sobelV = normalisedImage.KernelFilter(sample)
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
 
+		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
+		pixSobel = []
+		for px in pix:
+			pixSobel.extend(px)
+
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		asmFeat1 = asmSlice1.GetFeatures(sample, x, 0.)[:10]
-		asmFeat2 = asmSlice2.GetFeatures(sample, x, 0.)[:10]
-		asmFeat3 = asmSlice3.GetFeatures(sample, x, 0.)[:10]
-		asmFeat4 = asmSlice4.GetFeatures(sample, x, 0.)[:10]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat1, asmFeat2, asmFeat3, asmFeat4])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, pixSobel])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -296,24 +238,26 @@ def RunTest(log):
 		x = np.random.normal(scale=0.3)
 		print len(testOff), x
 		sample = random.sample(trainNormSamples,1)[0]	
+		sobelV = normalisedImage.KernelFilter(sample)
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
 
+		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
+		pixSobel = []
+		for px in pix:
+			pixSobel.extend(px)
+
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		asmFeat1 = asmSlice1.GetFeatures(sample, x, 0.)[:10]
-		asmFeat2 = asmSlice2.GetFeatures(sample, x, 0.)[:10]
-		asmFeat3 = asmSlice3.GetFeatures(sample, x, 0.)[:10]
-		asmFeat4 = asmSlice4.GetFeatures(sample, x, 0.)[:10]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, asmFeat1, asmFeat2, asmFeat3, asmFeat4])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, pixSobel])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)

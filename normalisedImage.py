@@ -1,6 +1,6 @@
 
 import urllib2
-import StringIO, procrustes, pxutil
+import StringIO, procrustes, pxutil, math
 from PIL import Image
 import numpy as np
 
@@ -78,6 +78,16 @@ class NormalisedImage:
 		
 		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 1)[0]
 
+	def GetPixelImPos(self, x, y):
+
+		#Lazy load of image
+		if self.imarr is None:
+			self.LoadImage()
+
+		imPos = self.GetPixelPosImPos(x, y)
+		imLoc = np.array([imPos], dtype=np.float64)
+		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 1)[0][0]
+
 	def GetPixelsImPos(self, pixPosLi):
 
 		#Lazy load of image
@@ -94,4 +104,46 @@ class NormalisedImage:
 
 	def NumPoints(self):
 		return len(self.model)
+
+class KernelFilter:
+	def __init__(self, normImIn):
+		self.kernel = [[1,0,-1],[2,0,-2],[1,0,-1]]
+		self.scale = 0.05
+		self.halfw = (len(self.kernel) - 1) / 2
+		self.normIm = normImIn
+		self.absVal = True
+		
+	def GetPixel(self, ptNum, xOff, yOff):
+		total = 0.
+		for x in range(-self.halfw, self.halfw+1):
+			for y in range(-self.halfw, self.halfw+1):
+				comp = self.kernel[y+self.halfw][x+self.halfw]
+				total += self.normIm.GetPixel(ptNum, self.scale*x+xOff, self.scale*y+yOff) * comp
+		#print xOff, yOff, total
+		if self.absVal:
+			return np.abs(total)
+		return total
+
+	def GetPixels(self, ptNum, pixPosLi):
+		out = []
+		for pos in pixPosLi:
+			out.append(self.GetPixel(ptNum, pos[0], pos[1]))
+		return out
+
+	def GetPixelImPos(self, xOff, yOff):
+		total = 0.
+		for x in range(-self.halfw, self.halfw+1):
+			for y in range(-self.halfw, self.halfw+1):
+				comp = self.kernel[y+self.halfw][x+self.halfw]
+				total += self.normIm.GetPixelImPos(self.scale*x+xOff, self.scale*y+yOff) * comp
+		#print xOff, yOff, total
+		if self.absVal:
+			return np.abs(total)
+		return total
+
+	def GetPixelsImPos(self, pixPosLi):
+		out = []
+		for pos in pixPosLi:
+			out.append(self.GetPixelImPos(pos[0], pos[1]))
+		return out
 
