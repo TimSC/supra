@@ -188,7 +188,8 @@ def RunTest(log):
 	print "Preparing encoding PCA"
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
-	supportPixOffSobelV = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+	supportPixOffSobelV = np.random.uniform(low=-0.3, high=0.3, size=(25, 2))
+	supportPixOffSobelH = np.random.uniform(low=-0.3, high=0.3, size=(25, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
 
@@ -202,6 +203,8 @@ def RunTest(log):
 		print len(trainOff), x
 		sample = random.sample(trainNormSamples,1)[0]
 		sobelV = normalisedImage.KernelFilter(sample)
+		sobelH = normalisedImage.KernelFilter(sample)
+		sobelH.kernel = [[1,2,1],[0,0,0],[-1,-2,-1]]
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
@@ -210,6 +213,10 @@ def RunTest(log):
 
 		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
 		pixSobel = []
+		for px in pix:
+			pixSobel.extend(px)
+
+		pix = ExtractSupportIntensity(sobelH, supportPixOffSobelH, 0, 0.+x, 0.)
 		for px in pix:
 			pixSobel.extend(px)
 
@@ -239,6 +246,8 @@ def RunTest(log):
 		print len(testOff), x
 		sample = random.sample(trainNormSamples,1)[0]	
 		sobelV = normalisedImage.KernelFilter(sample)
+		sobelH = normalisedImage.KernelFilter(sample)
+		sobelH.kernel = [[1,2,1],[0,0,0],[-1,-2,-1]]
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
@@ -247,6 +256,10 @@ def RunTest(log):
 
 		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
 		pixSobel = []
+		for px in pix:
+			pixSobel.extend(px)
+
+		pix = ExtractSupportIntensity(sobelH, supportPixOffSobelH, 0, 0.+x, 0.)
 		for px in pix:
 			pixSobel.extend(px)
 
