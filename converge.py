@@ -269,7 +269,7 @@ def RunTest(log):
 		predY = regY.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
 		testOffX.append(x)
-		testOffX.append(y)
+		testOffY.append(y)
 		testPredX.append(predX)
 		testPredY.append(predY)
 
