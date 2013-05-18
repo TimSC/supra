@@ -196,10 +196,11 @@ def RunTest(log):
 
 	while len(trainOff) < 10000:
 		x = np.random.normal(scale=0.3)
-		print len(trainOff), x
+		y = np.random.normal(scale=0.3)
+		print len(trainOff), x, y
 		sample = random.sample(trainNormSamples,1)[0]
 
-		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+		pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
@@ -210,7 +211,7 @@ def RunTest(log):
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, 0.+x, 0.))
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
 		hog = feature.hog(localPatch)
 
 		#print pixGrey
@@ -230,10 +231,11 @@ def RunTest(log):
 	testPred = []
 	while len(testOff) < 500:
 		x = np.random.normal(scale=0.3)
-		print len(testOff), x
+		y = np.random.normal(scale=0.3)
+		print len(testOff), x, y
 		sample = random.sample(trainNormSamples,1)[0]	
 
-		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+		pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
@@ -244,7 +246,7 @@ def RunTest(log):
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, 0.+x, 0.))
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
 		hog = feature.hog(localPatch)
 
 		#print pixGrey
@@ -274,7 +276,7 @@ def RunTest(log):
 
 if __name__ == "__main__":
 
-	log = open("log.txt","wt")
+	log = open("hog2d.txt","wt")
 	while 1:
 		RunTest(log)
 	
