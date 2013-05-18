@@ -160,8 +160,6 @@ def ColConv(px):
 	out = col.rgb2xyz([[px]])[0][0]
 	return out
 
-
-
 def RunTest(log):
 
 	if 0:
@@ -188,8 +186,6 @@ def RunTest(log):
 	print "Preparing encoding PCA"
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
-	supportPixOffSobelV = np.random.uniform(low=-0.3, high=0.3, size=(25, 2))
-	supportPixOffSobelH = np.random.uniform(low=-0.3, high=0.3, size=(25, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
 
@@ -202,23 +198,11 @@ def RunTest(log):
 		x = np.random.normal(scale=0.3)
 		print len(trainOff), x
 		sample = random.sample(trainNormSamples,1)[0]
-		sobelV = normalisedImage.KernelFilter(sample)
-		sobelH = normalisedImage.KernelFilter(sample)
-		sobelH.kernel = [[1,2,1],[0,0,0],[-1,-2,-1]]
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
-
-		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
-		pixSobel = []
-		for px in pix:
-			pixSobel.extend(px)
-
-		pix = ExtractSupportIntensity(sobelH, supportPixOffSobelH, 0, 0.+x, 0.)
-		for px in pix:
-			pixSobel.extend(px)
 
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
@@ -227,7 +211,7 @@ def RunTest(log):
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, pixSobel])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -245,23 +229,11 @@ def RunTest(log):
 		x = np.random.normal(scale=0.3)
 		print len(testOff), x
 		sample = random.sample(trainNormSamples,1)[0]	
-		sobelV = normalisedImage.KernelFilter(sample)
-		sobelH = normalisedImage.KernelFilter(sample)
-		sobelH.kernel = [[1,2,1],[0,0,0],[-1,-2,-1]]
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		pixConv = []
 		for px in pix:
 			pixConv.extend(ColConv(px))
-
-		pix = ExtractSupportIntensity(sobelV, supportPixOffSobelV, 0, 0.+x, 0.)
-		pixSobel = []
-		for px in pix:
-			pixSobel.extend(px)
-
-		pix = ExtractSupportIntensity(sobelH, supportPixOffSobelH, 0, 0.+x, 0.)
-		for px in pix:
-			pixSobel.extend(px)
 
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
@@ -270,7 +242,7 @@ def RunTest(log):
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, pixSobel])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
@@ -278,8 +250,18 @@ def RunTest(log):
 		testPred.append(pred)
 
 	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
-	print correl
-	log.write(str(correl)+"\n")
+	print "correl",correl
+
+	signTotal = 0
+	for tru, pred in zip(testOff, testPred):
+		truSign = tru >= 0.
+		predSign = pred >= 0.
+		if truSign == predSign:
+			signTotal += 1
+	signScore = float(signTotal) / len(testOff)
+	print "signScore",signScore
+
+	log.write(str(correl)+",\t"+str(signScore)+"\n")
 	log.flush()
 	#plt.plot(testOff, testPred, 'x')
 	#plt.show()
