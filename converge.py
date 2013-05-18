@@ -231,10 +231,22 @@ def RunTest(log):
 		trainOffX.append(x)
 		trainOffY.append(y)
 
-	regX = GradientBoostingRegressor()
-	regX.fit(trainInt, trainOffX)
-	regY = GradientBoostingRegressor()
-	regY.fit(trainInt, trainOffY)
+
+	regAxis = []
+	regAxis.append((math.cos(math.radians(0.)), math.sin(math.radians(0.))))
+	regAxis.append((math.cos(math.radians(45.)), math.sin(math.radians(45.))))
+	regAxis.append((math.cos(math.radians(90.)), math.sin(math.radians(90.))))
+	regAxis.append((math.cos(math.radians(135.)), math.sin(math.radians(135.))))
+	print regAxis
+	trainOffX = np.array(trainOffX)
+	trainOffY = np.array(trainOffY)
+
+	regSet = []
+	for axis in regAxis:
+		reg = GradientBoostingRegressor()
+		trainOff = trainOffX * axis[0] + trainOffY * axis[1]
+		reg.fit(trainInt, trainOff)
+		regSet.append(reg)
 
 	#trainPred = reg.predict(trainInt)
 	#plt.plot(trainOff, trainPred, 'x')
@@ -265,8 +277,16 @@ def RunTest(log):
 		#print pixGrey
 		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
 
-		predX = regX.predict([feat])[0]
-		predY = regY.predict([feat])[0]
+		totalX, totalY, weightX, weightY = 0., 0., 0., 0.
+		for reg, axis in zip(regSet, regAxis):
+			pred = reg.predict([feat])[0]
+			totalX += pred * axis[0]
+			totalY += pred * axis[1]
+			weightX += axis[0]
+			weightY += axis[1]
+		predX = totalX / weightX
+		predY = totalY / weightY
+
 		#print x, pred, valid, sum(valid)
 		testOffX.append(x)
 		testOffY.append(y)
