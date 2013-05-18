@@ -160,6 +160,16 @@ def ColConv(px):
 	out = col.rgb2xyz([[px]])[0][0]
 	return out
 
+def SignAgreement(testOff, testPred):
+	signTotal = 0
+	for tru, pred in zip(testOff, testPred):
+		truSign = tru >= 0.
+		predSign = pred >= 0.
+		if truSign == predSign:
+			signTotal += 1
+	signScore = float(signTotal) / len(testOff)
+	return signScore
+
 def RunTest(log):
 
 	if 0:
@@ -190,14 +200,14 @@ def RunTest(log):
 	pcaInt = PcaNormImageIntensity(filteredSamples)
 
 	trainInt = []
-	trainOff = []
+	trainOffX, trainOffY = [], []
 
 	print "Training model"
 
-	while len(trainOff) < 10000:
+	while len(trainOffX) < 10000:
 		x = np.random.normal(scale=0.3)
 		y = np.random.normal(scale=0.3)
-		print len(trainOff), x, y
+		print len(trainOffX), x, y
 		sample = random.sample(trainNormSamples,1)[0]
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
@@ -218,21 +228,24 @@ def RunTest(log):
 		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
 
 		trainInt.append(feat)
-		trainOff.append(x)
+		trainOffX.append(x)
+		trainOffY.append(y)
 
-	reg = GradientBoostingRegressor()
-	reg.fit(trainInt, trainOff)
+	regX = GradientBoostingRegressor()
+	regX.fit(trainInt, trainOffX)
+	regY = GradientBoostingRegressor()
+	regY.fit(trainInt, trainOffY)
 
 	#trainPred = reg.predict(trainInt)
 	#plt.plot(trainOff, trainPred, 'x')
 	#plt.show()
 
-	testOff = []
-	testPred = []
-	while len(testOff) < 500:
+	testOffX, testOffY = [], []
+	testPredX, testPredY = [], []
+	while len(testOffX) < 500:
 		x = np.random.normal(scale=0.3)
 		y = np.random.normal(scale=0.3)
-		print len(testOff), x, y
+		print len(testOffX), x, y
 		sample = random.sample(trainNormSamples,1)[0]	
 
 		pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
@@ -252,21 +265,22 @@ def RunTest(log):
 		#print pixGrey
 		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
 
-		pred = reg.predict([feat])[0]
+		predX = regX.predict([feat])[0]
+		predY = regY.predict([feat])[0]
 		#print x, pred, valid, sum(valid)
-		testOff.append(x)
-		testPred.append(pred)
+		testOffX.append(x)
+		testOffX.append(y)
+		testPredX.append(predX)
+		testPredY.append(predY)
 
-	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
+	correlX = np.corrcoef(np.array([testOffX]), np.array([testPredX]))[0,1]
+	correlY = np.corrcoef(np.array([testOffY]), np.array([testPredY]))[0,1]
+	correl = 0.5*(correlX+correlY)
 	print "correl",correl
 
-	signTotal = 0
-	for tru, pred in zip(testOff, testPred):
-		truSign = tru >= 0.
-		predSign = pred >= 0.
-		if truSign == predSign:
-			signTotal += 1
-	signScore = float(signTotal) / len(testOff)
+	signX = SignAgreement(testOffX, testPredX)
+	signY = SignAgreement(testOffY, testPredY)
+	signScore = 0.5 * (signX + signY)
 	print "signScore",signScore
 
 	log.write(str(correl)+",\t"+str(signScore)+"\n")
