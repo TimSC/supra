@@ -210,8 +210,11 @@ def RunTest(log):
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, 0.+x, 0.))
+		hog = feature.hog(localPatch)
+
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
 
 		trainInt.append(feat)
 		trainOff.append(x)
@@ -241,8 +244,11 @@ def RunTest(log):
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, 0.+x, 0.))
+		hog = feature.hog(localPatch)
+
 		#print pixGrey
-		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape])
+		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
 
 		pred = reg.predict([feat])[0]
 		#print x, pred, valid, sum(valid)

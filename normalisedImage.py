@@ -147,3 +147,13 @@ class KernelFilter:
 			out.append(self.GetPixelImPos(pos[0], pos[1]))
 		return out
 
+def ExtractPatch(normImage, ptNum, xOff, yOff, patchw=24, patchh=24, scale=0.08):
+
+	localPatch = np.zeros((patchh, patchw, 3), dtype=np.uint8)
+	for x in range(patchw):
+		for y in range(patchh):
+			localPatch[y,x,:] = normImage.GetPixel(ptNum, \
+				(x-((patchw-1)/2))*scale+xOff, \
+				(y-((patchh-1)/2))*scale+yOff)
+	return localPatch
+
