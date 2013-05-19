@@ -41,6 +41,7 @@ class SupraAxisSet():
 		self.supportPixHalfWidth = 0.3
 		self.supportPixNum = 50
 		self.supportPixOff = None
+		self.regAxis = None
 		self.ptNum = ptNumIn
 		self.wholisticFeat = None
 		self.trainFeatures = []
@@ -91,6 +92,39 @@ class SupraAxisSet():
 		for axis in self.regAxis:
 			axis.PrepareModel(combinedTrainingData, np.array(self.trainOffsets)[:,self.ptNum,:])
 
+	def Predict(self, sample, model, prevFrameFeatures):
+
+		ptX = model[self.ptNum,0]
+		ptY = model[self.ptNum,1]
+
+		#Extract sparse pixel intensities
+		pix = ExtractSupportIntensity(sample, self.supportPixOff, ptX, ptY, 0., 0.)
+		pixConv = []
+		for px in pix:
+			pixConv.extend(ColConv(px))
+		pixNorm = np.array(pixConv)
+		pixNorm -= pixNorm.mean()
+
+		#Extract texture using HOG
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, ptX, ptY))
+		hog = feature.hog(localPatch)
+		
+		combinedTrainingData = np.concatenate([pixNorm, hog])
+		if prevFrameFeatures is not None:
+			combinedTrainingData = np.hstack([combinedTrainingData, prevFrameFeatures])
+
+		#Get prediction from axis
+		totalX, totalY, weightX, weightY = 0., 0., 0., 0.
+		for axis in self.regAxis:
+			pr = axis.model.predict(combinedTrainingData)
+			totalX += pr * axis.axisx
+			totalY += pr * axis.axisy
+			weightX += axis.axisx
+			weightY += axis.axisy
+		predX = totalX / weightX
+		predY = totalY / weightY
+
+		return (predX, predY)
 
 class SupraCloud():
 
@@ -199,6 +233,14 @@ class SupraCloud():
 		appEigVecs = self.ProjectAppearanceToPca(app)
 		return np.hstack([shapeEigVecs[:self.numShapeComp], appEigVecs[:self.numAppComp]])
 
+	def Predict(self, sample, model, prevFrameFeatures):
+		currentModel = copy.deepcopy(model)
+		for num, tracker in enumerate(self.trackers):
+			pred = tracker.Predict(sample, model, prevFrameFeatures)
+			currentModel[num,0] += pred[0]
+			currentModel[num,1] += pred[1]
+		return currentModel
+
 	def ProjectAppearanceToPca(self, sample):
 		centred = sample - self.meanInt
 		return np.dot(centred, self.appv.transpose()) / self.apps
@@ -243,15 +285,16 @@ if __name__ == "__main__":
 	if 1:
 		cloudTracker = TrainTracker(trainNormSamples)
 		pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
+		pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
 	else:
 		cloudTracker = pickle.load(open("tracker.dat","rb"))
-
+		testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 
 	for sample in testNormSamples:
 		for count in range(5):
 
 			prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
-			print prevFrameFeat.shape
+			#print sample.procShape
 
 			testOffset = []
 			modProcShape = copy.deepcopy(sample.procShape)
@@ -262,7 +305,11 @@ if __name__ == "__main__":
 				modProcShape[pt,0] += x
 				modProcShape[pt,1] += y
 			
-			print modProcShape
-			#exit(0)
+			#print modProcShape
+			
+			pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
+			
+			for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
+				print testOff, actualPt, predPt, np.abs(actualPt - predPt)
 
 
