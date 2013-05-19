@@ -64,7 +64,7 @@ class WebcamWidget(gtk.Invisible):
 	def PollCamera(self, toWorker, fromWorker):
 		running = True
 		cap = cv.CaptureFromCAM(-1)
-		capture_size = (320,200)
+		capture_size = (640,480)
 		cv.SetCaptureProperty(cap, cv.CV_CAP_PROP_FRAME_WIDTH, capture_size[0])
 		cv.SetCaptureProperty(cap, cv.CV_CAP_PROP_FRAME_HEIGHT, capture_size[1])
 
