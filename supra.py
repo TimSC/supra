@@ -1,5 +1,5 @@
 
-import numpy as np, pickle, random, pxutil, copy, math
+import numpy as np, pickle, random, pxutil, copy, math, normalisedImage
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
 
@@ -62,7 +62,11 @@ class SupraAxisSet():
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
 
-		feat = np.concatenate([pixNorm])
+		#Extract texture using HOG
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, trainX, trainY))
+		hog = feature.hog(localPatch)
+
+		feat = np.concatenate([pixNorm, hog])
 		self.trainFeatures.append(feat)
 		self.trainOffsets.append(trainOffset)
 
@@ -203,12 +207,15 @@ if __name__ == "__main__":
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	tracker = SupraCloud()
+	cloudTracker = SupraCloud()
+	
+	print "Generating synthetic training data"
 	for count, sample in enumerate(trainNormSamples):
 		print count
-		tracker.AddTraining(sample, 1)
+		cloudTracker.AddTraining(sample, 25)
 	
-	tracker.PrepareModel()
+	print "Preparing Model"
+	cloudTracker.PrepareModel()
 
-
+	
 
