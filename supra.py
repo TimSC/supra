@@ -320,9 +320,9 @@ if __name__ == "__main__":
 			for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
 				error = actualPt - predPt
 				#print testOff, actualPt, predPt, error
-				testVal.append(predPt[0])
+				testVal.append(testOff[0])
 				testErr.append(error[0])
-				testVal.append(predPt[1])
+				testVal.append(testOff[1])
 				testErr.append(error[1])
 
 		
