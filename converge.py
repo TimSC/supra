@@ -226,6 +226,7 @@ def RunTest(log):
 
 		#print pixGrey
 		feat = np.concatenate([pixNorm, eigenPcaInt, eigenShape, hog])
+		print pixNorm.shape, eigenPcaInt.shape, eigenShape.shape, hog.shape
 
 		trainInt.append(feat)
 		trainOffX.append(x)

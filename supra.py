@@ -31,6 +31,7 @@ class SupraAxis():
 	def PrepareModel(self, features, offsets):
 		self.model = GradientBoostingRegressor()
 		labels = offsets[:,0] * self.axisx + offsets[:,1] * self.axisy
+
 		self.model.fit(features, labels)
 
 class SupraAxisSet():
@@ -93,6 +94,7 @@ class SupraCloud():
 	def __init__(self):
 		self.imgsSparseInt = []
 		self.flattenedShapes = []
+		self.sampleIndex = []
 		self.trackers = None	
 
 	def AddTraining(self, sample, numExamples):
@@ -126,6 +128,8 @@ class SupraCloud():
 
 			for tr in self.trackers:
 				tr.AddTraining(sample, trainOffset)
+				
+			self.sampleIndex.append(len(self.flattenedShapes)-1)
 
 			count += 1
 
@@ -146,7 +150,8 @@ class SupraCloud():
 		for shape in self.flattenedShapes:
 			shapeEigVec = self.ProjectShapeToPca(shape)
 			shapeEigVecs.append(shapeEigVec)
-		shapeEigVecs = np.array(shapeEigVecs)
+		shapeEigVecs = np.array(shapeEigVecs)[:,:5]
+		shapeEigVecs = shapeEigVecs[self.sampleIndex,:]
 
 		#Prepare PCA of intensity of sparse image
 		imgsSparseIntArr = np.array(self.imgsSparseInt)
@@ -163,7 +168,8 @@ class SupraCloud():
 		for app in self.imgsSparseInt:
 			appEigVec = self.ProjectAppearanceToPca(app)
 			appEigVecs.append(appEigVec)
-		appEigVecs = np.array(appEigVecs)
+		appEigVecs = np.array(appEigVecs)[:,:20]
+		appEigVecs = appEigVecs[self.sampleIndex,:]
 
 		for tr in self.trackers:
 			tr.AddHolisticFeatures(np.hstack([shapeEigVecs, appEigVecs]))
@@ -212,10 +218,10 @@ if __name__ == "__main__":
 	print "Generating synthetic training data"
 	for count, sample in enumerate(trainNormSamples):
 		print count
-		cloudTracker.AddTraining(sample, 25)
+		cloudTracker.AddTraining(sample, 5)
 	
 	print "Preparing Model"
 	cloudTracker.PrepareModel()
 
-	
+	pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 
