@@ -44,9 +44,9 @@ class SupraAxisSet():
 		self.supportPixOff = None
 		self.regAxis = None
 		self.ptNum = ptNumIn
-		self.wholisticFeat = None
 		self.trainFeatures = []
 		self.trainOffsets = []
+		self.holisticFeat = None
 
 	def AddTraining(self, sample, trainOffset):
 
@@ -211,8 +211,8 @@ class SupraCloud():
 		appEigVecs = np.array(appEigVecs)[:,:self.numAppComp]
 		appEigVecs = appEigVecs[self.sampleIndex,:]
 
-		for tr in self.trackers:
-			tr.AddHolisticFeatures(None) #SIMP
+		#for tr in self.trackers:
+		#	tr.AddHolisticFeatures(np.hstack([shapeEigVecs, appEigVecs])) #SIMP
 	
 		for tr in self.trackers:
 			tr.PrepareModel()
@@ -228,8 +228,7 @@ class SupraCloud():
 		return imgSparseInt
 
 	def CalcPrevFrameFeatures(self, sample, model):
-		return None #SIMP
-
+		return None
 		flatShape = np.array(model).reshape(model.size)
 		shapeEigVecs = self.ProjectShapeToPca(flatShape)
 		
@@ -243,6 +242,7 @@ class SupraCloud():
 		for numInter in range(self.numIterations):
 			for num, tracker in enumerate(self.trackers):
 				pred = tracker.Predict(sample, model, prevFrameFeatures)
+				return pred #SIMP
 				currentModel[num,0] -= pred[0]
 				currentModel[num,1] -= pred[1]
 		return currentModel
@@ -286,52 +286,59 @@ if __name__ == "__main__":
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:1,:]
 
-	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
-	halfInd = len(filteredSamples)/2
-	random.shuffle(filteredSamples)
-	trainNormSamples = filteredSamples[:halfInd]
-	testNormSamples = filteredSamples[halfInd:]
+	fi = open("log.txt","wt")
 
-	if 1:
-		cloudTracker = TrainTracker(trainNormSamples)
-		pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
-		pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
-	else:
-		cloudTracker = pickle.load(open("tracker.dat","rb"))
-		testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
+	while 1:
+		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
+		halfInd = len(filteredSamples)/2
+		random.shuffle(filteredSamples)
+		trainNormSamples = filteredSamples[:halfInd]
+		testNormSamples = filteredSamples[halfInd:]
 
-	#Run performance test
-	testVal, testErr = [], []
-	for sampleNum, sample in enumerate(testNormSamples):
-		print sampleNum
+		if 1:
+			cloudTracker = TrainTracker(trainNormSamples)
+			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
+			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
+		else:
+			cloudTracker = pickle.load(open("tracker.dat","rb"))
+			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
+
+		#Run performance test
+
+		testVal, testErr = [], []
+		for sampleNum, sample in enumerate(testNormSamples):
+			print sampleNum
 		
-		for count in range(1):
+			for count in range(1):
 
-			prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
-			#print sample.procShape
+				prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+				#print sample.procShape
 
-			testOffset = []
-			modProcShape = copy.deepcopy(sample.procShape)
-			for pt in range(sample.procShape.shape[0]):
-				x = np.random.normal(scale=0.3)
-				y = 0. #np.random.normal(scale=0.3) #SIMP
-				testOffset.append((x,y))
-				modProcShape[pt,0] += x
-				modProcShape[pt,1] += y
+				testOffset = []
+				modProcShape = copy.deepcopy(sample.procShape)
+				for pt in range(sample.procShape.shape[0]):
+					x = np.random.normal(scale=0.3)
+					y = 0. #np.random.normal(scale=0.3) #SIMP
+					testOffset.append((x,y))
+					modProcShape[pt,0] += x
+					modProcShape[pt,1] += y
 			
-			#print modProcShape
+				#print modProcShape
 			
-			pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
+				pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
 			
-			for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
-				error = actualPt - predPt
-				#print testOff, actualPt, predPt, error
-				testVal.append(testOff[0])
-				testErr.append(error[0])
-				testVal.append(testOff[1])
-				testErr.append(error[1])
-
-		
-	plt.plot(testVal, testErr, 'x')
-	plt.show()
+				for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
+					error = actualPt - predPt
+					#print testOff, actualPt, predPt, error
+					testVal.append(testOff[0])
+					testErr.append(pred[0])
+					#testVal.append(testOff[1])
+					#testErr.append(error[1])
+	
+		correl = np.corrcoef([testVal, testErr])[0,1]
+		print "correl", correl
+		fi.write(str(correl)+"\n")
+		fi.flush()
+		#plt.plot(testVal, testErr, 'bx')
+		#plt.show()
 
