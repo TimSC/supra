@@ -2,6 +2,7 @@
 import numpy as np, pickle, random, pxutil, copy, math, normalisedImage
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
+import matplotlib.pyplot as plt
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -136,6 +137,7 @@ class SupraCloud():
 		self.sparseAppTemplate = None
 		self.numShapeComp = 5
 		self.numAppComp = 20
+		self.numIterations = 2
 
 	def AddTraining(self, sample, numExamples):
 
@@ -235,10 +237,12 @@ class SupraCloud():
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		currentModel = copy.deepcopy(model)
-		for num, tracker in enumerate(self.trackers):
-			pred = tracker.Predict(sample, model, prevFrameFeatures)
-			currentModel[num,0] += pred[0]
-			currentModel[num,1] += pred[1]
+		
+		for numInter in range(self.numIterations):
+			for num, tracker in enumerate(self.trackers):
+				pred = tracker.Predict(sample, model, prevFrameFeatures)
+				currentModel[num,0] -= pred[0]
+				currentModel[num,1] -= pred[1]
 		return currentModel
 
 	def ProjectAppearanceToPca(self, sample):
@@ -282,7 +286,7 @@ if __name__ == "__main__":
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	if 1:
+	if 0:
 		cloudTracker = TrainTracker(trainNormSamples)
 		pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 		pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
@@ -290,8 +294,12 @@ if __name__ == "__main__":
 		cloudTracker = pickle.load(open("tracker.dat","rb"))
 		testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 
-	for sample in testNormSamples:
-		for count in range(5):
+	#Run performance test
+	testVal, testErr = [], []
+	for sampleNum, sample in enumerate(testNormSamples):
+		print sampleNum
+		
+		for count in range(1):
 
 			prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 			#print sample.procShape
@@ -310,6 +318,14 @@ if __name__ == "__main__":
 			pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
 			
 			for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
-				print testOff, actualPt, predPt, np.abs(actualPt - predPt)
+				error = actualPt - predPt
+				#print testOff, actualPt, predPt, error
+				testVal.append(predPt[0])
+				testErr.append(error[0])
+				testVal.append(predPt[1])
+				testErr.append(error[1])
 
+		
+	plt.plot(testVal, testErr, 'x')
+	plt.show()
 
