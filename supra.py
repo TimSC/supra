@@ -3,10 +3,11 @@ import numpy as np, pickle, random, pxutil, copy, math, normalisedImage
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
 
-def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
+def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
 	supportPixOff += [offX, offY]
-	return normImage.GetPixels(ptNum, supportPixOff)
+	supportPixOff += [ptX, ptY]
+	return normImage.GetPixelsImPos(supportPixOff)
 
 def ColConv(px):
 	out = col.rgb2xyz([[px]])[0][0]
@@ -55,7 +56,9 @@ class SupraAxisSet():
 		#Extract support pixel intensities
 		trainX = trainOffset[self.ptNum][0]
 		trainY = trainOffset[self.ptNum][1]
-		pix = ExtractSupportIntensity(sample, self.supportPixOff, self.ptNum, \
+		ptX = sample.procShape[self.ptNum][0]
+		ptY = sample.procShape[self.ptNum][1]
+		pix = ExtractSupportIntensity(sample, self.supportPixOff, ptX, ptY, \
 			trainX, trainY)
 		pixConv = []
 		for px in pix:
@@ -97,6 +100,8 @@ class SupraCloud():
 		self.sampleIndex = []
 		self.trackers = None
 		self.sparseAppTemplate = None
+		self.numShapeComp = 5
+		self.numAppComp = 20
 
 	def AddTraining(self, sample, numExamples):
 
@@ -109,14 +114,11 @@ class SupraCloud():
 		if self.sparseAppTemplate is None:
 			self.sparseAppTemplate = np.random.uniform(low=-0.3, \
 					high=0.3, size=(50, 2))
-		self.imgsSparseInt.append(self.ExtractFeatures(sample))
+		self.imgsSparseInt.append(self.ExtractFeatures(sample, sample.procShape))
 
 		#Init trackers, if necessary
 		if self.trackers is None:
 			self.trackers = [SupraAxisSet(ptNum) for ptNum in range(len(sample.model))]
-
-		#eigenPcaInt = self.ProjectAppearanceToPca(sample)[:20]
-		#eigenShape = self.ProjectShapeToPca(sample)[:5]
 
 		#Perturb tracker positions
 		count = 0
@@ -152,7 +154,7 @@ class SupraCloud():
 		for shape in self.flattenedShapes:
 			shapeEigVec = self.ProjectShapeToPca(shape)
 			shapeEigVecs.append(shapeEigVec)
-		shapeEigVecs = np.array(shapeEigVecs)[:,:5]
+		shapeEigVecs = np.array(shapeEigVecs)[:,:self.numShapeComp]
 		shapeEigVecs = shapeEigVecs[self.sampleIndex,:]
 
 		#Prepare PCA of intensity of sparse image
@@ -170,7 +172,7 @@ class SupraCloud():
 		for app in self.imgsSparseInt:
 			appEigVec = self.ProjectAppearanceToPca(app)
 			appEigVecs.append(appEigVec)
-		appEigVecs = np.array(appEigVecs)[:,:20]
+		appEigVecs = np.array(appEigVecs)[:,:self.numAppComp]
 		appEigVecs = appEigVecs[self.sampleIndex,:]
 
 		for tr in self.trackers:
@@ -179,13 +181,23 @@ class SupraCloud():
 		for tr in self.trackers:
 			tr.PrepareModel()
 
-	def ExtractFeatures(self, sample):
+	def ExtractFeatures(self, sample, model):
 		imgSparseInt = []
 		for pt in range(sample.NumPoints()):
-			pix = ExtractSupportIntensity(sample, self.sparseAppTemplate, pt, 0., 0.)
+			ptX = model[pt][0]
+			ptY = model[pt][1]
+			pix = ExtractSupportIntensity(sample, self.sparseAppTemplate, ptX, ptY, 0., 0.)
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 			imgSparseInt.extend(pixGrey)		
 		return imgSparseInt
+
+	def CalcPrevFrameFeatures(self, sample, model):
+		flatShape = np.array(model).reshape(model.size)
+		shapeEigVecs = self.ProjectShapeToPca(flatShape)
+		
+		app = self.ExtractFeatures(sample, model)
+		appEigVecs = self.ProjectAppearanceToPca(app)
+		return np.hstack([shapeEigVecs[:self.numShapeComp], appEigVecs[:self.numAppComp]])
 
 	def ProjectAppearanceToPca(self, sample):
 		centred = sample - self.meanInt
@@ -235,8 +247,22 @@ if __name__ == "__main__":
 		cloudTracker = pickle.load(open("tracker.dat","rb"))
 
 
-	#for sample in testNormSamples:
-		
+	for sample in testNormSamples:
+		for count in range(5):
 
+			prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+			print prevFrameFeat.shape
+
+			testOffset = []
+			modProcShape = copy.deepcopy(sample.procShape)
+			for pt in range(sample.procShape.shape[0]):
+				x = np.random.normal(scale=0.3)
+				y = np.random.normal(scale=0.3)
+				testOffset.append((x,y))
+				modProcShape[pt,0] += x
+				modProcShape[pt,1] += y
+			
+			print modProcShape
+			#exit(0)
 
 
