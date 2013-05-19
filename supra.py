@@ -34,6 +34,7 @@ class SupraAxis():
 		self.model = GradientBoostingRegressor()
 		labels = offsets[:,0] * self.axisx + offsets[:,1] * self.axisy
 
+		print "Final feature size", features.shape
 		self.model.fit(features, labels)
 
 class SupraAxisSet():
@@ -261,7 +262,7 @@ def TrainTracker(trainNormSamples):
 	print "Generating synthetic training data"
 	for count, sample in enumerate(trainNormSamples):
 		print count
-		cloudTracker.AddTraining(sample, 5)
+		cloudTracker.AddTraining(sample, 50)
 	
 	print "Preparing Model"
 	cloudTracker.PrepareModel()
