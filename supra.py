@@ -154,7 +154,7 @@ class SupraCloud():
 
 		#Init trackers, if necessary
 		if self.trackers is None:
-			self.trackers = [SupraAxisSet(ptNum) for ptNum in range(len(sample.model))]
+			self.trackers = [SupraAxisSet(ptNum) for ptNum in range(len(sample.procShape))]
 
 		#Perturb tracker positions
 		count = 0
@@ -219,7 +219,7 @@ class SupraCloud():
 
 	def ExtractFeatures(self, sample, model):
 		imgSparseInt = []
-		for pt in range(sample.NumPoints()):
+		for pt in range(len(model)):
 			ptX = model[pt][0]
 			ptY = model[pt][1]
 			pix = ExtractSupportIntensity(sample, self.sparseAppTemplate, ptX, ptY, 0., 0.)
@@ -280,13 +280,17 @@ if __name__ == "__main__":
 		if np.array(sample.model).std(axis=1)[0] > 15.:
 			filteredSamples.append(sample)
 
+	#Reduce problem to one point
+	for sample in filteredSamples:
+		sample.procShape = sample.procShape[0:1,:]
+
 	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
 	halfInd = len(filteredSamples)/2
 	random.shuffle(filteredSamples)
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	if 0:
+	if 1:
 		cloudTracker = TrainTracker(trainNormSamples)
 		pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 		pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
