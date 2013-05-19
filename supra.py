@@ -95,7 +95,8 @@ class SupraCloud():
 		self.imgsSparseInt = []
 		self.flattenedShapes = []
 		self.sampleIndex = []
-		self.trackers = None	
+		self.trackers = None
+		self.sparseAppTemplate = None
 
 	def AddTraining(self, sample, numExamples):
 
@@ -105,8 +106,9 @@ class SupraCloud():
 		self.flattenedShapes.append(sampleModel)
 
 		#Store intensity
-		self.sparseAppTemplate = np.random.uniform(low=-0.3, \
-				high=0.3, size=(50, 2))
+		if self.sparseAppTemplate is None:
+			self.sparseAppTemplate = np.random.uniform(low=-0.3, \
+					high=0.3, size=(50, 2))
 		self.imgsSparseInt.append(self.ExtractFeatures(sample))
 
 		#Init trackers, if necessary
@@ -193,6 +195,19 @@ class SupraCloud():
 		centred = sample - self.meanShape
 		return np.dot(centred, self.shapev.transpose()) / self.shapes
 
+def TrainTracker(trainNormSamples):
+	cloudTracker = SupraCloud()
+	
+	print "Generating synthetic training data"
+	for count, sample in enumerate(trainNormSamples):
+		print count
+		cloudTracker.AddTraining(sample, 5)
+	
+	print "Preparing Model"
+	cloudTracker.PrepareModel()
+	return cloudTracker
+
+
 if __name__ == "__main__":
 
 	if 0:
@@ -213,15 +228,15 @@ if __name__ == "__main__":
 	trainNormSamples = filteredSamples[:halfInd]
 	testNormSamples = filteredSamples[halfInd:]
 
-	cloudTracker = SupraCloud()
-	
-	print "Generating synthetic training data"
-	for count, sample in enumerate(trainNormSamples):
-		print count
-		cloudTracker.AddTraining(sample, 5)
-	
-	print "Preparing Model"
-	cloudTracker.PrepareModel()
+	if 1:
+		cloudTracker = TrainTracker(trainNormSamples)
+		pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
+	else:
+		cloudTracker = pickle.load(open("tracker.dat","rb"))
 
-	pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
+
+	#for sample in testNormSamples:
+		
+
+
 
