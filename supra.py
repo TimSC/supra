@@ -68,11 +68,11 @@ class SupraAxisSet():
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
 
-		#Extract texture using HOG
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, trainX, trainY))
-		hog = feature.hog(localPatch)
+		#Extract texture using HOG #SIMP
+		#localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, trainX, trainY))
+		#hog = feature.hog(localPatch)
 
-		feat = np.concatenate([pixNorm, hog])
+		feat = np.concatenate([pixNorm]) #SIMP
 		self.trainFeatures.append(feat)
 		self.trainOffsets.append(trainOffset)
 
@@ -86,9 +86,9 @@ class SupraAxisSet():
 
 		self.regAxis = []
 		self.regAxis.append(SupraAxis(math.cos(math.radians(0.)), math.sin(math.radians(0.))))
-		self.regAxis.append(SupraAxis(math.cos(math.radians(45.)), math.sin(math.radians(45.))))
+		#self.regAxis.append(SupraAxis(math.cos(math.radians(45.)), math.sin(math.radians(45.)))) #SIMP
 		self.regAxis.append(SupraAxis(math.cos(math.radians(90.)), math.sin(math.radians(90.))))
-		self.regAxis.append(SupraAxis(math.cos(math.radians(135.)), math.sin(math.radians(135.))))
+		#self.regAxis.append(SupraAxis(math.cos(math.radians(135.)), math.sin(math.radians(135.)))) #SIMP
 
 		for axis in self.regAxis:
 			axis.PrepareModel(combinedTrainingData, np.array(self.trainOffsets)[:,self.ptNum,:])
@@ -106,11 +106,11 @@ class SupraAxisSet():
 		pixNorm = np.array(pixConv)
 		pixNorm -= pixNorm.mean()
 
-		#Extract texture using HOG
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, ptX, ptY))
-		hog = feature.hog(localPatch)
+		#Extract texture using HOG #SIMP
+		#localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, ptX, ptY))
+		#hog = feature.hog(localPatch)
 		
-		combinedTrainingData = np.concatenate([pixNorm, hog])
+		combinedTrainingData = np.concatenate([pixNorm]) #SIMP
 		if prevFrameFeatures is not None:
 			combinedTrainingData = np.hstack([combinedTrainingData, prevFrameFeatures])
 
@@ -137,7 +137,7 @@ class SupraCloud():
 		self.sparseAppTemplate = None
 		self.numShapeComp = 5
 		self.numAppComp = 20
-		self.numIterations = 2
+		self.numIterations = 1 #SIMP
 
 	def AddTraining(self, sample, numExamples):
 
@@ -163,7 +163,7 @@ class SupraCloud():
 			trainOffset = []
 			for pt in range(sample.procShape.shape[0]):
 				x = np.random.normal(scale=0.3)
-				y = np.random.normal(scale=0.3)
+				y = 0. #np.random.normal(scale=0.3)#SIMP
 				trainOffset.append((x,y))
 
 			for tr in self.trackers:
@@ -212,7 +212,7 @@ class SupraCloud():
 		appEigVecs = appEigVecs[self.sampleIndex,:]
 
 		for tr in self.trackers:
-			tr.AddHolisticFeatures(np.hstack([shapeEigVecs, appEigVecs]))
+			tr.AddHolisticFeatures(None) #SIMP
 	
 		for tr in self.trackers:
 			tr.PrepareModel()
@@ -228,6 +228,8 @@ class SupraCloud():
 		return imgSparseInt
 
 	def CalcPrevFrameFeatures(self, sample, model):
+		return None #SIMP
+
 		flatShape = np.array(model).reshape(model.size)
 		shapeEigVecs = self.ProjectShapeToPca(flatShape)
 		
@@ -312,7 +314,7 @@ if __name__ == "__main__":
 			modProcShape = copy.deepcopy(sample.procShape)
 			for pt in range(sample.procShape.shape[0]):
 				x = np.random.normal(scale=0.3)
-				y = np.random.normal(scale=0.3)
+				y = 0. #np.random.normal(scale=0.3) #SIMP
 				testOffset.append((x,y))
 				modProcShape[pt,0] += x
 				modProcShape[pt,1] += y
