@@ -142,6 +142,10 @@ class PcaNormShape():
 
 		return np.dot(centred, self.v.transpose()) / self.s
 
+def ColConv(px):
+	out = col.rgb2xyz([[px]])[0][0]
+	return out
+
 def SignAgreement(testOff, testPred):
 	signTotal = 0
 	for tru, pred in zip(testOff, testPred):
@@ -197,7 +201,8 @@ def RunTest(log):
 			print len(trainOffX), x, y
 
 			pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
-			pixGrey = [pxutil.ToGrey(p) for p in pix]
+			pixGrey = np.array([ColConv(p) for p in pix])
+			pixGrey = pixGrey.reshape(pixGrey.size)
 
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
@@ -233,8 +238,9 @@ def RunTest(log):
 			print len(testOffX), x, y
 
 			pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
-			pixGrey = [pxutil.ToGrey(p) for p in pix]
-
+			pixGrey = np.array([ColConv(p) for p in pix])
+			pixGrey = pixGrey.reshape(pixGrey.size)
+			
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
