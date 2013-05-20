@@ -243,7 +243,7 @@ def RunTest(log):
 	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
 	print "correl",correl
 
-	signX = SignAgreement(testOffX, testPredX)
+	signX = SignAgreement(testOff, testPred)
 	print "signScore",signX
 
 	log.write(str(correl)+",\t"+str(signScore)+"\n")
