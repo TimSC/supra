@@ -176,26 +176,27 @@ def RunTest(log):
 	trainInt = []
 	trainOff = []
 
-	while len(trainOff) < 10000:
-		x = np.random.normal(scale=0.3)
-		print len(trainOff), x
-		sample = random.sample(trainNormSamples,1)[0]		
-
-		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
-		if sum(valid) != len(valid): continue
-		pixGrey = [pxutil.ToGrey(p) for p in pix]
-
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
+	for sample in trainNormSamples:
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
-		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+		for count in range(50):
+			x = np.random.normal(scale=0.3)
+			print len(trainOff), x
 
-		trainInt.append(feat)
-		trainOff.append(x)
+			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+			if sum(valid) != len(valid): continue
+			pixGrey = [pxutil.ToGrey(p) for p in pix]
+
+			pixGreyNorm = np.array(pixGrey)
+			pixGreyNorm -= pixGreyNorm.mean()
+
+			#print pixGrey
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+
+			trainInt.append(feat)
+			trainOff.append(x)
 
 	reg = GradientBoostingRegressor()
 	reg.fit(trainInt, trainOff)
@@ -206,28 +207,28 @@ def RunTest(log):
 
 	testOff = []
 	testPred = []
-	while len(testOff) < 500:
-		x = np.random.normal(scale=0.3)
-		print len(testOff), x
-		sample = random.sample(testNormSamples,1)[0]	
-
-		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
-		if sum(valid) != len(valid): continue
-		pixGrey = [pxutil.ToGrey(p) for p in pix]
-
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
-
+	for sample in testNormSamples:
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
-		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+		for count in range(3):
+			x = np.random.normal(scale=0.3)
+			print len(testOff), x
 
-		pred = reg.predict([feat])[0]
-		#print x, pred, valid, sum(valid)
-		testOff.append(x)
-		testPred.append(pred)
+			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+			if sum(valid) != len(valid): continue
+			pixGrey = [pxutil.ToGrey(p) for p in pix]
+
+			pixGreyNorm = np.array(pixGrey)
+			pixGreyNorm -= pixGreyNorm.mean()
+
+			#print pixGrey
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+
+			pred = reg.predict([feat])[0]
+			#print x, pred, valid, sum(valid)
+			testOff.append(x)
+			testPred.append(pred)
 
 	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
 	print correl
