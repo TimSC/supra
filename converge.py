@@ -182,6 +182,7 @@ def RunTest(log):
 	testNormSamples = filteredSamples[halfInd:]
 
 	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+	supportPixOffSobel = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
 	pcaShape = PcaNormShape(filteredSamples)
 	pcaInt = PcaNormImageIntensity(filteredSamples)
 
@@ -194,6 +195,7 @@ def RunTest(log):
 
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
+		sobelSample = normalisedImage.KernelFilter(sample)
 
 		for count in range(50):
 			x = np.random.normal(scale=0.3)
@@ -207,11 +209,19 @@ def RunTest(log):
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
+			pixSobel = ExtractSupportIntensity(sobelSample, supportPixOffSobel, 0, x, y)
+			pixConvSobel = []
+			for px in pixSobel:
+				pixConvSobel.extend(px)
+
+			pixNormSobel = np.array(pixConvSobel)
+			pixNormSobel -= pixNormSobel.mean()
+
 			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog])
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog, pixNormSobel])
 
 			trainInt.append(feat)
 			trainOffX.append(x)
@@ -231,6 +241,7 @@ def RunTest(log):
 	for sample in testNormSamples:
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
+		sobelSample = normalisedImage.KernelFilter(sample)
 
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
@@ -244,11 +255,19 @@ def RunTest(log):
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
+			pixSobel = ExtractSupportIntensity(sobelSample, supportPixOffSobel, 0, x, y)
+			pixConvSobel = []
+			for px in pixSobel:
+				pixConvSobel.extend(px)
+
+			pixNormSobel = np.array(pixConvSobel)
+			pixNormSobel -= pixNormSobel.mean()
+
 			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog])
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog, pixNormSobel])
 
 			predX = regX.predict([feat])[0]
 			predY = regY.predict([feat])[0]
