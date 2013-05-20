@@ -209,7 +209,7 @@ def RunTest(log):
 	while len(testOff) < 500:
 		x = np.random.normal(scale=0.3)
 		print len(testOff), x
-		sample = random.sample(trainNormSamples,1)[0]	
+		sample = random.sample(testNormSamples,1)[0]	
 
 		pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
 		if sum(valid) != len(valid): continue
