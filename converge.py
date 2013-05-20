@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import procrustes, pxutil
 import normalisedImage
 from sklearn.ensemble import GradientBoostingRegressor
+import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -49,7 +50,7 @@ def DumpNormalisedImages(filteredSamples):
 				pos.append((nx,ny))
 				posIm.append((x,y))
 		
-		posInts, intValid = sample.GetPixelsImPos(pos)
+		posInts = sample.GetPixelsImPos(pos)
 		for p, px in zip(posIm, posInts):
 			#print posIm, px
 			iml[p[0], p[1]] = tuple(map(int,map(round,px)))
@@ -88,8 +89,7 @@ class PcaNormImageIntensity():
 	def ExtractFeatures(self, sample):
 		imgSparseInt = []
 		for pt in range(sample.NumPoints()):
-			pix, valid = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
-			assert sum(valid) == len(valid)
+			pix = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 			imgSparseInt.extend(pixGrey)		
 		return imgSparseInt
@@ -196,15 +196,17 @@ def RunTest(log):
 			y = np.random.normal(scale=0.3)
 			print len(trainOffX), x, y
 
-			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
-			if sum(valid) != len(valid): continue
+			pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
+			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
+			hog = feature.hog(localPatch)
+
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+			feat = np.concatenate([pixGreyNorm, hog])
 
 			trainInt.append(feat)
 			trainOffX.append(x)
@@ -230,19 +232,21 @@ def RunTest(log):
 			y = np.random.normal(scale=0.3)
 			print len(testOffX), x, y
 
-			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
-			if sum(valid) != len(valid): continue
+			pix = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
+			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
+			hog = feature.hog(localPatch)
+
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
+			feat = np.concatenate([pixGreyNorm, hog])
 
 			predX = regX.predict([feat])[0]
 			predY = regY.predict([feat])[0]
-			#print x, pred, valid, sum(valid)
+			#print x, pred
 			testOffX.append(x)
 			testOffY.append(y)
 			testPredX.append(predX)
@@ -265,7 +269,7 @@ def RunTest(log):
 
 if __name__ == "__main__":
 
-	log = open("shapeandint.txt","wt")
+	log = open("hog.txt","wt")
 	while 1:
 		RunTest(log)
 	
