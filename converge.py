@@ -184,7 +184,7 @@ def RunTest(log):
 	#DumpNormalisedImages(filteredSamples)
 
 	trainInt = []
-	trainOff = []
+	trainOffX, trainOffY = [], []
 
 	for sample in trainNormSamples:
 
@@ -193,9 +193,10 @@ def RunTest(log):
 
 		for count in range(50):
 			x = np.random.normal(scale=0.3)
-			print len(trainOff), x
+			y = np.random.normal(scale=0.3)
+			print len(trainOff), x, y
 
-			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			if sum(valid) != len(valid): continue
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 
@@ -206,26 +207,30 @@ def RunTest(log):
 			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
 
 			trainInt.append(feat)
-			trainOff.append(x)
+			trainOffX.append(x)
+			trainOffY.append(y)
 
-	reg = GradientBoostingRegressor()
-	reg.fit(trainInt, trainOff)
+	regX = GradientBoostingRegressor()
+	regX.fit(trainInt, trainOffX)
+	regY = GradientBoostingRegressor()
+	regY.fit(trainInt, trainOffY)
 
 	#trainPred = reg.predict(trainInt)
 	#plt.plot(trainOff, trainPred, 'x')
 	#plt.show()
 
-	testOff = []
-	testPred = []
+	testOffX, testOffY = [], []
+	testPredX, testPredY = [], []
 	for sample in testNormSamples:
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
 
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
-			print len(testOff), x
+			y = np.random.normal(scale=0.3)
+			print len(testOff), x, y
 
-			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, 0.+x, 0.)
+			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			if sum(valid) != len(valid): continue
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 
@@ -235,15 +240,22 @@ def RunTest(log):
 			#print pixGrey
 			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape])
 
-			pred = reg.predict([feat])[0]
+			predX = regX.predict([feat])[0]
+			predY = regY.predict([feat])[0]
 			#print x, pred, valid, sum(valid)
-			testOff.append(x)
-			testPred.append(pred)
+			testOffX.append(x)
+			testOffX.append(y)
+			testPredX.append(predX)
+			testPredY.append(predY)
 
-	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
+	correlX = np.corrcoef(np.array([testOffX]), np.array([testPredX]))[0,1]
+	correlY = np.corrcoef(np.array([testOffY]), np.array([testPredY]))[0,1]
+	correl = 0.5*(correlX+correlY)
 	print "correl",correl
 
-	signX = SignAgreement(testOff, testPred)
+	signX = SignAgreement(testOffX, testPredX)
+	signY = SignAgreement(testOffY, testPredY)
+	signScore = 0.5 * (signX + signY)
 	print "signScore",signX
 
 	log.write(str(correl)+",\t"+str(signScore)+"\n")
