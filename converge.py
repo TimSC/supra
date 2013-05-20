@@ -142,6 +142,16 @@ class PcaNormShape():
 
 		return np.dot(centred, self.v.transpose()) / self.s
 
+def SignAgreement(testOff, testPred):
+	signTotal = 0
+	for tru, pred in zip(testOff, testPred):
+		truSign = tru >= 0.
+		predSign = pred >= 0.
+		if truSign == predSign:
+			signTotal += 1
+	signScore = float(signTotal) / len(testOff)
+	return signScore
+
 def RunTest(log):
 
 	if 0:
@@ -231,15 +241,19 @@ def RunTest(log):
 			testPred.append(pred)
 
 	correl = np.corrcoef(np.array([testOff]), np.array([testPred]))[0,1]
-	print correl
-	log.write(str(correl)+"\n")
+	print "correl",correl
+
+	signX = SignAgreement(testOffX, testPredX)
+	print "signScore",signX
+
+	log.write(str(correl)+",\t"+str(signScore)+"\n")
 	log.flush()
 	#plt.plot(testOff, testPred, 'x')
 	#plt.show()
 
 if __name__ == "__main__":
 
-	log = open("shapeandint.txt","wt")
+	log = open("shape.txt","wt")
 	while 1:
 		RunTest(log)
 	
