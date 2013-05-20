@@ -253,7 +253,7 @@ def RunTest(log):
 
 if __name__ == "__main__":
 
-	log = open("shape.txt","wt")
+	log = open("shapeandint.txt","wt")
 	while 1:
 		RunTest(log)
 	
