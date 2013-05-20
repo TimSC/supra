@@ -194,7 +194,7 @@ def RunTest(log):
 		for count in range(50):
 			x = np.random.normal(scale=0.3)
 			y = np.random.normal(scale=0.3)
-			print len(trainOff), x, y
+			print len(trainOffX), x, y
 
 			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			if sum(valid) != len(valid): continue
@@ -228,7 +228,7 @@ def RunTest(log):
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
 			y = np.random.normal(scale=0.3)
-			print len(testOff), x, y
+			print len(testOffX), x, y
 
 			pix, valid = ExtractSupportIntensity(sample, supportPixOff, 0, x, y)
 			if sum(valid) != len(valid): continue
@@ -244,7 +244,7 @@ def RunTest(log):
 			predY = regY.predict([feat])[0]
 			#print x, pred, valid, sum(valid)
 			testOffX.append(x)
-			testOffX.append(y)
+			testOffY.append(y)
 			testPredX.append(predX)
 			testPredY.append(predY)
 
