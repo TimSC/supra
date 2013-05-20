@@ -206,7 +206,7 @@ def RunTest(log):
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, hog])
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog])
 
 			trainInt.append(feat)
 			trainOffX.append(x)
@@ -242,7 +242,7 @@ def RunTest(log):
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, hog])
+			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog])
 
 			predX = regX.predict([feat])[0]
 			predY = regY.predict([feat])[0]
@@ -269,7 +269,7 @@ def RunTest(log):
 
 if __name__ == "__main__":
 
-	log = open("hog.txt","wt")
+	log = open("all.txt","wt")
 	while 1:
 		RunTest(log)
 	
