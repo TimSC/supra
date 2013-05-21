@@ -134,7 +134,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 	#DumpNormalisedImages(filteredSamples)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
-		print sampleCount
+		print sampleCount, len(trainNormSamples)
 		#eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		#eigenShape = pcaShape.ProjectToPca(sample)[:5]
 		#sobelSample = normalisedImage.KernelFilter(sample)
@@ -157,17 +157,19 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
 			y = np.random.normal(scale=0.3)
+			
 			print len(testOffX), x, y
 
 			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
-			pix = ExtractSupportIntensity(sample, cloudTracker.trackers[0].supportPixOff, ptX, ptY, x, y)
+			testX, testY = ptX + x, ptY + y
+			pix = ExtractSupportIntensity(sample, cloudTracker.trackers[0].supportPixOff, testX, testY, 0., 0.)
 			pixGrey = np.array([ColConv(p) for p in pix])
 			pixGrey = pixGrey.reshape(pixGrey.size)
 			
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
-			pixSobel = ExtractSupportIntensity(sobelSample, cloudTracker.trackers[0].supportPixOffSobel, ptX, ptY, x, y)
+			pixSobel = ExtractSupportIntensity(sobelSample, cloudTracker.trackers[0].supportPixOffSobel, testX, testY, 0., 0.)
 			pixConvSobel = []
 			for px in pixSobel:
 				pixConvSobel.extend(px)
@@ -175,7 +177,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 			pixNormSobel = np.array(pixConvSobel)
 			pixNormSobel -= pixNormSobel.mean()
 
-			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
+			localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, testX, testY))
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
