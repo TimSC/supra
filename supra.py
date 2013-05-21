@@ -157,25 +157,18 @@ class SupraCloud():
 		return out
 
 
-def TrainTracker(trainNormSamples, testNormSamples, log):
+def TrainTracker(trainNormSamples):
 	cloudTracker = SupraCloud(trainNormSamples)
-
-	#DumpNormalisedImages(filteredSamples)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print sampleCount, len(trainNormSamples)
-		#eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
-		#eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		#sobelSample = normalisedImage.KernelFilter(sample)
-
 		cloudTracker.AddTraining(sample, 50)
 
 	cloudTracker.PrepareModel()
 
-	#trainPred = reg.predict(trainInt)
-	#plt.plot(trainOff, trainPred, 'x')
-	#plt.show()
+	return cloudTracker
 
+def TestTracker(cloudTracker, testNormSamples):
 	testOffX, testOffY = [], []
 	testPredX, testPredY = [], []
 	for sample in testNormSamples:
@@ -229,6 +222,8 @@ if __name__ == "__main__":
 		if np.array(sample.model).std(axis=1)[0] > 15.:
 			filteredSamples.append(sample)
 
+	#DumpNormalisedImages(filteredSamples)
+
 	#Reduce problem to one point
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:1,:]
@@ -242,8 +237,8 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
-			cloudTracker = TrainTracker(trainNormSamples, testNormSamples, log)
+		if 0:
+			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
 		else:
@@ -251,4 +246,5 @@ if __name__ == "__main__":
 			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 
 		#Run performance test
+		TestTracker(cloudTracker, testNormSamples)
 
