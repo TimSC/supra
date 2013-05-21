@@ -88,6 +88,8 @@ class SupraAxisSet():
 		self.regY.fit(self.trainInt, self.trainOffY)
 
 	def Predict(self, sample, model, prevFrameFeatures):
+		sobelSample = normalisedImage.KernelFilter(sample)
+
 		pix = ExtractSupportIntensity(sample, self.supportPixOff, model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
 		pixGrey = np.array([ColConv(p) for p in pix])
 		pixGrey = pixGrey.reshape(pixGrey.size)
@@ -179,6 +181,8 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 		eigenPcaInt = cloudTracker.pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = cloudTracker.pcaShape.ProjectToPca(sample)[:5]
 		sobelSample = normalisedImage.KernelFilter(sample)
+		cloudTracker.trackers[0].eigenPcaInt = eigenPcaInt
+		cloudTracker.trackers[0].eigenShape = eigenShape
 
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
