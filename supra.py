@@ -34,26 +34,78 @@ class SupraAxis():
 class SupraAxisSet():
 
 	def __init__(self, ptNumIn):
-		pass
+		self.ptNum = ptNumIn
+		self.supportPixOff = None
+		self.supportPixOffSobel = None
+		self.trainInt = []
+		self.trainOffX, self.trainOffY = [], []
 
 	def AddTraining(self, sample, trainOffset):
-		pass
+
+		if self.supportPixOff is None:
+			self.supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+		if self.supportPixOffSobel is None:
+			self.supportPixOffSobel = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+
+		xOff = trainOffset[self.ptNum][0]
+		yOff = trainOffset[self.ptNum][1]
+		sobelSample = normalisedImage.KernelFilter(sample)
+
+		ptX, ptY = sample.procShape[self.ptNum][0], sample.procShape[self.ptNum][1]
+		pix = ExtractSupportIntensity(sample, self.supportPixOff, ptX, ptY, xOff, yOff)
+		pixGrey = np.array([ColConv(p) for p in pix])
+		pixGrey = pixGrey.reshape(pixGrey.size)
+
+		pixGreyNorm = np.array(pixGrey)
+		pixGreyNorm -= pixGreyNorm.mean()
+
+		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, ptX, ptY, xOff, yOff)
+		pixConvSobel = []
+		for px in pixSobel:
+			pixConvSobel.extend(px)
+
+		pixNormSobel = np.array(pixConvSobel)
+		pixNormSobel -= pixNormSobel.mean()
+
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, xOff, yOff))
+		hog = feature.hog(localPatch)
+
+		#print pixGrey
+		feat = np.concatenate([pixGreyNorm, hog, self.holisiticFeatures, pixNormSobel])
+
+		self.trainInt.append(feat)
+		self.trainOffX.append(xOff)
+		self.trainOffY.append(yOff)
 
 	def AddHolisticFeatures(self, feat):
-		pass
+		self.holisiticFeatures = feat
 
 	def PrepareModel(self):
 		pass
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		pass
+
 class SupraCloud():
 
 	def __init__(self):
-		pass
+		self.trackers = None
 
 	def AddTraining(self, sample, numExamples):
-		pass
+		if self.trackers is None:
+			self.trackers = [SupraAxisSet(x) for x in range(sample.NumPoints())]
+
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample)[:20]
+		eigenShape = self.pcaShape.ProjectToPca(sample)[:5]
+
+		for sampleCount in range(numExamples):
+			perturb = []
+			for num in range(sample.NumPoints()):
+				perturb.append((np.random.normal(scale=0.3),np.random.normal(scale=0.3)))
+
+			for count, tracker in enumerate(self.trackers):
+				tracker.AddHolisticFeatures(np.concatenate([eigenPcaInt, eigenShape]))
+				tracker.AddTraining(sample, perturb)
 
 	def PrepareModel(self):
 		pass
@@ -71,57 +123,23 @@ class SupraCloud():
 def TrainTracker(trainNormSamples, testNormSamples, log):
 	cloudTracker = SupraCloud()
 	
-	supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
-	supportPixOffSobel = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
-	pcaShape = converge.PcaNormShape(filteredSamples)
-	pcaInt = converge.PcaNormImageIntensity(filteredSamples)
+	cloudTracker.pcaShape = converge.PcaNormShape(trainNormSamples)
+	cloudTracker.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
 
 	#DumpNormalisedImages(filteredSamples)
 
-	trainInt = []
-	trainOffX, trainOffY = [], []
+	for sampleCount, sample in enumerate(trainNormSamples):
+		print sampleCount
+		#eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
+		#eigenShape = pcaShape.ProjectToPca(sample)[:5]
+		#sobelSample = normalisedImage.KernelFilter(sample)
 
-	for sample in trainNormSamples:
-
-		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		sobelSample = normalisedImage.KernelFilter(sample)
-
-		for count in range(50):
-			x = np.random.normal(scale=0.3)
-			y = np.random.normal(scale=0.3)
-			print len(trainOffX), x, y
-
-			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
-			pix = ExtractSupportIntensity(sample, supportPixOff, ptX, ptY, x, y)
-			pixGrey = np.array([ColConv(p) for p in pix])
-			pixGrey = pixGrey.reshape(pixGrey.size)
-
-			pixGreyNorm = np.array(pixGrey)
-			pixGreyNorm -= pixGreyNorm.mean()
-
-			pixSobel = ExtractSupportIntensity(sobelSample, supportPixOffSobel, ptX, ptY, x, y)
-			pixConvSobel = []
-			for px in pixSobel:
-				pixConvSobel.extend(px)
-
-			pixNormSobel = np.array(pixConvSobel)
-			pixNormSobel -= pixNormSobel.mean()
-
-			localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, 0, x, y))
-			hog = feature.hog(localPatch)
-
-			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog, pixNormSobel])
-
-			trainInt.append(feat)
-			trainOffX.append(x)
-			trainOffY.append(y)
+		cloudTracker.AddTraining(sample, 50)
 
 	regX = GradientBoostingRegressor()
-	regX.fit(trainInt, trainOffX)
+	regX.fit(cloudTracker.trackers[0].trainInt, cloudTracker.trackers[0].trainOffX)
 	regY = GradientBoostingRegressor()
-	regY.fit(trainInt, trainOffY)
+	regY.fit(cloudTracker.trackers[0].trainInt, cloudTracker.trackers[0].trainOffY)
 
 	#trainPred = reg.predict(trainInt)
 	#plt.plot(trainOff, trainPred, 'x')
@@ -130,8 +148,8 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 	testOffX, testOffY = [], []
 	testPredX, testPredY = [], []
 	for sample in testNormSamples:
-		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = pcaShape.ProjectToPca(sample)[:5]
+		eigenPcaInt = cloudTracker.pcaInt.ProjectToPca(sample)[:20]
+		eigenShape = cloudTracker.pcaShape.ProjectToPca(sample)[:5]
 		sobelSample = normalisedImage.KernelFilter(sample)
 
 		for count in range(3):
@@ -140,14 +158,14 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 			print len(testOffX), x, y
 
 			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
-			pix = ExtractSupportIntensity(sample, supportPixOff, ptX, ptY, x, y)
+			pix = ExtractSupportIntensity(sample, cloudTracker.trackers[0].supportPixOff, ptX, ptY, x, y)
 			pixGrey = np.array([ColConv(p) for p in pix])
 			pixGrey = pixGrey.reshape(pixGrey.size)
 			
 			pixGreyNorm = np.array(pixGrey)
 			pixGreyNorm -= pixGreyNorm.mean()
 
-			pixSobel = ExtractSupportIntensity(sobelSample, supportPixOffSobel, ptX, ptY, x, y)
+			pixSobel = ExtractSupportIntensity(sobelSample, cloudTracker.trackers[0].supportPixOffSobel, ptX, ptY, x, y)
 			pixConvSobel = []
 			for px in pixSobel:
 				pixConvSobel.extend(px)
@@ -159,7 +177,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 			hog = feature.hog(localPatch)
 
 			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, eigenPcaInt, eigenShape, hog, pixNormSobel])
+			feat = np.concatenate([pixGreyNorm, hog, eigenPcaInt, eigenShape, pixNormSobel])
 
 			predX = regX.predict([feat])[0]
 			predY = regY.predict([feat])[0]
