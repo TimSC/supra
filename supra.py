@@ -39,6 +39,7 @@ class SupraAxisSet():
 		self.supportPixOffSobel = None
 		self.trainInt = []
 		self.trainOffX, self.trainOffY = [], []
+		self.regX, self.regY = None, None
 
 	def AddTraining(self, sample, trainOffset):
 
@@ -81,7 +82,10 @@ class SupraAxisSet():
 		self.holisiticFeatures = feat
 
 	def PrepareModel(self):
-		pass
+		self.regX = GradientBoostingRegressor()
+		self.regX.fit(self.trainInt, self.trainOffX)
+		self.regY = GradientBoostingRegressor()
+		self.regY.fit(self.trainInt, self.trainOffY)
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		pass
@@ -108,7 +112,8 @@ class SupraCloud():
 				tracker.AddTraining(sample, perturb)
 
 	def PrepareModel(self):
-		pass
+		for tracker in self.trackers:
+			tracker.PrepareModel()
 
 	def ExtractFeatures(self, sample, model):
 		pass
@@ -136,10 +141,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 
 		cloudTracker.AddTraining(sample, 50)
 
-	regX = GradientBoostingRegressor()
-	regX.fit(cloudTracker.trackers[0].trainInt, cloudTracker.trackers[0].trainOffX)
-	regY = GradientBoostingRegressor()
-	regY.fit(cloudTracker.trackers[0].trainInt, cloudTracker.trackers[0].trainOffY)
+	cloudTracker.PrepareModel()
 
 	#trainPred = reg.predict(trainInt)
 	#plt.plot(trainOff, trainPred, 'x')
@@ -179,8 +181,8 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 			#print pixGrey
 			feat = np.concatenate([pixGreyNorm, hog, eigenPcaInt, eigenShape, pixNormSobel])
 
-			predX = regX.predict([feat])[0]
-			predY = regY.predict([feat])[0]
+			predX = cloudTracker.trackers[0].regX.predict([feat])[0]
+			predY = cloudTracker.trackers[0].regY.predict([feat])[0]
 			#print x, pred
 			testOffX.append(x)
 			testOffY.append(y)
@@ -199,7 +201,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 
 	log.write(str(correl)+",\t"+str(signScore)+"\n")
 	log.flush()
-
+	return cloudTracker
 
 if __name__ == "__main__":
 
@@ -238,41 +240,42 @@ if __name__ == "__main__":
 
 		#Run performance test
 
-		testVal, testErr = [], []
-		for sampleNum, sample in enumerate(testNormSamples):
-			print sampleNum
+		if 0:
+			testVal, testErr = [], []
+			for sampleNum, sample in enumerate(testNormSamples):
+				print sampleNum
 		
-			for count in range(1):
+				for count in range(1):
 
-				prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
-				#print sample.procShape
+					prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+					#print sample.procShape
 
-				testOffset = []
-				modProcShape = copy.deepcopy(sample.procShape)
-				for pt in range(sample.procShape.shape[0]):
-					x = np.random.normal(scale=0.3)
-					y = 0. #np.random.normal(scale=0.3) #SIMP
-					testOffset.append((x,y))
-					modProcShape[pt,0] += x
-					modProcShape[pt,1] += y
+					testOffset = []
+					modProcShape = copy.deepcopy(sample.procShape)
+					for pt in range(sample.procShape.shape[0]):
+						x = np.random.normal(scale=0.3)
+						y = 0. #np.random.normal(scale=0.3) #SIMP
+						testOffset.append((x,y))
+						modProcShape[pt,0] += x
+						modProcShape[pt,1] += y
 			
-				#print modProcShape
+					#print modProcShape
 			
-				pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
+					pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
 			
-				for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
-					error = actualPt - predPt
-					#print testOff, actualPt, predPt, error
-					testVal.append(testOff[0])
-					testErr.append(pred[0])
-					#testVal.append(testOff[1])
-					#testErr.append(error[1])
-	
-		correl = np.corrcoef([testVal, testErr])[0,1]
-		print "correl", correl
-		log.write(str(correl)+"\n")
-		log.flush()
-		#plt.plot(testVal, testErr, 'bx')
-		#plt.show()
+					for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
+						error = actualPt - predPt
+						#print testOff, actualPt, predPt, error
+						testVal.append(testOff[0])
+						testErr.append(pred[0])
+						#testVal.append(testOff[1])
+						#testErr.append(error[1])
 
+		if 0:
+			correl = np.corrcoef([testVal, testErr])[0,1]
+			print "correl", correl
+			log.write(str(correl)+"\n")
+			log.flush()
+			#plt.plot(testVal, testErr, 'bx')
+			#plt.show()
 
