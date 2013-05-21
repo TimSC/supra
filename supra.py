@@ -109,7 +109,7 @@ class SupraAxisSet():
 		hog = feature.hog(localPatch)
 
 		#print pixGrey
-		feat = np.concatenate([pixGreyNorm, hog, self.eigenPcaInt, self.eigenShape, pixNormSobel])
+		feat = np.concatenate([pixGreyNorm, hog, prevFrameFeatures, pixNormSobel])
 
 		predX = self.regX.predict([feat])[0]
 		predY = self.regY.predict([feat])[0]
@@ -117,8 +117,10 @@ class SupraAxisSet():
 
 class SupraCloud():
 
-	def __init__(self):
+	def __init__(self, trainNormSamples):
 		self.trackers = None
+		self.pcaShape = converge.PcaNormShape(trainNormSamples)
+		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
 
 	def AddTraining(self, sample, numExamples):
 		if self.trackers is None:
@@ -144,7 +146,9 @@ class SupraCloud():
 		pass
 
 	def CalcPrevFrameFeatures(self, sample, model):
-		pass
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample)[:20]
+		eigenShape = self.pcaShape.ProjectToPca(sample)[:5]
+		return np.concatenate([eigenPcaInt, eigenShape])
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		out = []
@@ -154,10 +158,7 @@ class SupraCloud():
 
 
 def TrainTracker(trainNormSamples, testNormSamples, log):
-	cloudTracker = SupraCloud()
-	
-	cloudTracker.pcaShape = converge.PcaNormShape(trainNormSamples)
-	cloudTracker.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
+	cloudTracker = SupraCloud(trainNormSamples)
 
 	#DumpNormalisedImages(filteredSamples)
 
@@ -178,11 +179,10 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 	testOffX, testOffY = [], []
 	testPredX, testPredY = [], []
 	for sample in testNormSamples:
-		eigenPcaInt = cloudTracker.pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = cloudTracker.pcaShape.ProjectToPca(sample)[:5]
+
+		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+
 		sobelSample = normalisedImage.KernelFilter(sample)
-		cloudTracker.trackers[0].eigenPcaInt = eigenPcaInt
-		cloudTracker.trackers[0].eigenShape = eigenShape
 
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
@@ -193,7 +193,7 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
 			testX, testY = ptX + x, ptY + y
 
-			predX, predY = cloudTracker.Predict(sample, [[testX, testY]], None)[0]
+			predX, predY = cloudTracker.Predict(sample, [[testX, testY]], prevFrameFeat)[0]
 
 			#print x, pred
 			testOffX.append(x)
@@ -251,43 +251,4 @@ if __name__ == "__main__":
 			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 
 		#Run performance test
-
-		if 0:
-			testVal, testErr = [], []
-			for sampleNum, sample in enumerate(testNormSamples):
-				print sampleNum
-		
-				for count in range(1):
-
-					prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
-					#print sample.procShape
-
-					testOffset = []
-					modProcShape = copy.deepcopy(sample.procShape)
-					for pt in range(sample.procShape.shape[0]):
-						x = np.random.normal(scale=0.3)
-						y = 0. #np.random.normal(scale=0.3) #SIMP
-						testOffset.append((x,y))
-						modProcShape[pt,0] += x
-						modProcShape[pt,1] += y
-			
-					#print modProcShape
-			
-					pred = cloudTracker.Predict(sample, modProcShape, prevFrameFeat)
-			
-					for testOff, actualPt, predPt in zip(testOffset, sample.procShape, pred):
-						error = actualPt - predPt
-						#print testOff, actualPt, predPt, error
-						testVal.append(testOff[0])
-						testErr.append(pred[0])
-						#testVal.append(testOff[1])
-						#testErr.append(error[1])
-
-		if 0:
-			correl = np.corrcoef([testVal, testErr])[0,1]
-			print "correl", correl
-			log.write(str(correl)+"\n")
-			log.flush()
-			#plt.plot(testVal, testErr, 'bx')
-			#plt.show()
 
