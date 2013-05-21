@@ -88,7 +88,30 @@ class SupraAxisSet():
 		self.regY.fit(self.trainInt, self.trainOffY)
 
 	def Predict(self, sample, model, prevFrameFeatures):
-		pass
+		pix = ExtractSupportIntensity(sample, self.supportPixOff, model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
+		pixGrey = np.array([ColConv(p) for p in pix])
+		pixGrey = pixGrey.reshape(pixGrey.size)
+			
+		pixGreyNorm = np.array(pixGrey)
+		pixGreyNorm -= pixGreyNorm.mean()
+
+		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
+		pixConvSobel = []
+		for px in pixSobel:
+			pixConvSobel.extend(px)
+
+		pixNormSobel = np.array(pixConvSobel)
+		pixNormSobel -= pixNormSobel.mean()
+
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, model[self.ptNum][0], model[self.ptNum][1]))
+		hog = feature.hog(localPatch)
+
+		#print pixGrey
+		feat = np.concatenate([pixGreyNorm, hog, self.eigenPcaInt, self.eigenShape, pixNormSobel])
+
+		predX = self.regX.predict([feat])[0]
+		predY = self.regY.predict([feat])[0]
+		return predX, predY
 
 class SupraCloud():
 
@@ -122,7 +145,10 @@ class SupraCloud():
 		pass
 
 	def Predict(self, sample, model, prevFrameFeatures):
-		pass
+		out = []
+		for tracker in self.trackers:
+			out.append(tracker.Predict(sample, model, prevFrameFeatures))
+		return out
 
 
 def TrainTracker(trainNormSamples, testNormSamples, log):
@@ -162,29 +188,9 @@ def TrainTracker(trainNormSamples, testNormSamples, log):
 
 			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
 			testX, testY = ptX + x, ptY + y
-			pix = ExtractSupportIntensity(sample, cloudTracker.trackers[0].supportPixOff, testX, testY, 0., 0.)
-			pixGrey = np.array([ColConv(p) for p in pix])
-			pixGrey = pixGrey.reshape(pixGrey.size)
-			
-			pixGreyNorm = np.array(pixGrey)
-			pixGreyNorm -= pixGreyNorm.mean()
 
-			pixSobel = ExtractSupportIntensity(sobelSample, cloudTracker.trackers[0].supportPixOffSobel, testX, testY, 0., 0.)
-			pixConvSobel = []
-			for px in pixSobel:
-				pixConvSobel.extend(px)
+			predX, predY = cloudTracker.Predict(sample, [[testX, testY]], None)[0]
 
-			pixNormSobel = np.array(pixConvSobel)
-			pixNormSobel -= pixNormSobel.mean()
-
-			localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, testX, testY))
-			hog = feature.hog(localPatch)
-
-			#print pixGrey
-			feat = np.concatenate([pixGreyNorm, hog, eigenPcaInt, eigenShape, pixNormSobel])
-
-			predX = cloudTracker.trackers[0].regX.predict([feat])[0]
-			predY = cloudTracker.trackers[0].regY.predict([feat])[0]
 			#print x, pred
 			testOffX.append(x)
 			testOffY.append(y)
