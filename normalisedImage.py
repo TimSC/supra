@@ -103,7 +103,7 @@ class NormalisedImage:
 		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 1)[0]
 
 	def NumPoints(self):
-		return len(self.model)
+		return min(len(self.model), len(self.procShape))
 
 class KernelFilter:
 	def __init__(self, normImIn):
