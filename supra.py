@@ -126,8 +126,8 @@ class SupraCloud():
 		if self.trackers is None:
 			self.trackers = [SupraAxisSet(x) for x in range(sample.NumPoints())]
 
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = self.pcaShape.ProjectToPca(sample)[:5]
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:20]
+		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:5]
 
 		for sampleCount in range(numExamples):
 			perturb = []
@@ -146,8 +146,8 @@ class SupraCloud():
 		pass
 
 	def CalcPrevFrameFeatures(self, sample, model):
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = self.pcaShape.ProjectToPca(sample)[:5]
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:20]
+		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:5]
 		return np.concatenate([eigenPcaInt, eigenShape])
 
 	def Predict(self, sample, model, prevFrameFeatures):
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 0:
+		if 1:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)

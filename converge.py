@@ -14,6 +14,11 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptNum, offX, offY):
 	supportPixOff += [offX, offY]
 	return normImage.GetPixels(ptNum, supportPixOff)
 
+def ExtractSupportIntensityAsImg(normImage, supportPixOff, ptX, ptY):
+	supportPixOff = supportPixOff.copy()
+	supportPixOff += [ptX, ptY]
+	return normImage.GetPixelsImPos(supportPixOff)
+
 def LoadSamplesFromServer():
 	urlHandle = urllib2.urlopen("http://192.168.1.2/photodb/getsamples.php")
 	sampleJson = urlHandle.read()
@@ -63,7 +68,7 @@ class PcaNormImageIntensity():
 		#Get intensity data for each training image
 		imgsSparseInt = []
 		for sample in samples:
-			imgsSparseInt.append(self.ExtractFeatures(sample))
+			imgsSparseInt.append(self.ExtractFeatures(sample, sample.procShape))
 
 		imgsSparseIntArr = np.array(imgsSparseInt)
 		self.meanInt = imgsSparseIntArr.mean(axis=0)
@@ -86,17 +91,17 @@ class PcaNormImageIntensity():
 		#plt.plot(self.s)
 		#plt.show()
 
-	def ExtractFeatures(self, sample):
+	def ExtractFeatures(self, sample, model):
 		imgSparseInt = []
-		for pt in range(sample.NumPoints()):
-			pix = ExtractSupportIntensity(sample, self.supportPixOff, pt, 0., 0.)
+		for pt in model:
+			pix = ExtractSupportIntensityAsImg(sample, self.supportPixOff, pt[0], pt[1])
 			pixGrey = [pxutil.ToGrey(p) for p in pix]
 			imgSparseInt.extend(pixGrey)		
 		return imgSparseInt
 
-	def ProjectToPca(self, sample):
+	def ProjectToPca(self, sample, model):
 		
-		feat = self.ExtractFeatures(sample)
+		feat = self.ExtractFeatures(sample, model)
 		centred = feat - self.meanInt
 
 		return np.dot(centred, self.v.transpose()) / self.s		
@@ -107,7 +112,7 @@ class PcaNormShape():
 		#Get shape data for each training image
 		shapes = []
 		for sample in samples:
-			sampleModel = np.array(sample.model)
+			sampleModel = np.array(sample.procShape)
 			sampleModel = sampleModel.reshape(sampleModel.size)
 			shapes.append(sampleModel)
 
@@ -133,9 +138,9 @@ class PcaNormShape():
 		#plt.plot(self.s)
 		#plt.show()
 
-	def ProjectToPca(self, sample):
+	def ProjectToPca(self, sample, model):
 		
-		sampleModel = np.array(sample.model)
+		sampleModel = np.array(model)
 		sampleModel = sampleModel.reshape(sampleModel.size)
 
 		centred = sampleModel - self.meanShape
