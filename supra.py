@@ -185,7 +185,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 				testPos.append((pt[0] + x, pt[1] + y))
 
 			#Make predicton
-			pred = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
+			pred = cloudTracker.Predict(sample, testPos, prevFrameFeat)
 
 			#Store result
 			testOffs.append(testOff)
@@ -197,14 +197,14 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	correls, signScores = [], []
 
 	for ptNum in range(testOffs.shape[1]):
-		correlX = np.corrcoef(testOffs[:,ptNum,0], testPred[:,0])[0,1]
-		correlY = np.corrcoef(testOffs[:,ptNum,1], testPred[:,1])[0,1]
+		correlX = np.corrcoef(testOffs[:,ptNum,0], testPred[:,ptNum,0])[0,1]
+		correlY = np.corrcoef(testOffs[:,ptNum,1], testPred[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
 	
 	for ptNum in range(testOffs.shape[1]):
-		signX = SignAgreement(testOffs[:,ptNum,0], testPred[:,0])
-		signY = SignAgreement(testOffs[:,ptNum,1], testPred[:,1])
+		signX = SignAgreement(testOffs[:,ptNum,0], testPred[:,ptNum,0])
+		signY = SignAgreement(testOffs[:,ptNum,1], testPred[:,ptNum,1])
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
