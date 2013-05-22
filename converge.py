@@ -74,7 +74,7 @@ class PcaNormImageIntensity():
 		self.meanInt = imgsSparseIntArr.mean(axis=0)
 		imgsSparseIntCent = imgsSparseIntArr - self.meanInt
 	
-		self.u, self.s, self.v = np.linalg.svd(imgsSparseIntCent)
+		self.u, self.s, self.v = np.linalg.svd(imgsSparseIntCent, full_matrices=False)
 
 		#print imgsSparseIntCent
 
@@ -120,7 +120,7 @@ class PcaNormShape():
 		self.meanShape = shapesArr.mean(axis=0)
 		meanShapeCent = shapesArr - self.meanShape
 	
-		self.u, self.s, self.v = np.linalg.svd(meanShapeCent)
+		self.u, self.s, self.v = np.linalg.svd(meanShapeCent, full_matrices=False)
 
 		#print meanShapeCent
 

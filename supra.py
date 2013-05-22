@@ -142,6 +142,7 @@ class SupraCloud():
 		self.trainingOffset = 0.3 #Standard deviation
 		self.numIntPcaComp = 20
 		self.numShapePcaComp = 5
+		self.numIter = 2
 
 	def AddTraining(self, sample, numExamples):
 		if self.trackers is None:
@@ -175,9 +176,10 @@ class SupraCloud():
 	def Predict(self, sample, model, prevFrameFeatures):
 
 		currentModel = np.array(copy.deepcopy(model))
-		for ptNum, tracker in enumerate(self.trackers):
-			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
-			currentModel[ptNum,:] -= pred
+		for iterNum in range(self.numIter):
+			for ptNum, tracker in enumerate(self.trackers):
+				pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
+				currentModel[ptNum,:] -= pred
 		return currentModel
 
 
@@ -290,8 +292,8 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to two points
-	for sample in filteredSamples:
-		sample.procShape = sample.procShape[0:1,:]
+	#for sample in filteredSamples:
+	#	sample.procShape = sample.procShape[0:1,:]
 
 	log = open("log.txt","wt")
 
@@ -302,7 +304,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 0:
+		if 1:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
