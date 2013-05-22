@@ -235,7 +235,7 @@ if __name__ == "__main__":
 
 	#Reduce problem to one point
 	for sample in filteredSamples:
-		sample.procShape = sample.procShape[0:1,:]
+		sample.procShape = sample.procShape[0:2,:]
 
 	log = open("log.txt","wt")
 
@@ -246,7 +246,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 0:
+		if 1:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
