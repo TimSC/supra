@@ -151,10 +151,12 @@ class SupraCloud():
 		return np.concatenate([eigenPcaInt, eigenShape])
 
 	def Predict(self, sample, model, prevFrameFeatures):
-		out = []
-		for tracker in self.trackers:
-			out.append(tracker.Predict(sample, model, prevFrameFeatures))
-		return out
+
+		currentModel = np.array(copy.deepcopy(model))
+		for ptNum, tracker in enumerate(self.trackers):
+			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
+			currentModel[ptNum,:] -= pred
+		return currentModel
 
 
 def TrainTracker(trainNormSamples):
@@ -169,7 +171,8 @@ def TrainTracker(trainNormSamples):
 
 def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = []
-	testPred = []
+	testPredModels = []
+	testModels = []
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
@@ -185,26 +188,41 @@ def TestTracker(cloudTracker, testNormSamples, log):
 				testPos.append((pt[0] + x, pt[1] + y))
 
 			#Make predicton
-			pred = cloudTracker.Predict(sample, testPos, prevFrameFeat)
+			predModel = cloudTracker.Predict(sample, testPos, prevFrameFeat)
 
 			#Store result
 			testOffs.append(testOff)
-			testPred.append(pred)
+			testPredModels.append(predModel)
+			testModels.append(testPos)
 
 	#Calculate performance
 	testOffs = np.array(testOffs)
-	testPred = np.array(testPred)
+	testPredModels = np.array(testPredModels)
+	testModels = np.array(testModels)
 	correls, signScores = [], []
+	testPreds = []
+	print testOffs.shape
+	print testPredModels.shape
+	print testModels.shape
+
+	for sampleNum in range(testOffs.shape[0]):
+		diff = []
+		for ptNum in range(testOffs.shape[1]):
+			diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
+				testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
+		testPreds.append(diff)
+	testPreds = np.array(testPreds)
 
 	for ptNum in range(testOffs.shape[1]):
-		correlX = np.corrcoef(testOffs[:,ptNum,0], testPred[:,ptNum,0])[0,1]
-		correlY = np.corrcoef(testOffs[:,ptNum,1], testPred[:,ptNum,1])[0,1]
+
+		correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
+		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
 	
 	for ptNum in range(testOffs.shape[1]):
-		signX = SignAgreement(testOffs[:,ptNum,0], testPred[:,ptNum,0])
-		signY = SignAgreement(testOffs[:,ptNum,1], testPred[:,ptNum,1])
+		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
+		signY = SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
@@ -233,7 +251,7 @@ if __name__ == "__main__":
 
 	#DumpNormalisedImages(filteredSamples)
 
-	#Reduce problem to one point
+	#Reduce problem to two points
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:2,:]
 
@@ -246,7 +264,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
