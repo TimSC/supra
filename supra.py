@@ -165,19 +165,17 @@ def TrainTracker(trainNormSamples):
 		cloudTracker.AddTraining(sample, 50)
 
 	cloudTracker.PrepareModel()
-
 	return cloudTracker
 
-def TestTracker(cloudTracker, testNormSamples):
+def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = []
 	testPredX, testPredY = [], []
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 
-		sobelSample = normalisedImage.KernelFilter(sample)
-
-		for count in range(3):		
+		for count in range(3):
+			#Purturb positions for testing
 			testPos = []
 			testOff = []
 			for pt in sample.procShape:
@@ -186,28 +184,31 @@ def TestTracker(cloudTracker, testNormSamples):
 				testOff.append((x, y))
 				testPos.append((pt[0] + x, pt[1] + y))
 
+			#Make predicton
 			predX, predY = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
 
-			#print x, pred
+			#Store result
 			testOffs.append(testOff)
 			testPredX.append(predX)
 			testPredY.append(predY)
 
+	#Calculate performance
 	testOffs = np.array(testOffs)
 	correls, signScores = [], []
 
 	for ptNum in range(testOffs.shape[1]):
-		correlX = np.corrcoef(testOffs[:,0,0], np.array(testPredX))[0,1]
-		correlY = np.corrcoef(testOffs[:,0,1], np.array(testPredY))[0,1]
+		correlX = np.corrcoef(testOffs[:,ptNum,0], np.array(testPredX))[0,1]
+		correlY = np.corrcoef(testOffs[:,ptNum,1], np.array(testPredY))[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
 	
 	for ptNum in range(testOffs.shape[1]):
-		signX = SignAgreement(testOffs[:,0,0], testPredX)
-		signY = SignAgreement(testOffs[:,0,1], testPredY)
+		signX = SignAgreement(testOffs[:,ptNum,0], testPredX)
+		signY = SignAgreement(testOffs[:,ptNum,1], testPredY)
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
+	#Get average performance
 	avCorrel = np.array(correls).mean()
 	avSignScore = np.array(signScores).mean()
 	print "correl",avCorrel
@@ -215,7 +216,6 @@ def TestTracker(cloudTracker, testNormSamples):
 
 	log.write(str(avCorrel)+",\t"+str(avSignScore)+"\n")
 	log.flush()
-	return cloudTracker
 
 if __name__ == "__main__":
 
@@ -255,5 +255,5 @@ if __name__ == "__main__":
 			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 
 		#Run performance test
-		TestTracker(cloudTracker, testNormSamples)
+		TestTracker(cloudTracker, testNormSamples, log)
 
