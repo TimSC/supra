@@ -169,7 +169,7 @@ def TrainTracker(trainNormSamples):
 
 def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = []
-	testPredX, testPredY = [], []
+	testPred = []
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
@@ -185,26 +185,26 @@ def TestTracker(cloudTracker, testNormSamples, log):
 				testPos.append((pt[0] + x, pt[1] + y))
 
 			#Make predicton
-			predX, predY = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
+			pred = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
 
 			#Store result
 			testOffs.append(testOff)
-			testPredX.append(predX)
-			testPredY.append(predY)
+			testPred.append(pred)
 
 	#Calculate performance
 	testOffs = np.array(testOffs)
+	testPred = np.array(testPred)
 	correls, signScores = [], []
 
 	for ptNum in range(testOffs.shape[1]):
-		correlX = np.corrcoef(testOffs[:,ptNum,0], np.array(testPredX))[0,1]
-		correlY = np.corrcoef(testOffs[:,ptNum,1], np.array(testPredY))[0,1]
+		correlX = np.corrcoef(testOffs[:,ptNum,0], testPred[:,0])[0,1]
+		correlY = np.corrcoef(testOffs[:,ptNum,1], testPred[:,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
 	
 	for ptNum in range(testOffs.shape[1]):
-		signX = SignAgreement(testOffs[:,ptNum,0], testPredX)
-		signY = SignAgreement(testOffs[:,ptNum,1], testPredY)
+		signX = SignAgreement(testOffs[:,ptNum,0], testPred[:,0])
+		signY = SignAgreement(testOffs[:,ptNum,1], testPred[:,1])
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
