@@ -26,11 +26,15 @@ def SignAgreement(testOff, testPred):
 
 class SupraAxis():
 	def __init__(self, axisXIn = 1., axisYIn = 0.):
-		pass
+		self.reg = GradientBoostingRegressor()
+		self.x = axisXIn
+		self.y = axisYIn
 	
 	def PrepareModel(self, features, offsets):
-		pass
-
+		offsets = np.array(offsets)
+		labels = offsets[:,0] * self.x + offsets[:,1] * self.y
+		self.reg.fit(features, labels)
+	
 class SupraAxisSet():
 
 	def __init__(self, ptNumIn):
@@ -75,7 +79,6 @@ class SupraAxisSet():
 		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, xOff, yOff))
 		hog = feature.hog(localPatch)
 
-		#print pixGrey
 		feat = np.concatenate([pixGreyNorm, hog, self.holisiticFeatures, pixNormSobel])
 
 		self.trainInt.append(feat)
@@ -86,10 +89,13 @@ class SupraAxisSet():
 		self.holisiticFeatures = feat
 
 	def PrepareModel(self):
-		self.regX = GradientBoostingRegressor()
-		self.regX.fit(self.trainInt, self.trainOffX)
-		self.regY = GradientBoostingRegressor()
-		self.regY.fit(self.trainInt, self.trainOffY)
+		self.axes = []
+		self.axes.append(SupraAxis(1., 0.))
+		self.axes.append(SupraAxis(0., 1.))
+		trainOff = np.vstack([self.trainOffX, self.trainOffY]).transpose()
+		
+		for axis in self.axes:
+			axis.PrepareModel(self.trainInt, trainOff)
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		sobelSample = normalisedImage.KernelFilter(sample)
@@ -115,12 +121,17 @@ class SupraAxisSet():
 			model[self.ptNum][0], model[self.ptNum][1]))
 		hog = feature.hog(localPatch)
 
-		#print pixGrey
 		feat = np.concatenate([pixGreyNorm, hog, prevFrameFeatures, pixNormSobel])
 
-		predX = self.regX.predict([feat])[0]
-		predY = self.regY.predict([feat])[0]
-		return predX, predY
+		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
+		for axis in self.axes:
+			pred = axis.reg.predict([feat])[0]
+			totalx += pred * axis.x
+			totaly += pred * axis.y
+			weightx += axis.x
+			weighty += axis.y
+
+		return totalx / weightx, totaly / weighty
 
 class SupraCloud():
 
@@ -261,7 +272,7 @@ if __name__ == "__main__":
 
 	#Reduce problem to two points
 	for sample in filteredSamples:
-		sample.procShape = sample.procShape[0:2,:]
+		sample.procShape = sample.procShape[0:1,:]
 
 	log = open("log.txt","wt")
 
