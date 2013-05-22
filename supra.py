@@ -221,9 +221,9 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = np.array(testOffs)
 	testPredModels = np.array(testPredModels)
 	testModels = np.array(testModels)
-	correls, signScores = [], []
-	testPreds = []
 
+	#Calculate relative movement of tracker
+	testPreds = []
 	for sampleNum in range(testOffs.shape[0]):
 		diff = []
 		for ptNum in range(testOffs.shape[1]):
@@ -232,8 +232,9 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		testPreds.append(diff)
 	testPreds = np.array(testPreds)
 
+	#Calculate performance metrics
+	correls, signScores = [], []
 	for ptNum in range(testOffs.shape[1]):
-
 		correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
@@ -245,13 +246,31 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
+	#Calculate prediction error	
+	predErrors, offsetDist = [], []
+	for ptNum in range(testOffs.shape[1]):
+		errX = testModels[:,ptNum,0] - testPredModels[:,ptNum,0]
+		errY = testModels[:,ptNum,1] - testPredModels[:,ptNum,1]
+		offset = np.power(np.power(testOffs[:,ptNum,0],2.)+np.power(testOffs[:,ptNum,1],2.),0.5)
+		err = np.power(np.power(errX,2.)+np.power(errY,2.),0.5)
+		predErrors.append(err)
+		offsetDist.append(offset)
+
 	#Get average performance
 	avCorrel = np.array(correls).mean()
 	avSignScore = np.array(signScores).mean()
+	predErrors = np.array(predErrors)
+	avPredError = predErrors.mean()
+	offsetDist = np.array(offsetDist)
+
 	print "correl",avCorrel
 	print "signScore",avSignScore
+	print "avPredError",avPredError
 
-	log.write(str(avCorrel)+",\t"+str(avSignScore)+"\n")
+	#plt.plot(offsetDist[0,:], predErrors[0,:] ,'x')
+	#plt.show()
+
+	log.write(str(avCorrel)+","+str(avSignScore)+","+str(avPredError)+"\n")
 	log.flush()
 
 if __name__ == "__main__":
@@ -283,7 +302,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
