@@ -40,13 +40,17 @@ class SupraAxisSet():
 		self.trainInt = []
 		self.trainOffX, self.trainOffY = [], []
 		self.regX, self.regY = None, None
+		self.supportPixHalfWidth = 0.3
+		self.numSupportPix = 50
 
 	def AddTraining(self, sample, trainOffset):
 
 		if self.supportPixOff is None:
-			self.supportPixOff = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+			self.supportPixOff = np.random.uniform(low=-self.supportPixHalfWidth, \
+				high=self.supportPixHalfWidth, size=(self.numSupportPix, 2))
 		if self.supportPixOffSobel is None:
-			self.supportPixOffSobel = np.random.uniform(low=-0.3, high=0.3, size=(50, 2))
+			self.supportPixOffSobel = np.random.uniform(low=-self.supportPixHalfWidth, \
+				high=self.supportPixHalfWidth, size=(self.numSupportPix, 2))
 
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
@@ -90,14 +94,16 @@ class SupraAxisSet():
 	def Predict(self, sample, model, prevFrameFeatures):
 		sobelSample = normalisedImage.KernelFilter(sample)
 
-		pix = ExtractSupportIntensity(sample, self.supportPixOff, model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
+		pix = ExtractSupportIntensity(sample, self.supportPixOff, \
+			model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
 		pixGrey = np.array([ColConv(p) for p in pix])
 		pixGrey = pixGrey.reshape(pixGrey.size)
 			
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
 
-		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
+		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, \
+			model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
 		pixConvSobel = []
 		for px in pixSobel:
 			pixConvSobel.extend(px)
@@ -105,7 +111,8 @@ class SupraAxisSet():
 		pixNormSobel = np.array(pixConvSobel)
 		pixNormSobel -= pixNormSobel.mean()
 
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, model[self.ptNum][0], model[self.ptNum][1]))
+		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, \
+			model[self.ptNum][0], model[self.ptNum][1]))
 		hog = feature.hog(localPatch)
 
 		#print pixGrey
@@ -121,18 +128,22 @@ class SupraCloud():
 		self.trackers = None
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
+		self.trainingOffset = 0.3 #Standard deviation
+		self.numIntPcaComp = 20
+		self.numShapePcaComp = 5
 
 	def AddTraining(self, sample, numExamples):
 		if self.trackers is None:
 			self.trackers = [SupraAxisSet(x) for x in range(sample.NumPoints())]
 
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:20]
-		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:5]
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
+		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:self.numShapePcaComp]
 
 		for sampleCount in range(numExamples):
 			perturb = []
 			for num in range(sample.NumPoints()):
-				perturb.append((np.random.normal(scale=0.3),np.random.normal(scale=0.3)))
+				perturb.append((np.random.normal(scale=self.trainingOffset),\
+					np.random.normal(scale=self.trainingOffset)))
 
 			for count, tracker in enumerate(self.trackers):
 				tracker.AddHolisticFeatures(np.concatenate([eigenPcaInt, eigenShape]))
@@ -146,8 +157,8 @@ class SupraCloud():
 		pass
 
 	def CalcPrevFrameFeatures(self, sample, model):
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:20]
-		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:5]
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
+		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
 		return np.concatenate([eigenPcaInt, eigenShape])
 
 	def Predict(self, sample, model, prevFrameFeatures):
@@ -201,9 +212,6 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	testModels = np.array(testModels)
 	correls, signScores = [], []
 	testPreds = []
-	print testOffs.shape
-	print testPredModels.shape
-	print testModels.shape
 
 	for sampleNum in range(testOffs.shape[0]):
 		diff = []
@@ -264,7 +272,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 0:
+		if 1:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
