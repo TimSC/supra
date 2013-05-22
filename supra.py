@@ -182,11 +182,11 @@ def TestTracker(cloudTracker, testNormSamples):
 			y = np.random.normal(scale=0.3)
 			
 			print len(testOffX), x, y
+			testPos = []
+			for pt in sample.procShape:
+				testPos.append((pt[0] + x, pt[1] + y))
 
-			ptX, ptY = sample.procShape[0][0], sample.procShape[0][1]
-			testX, testY = ptX + x, ptY + y
-
-			predX, predY = cloudTracker.Predict(sample, [[testX, testY]], prevFrameFeat)[0]
+			predX, predY = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
 
 			#print x, pred
 			testOffX.append(x)
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
