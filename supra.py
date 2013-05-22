@@ -196,13 +196,13 @@ def TestTracker(cloudTracker, testNormSamples):
 	testOffs = np.array(testOffs)
 	correls, signScores = [], []
 
-	for ptNum in testOffs.shape[1]:
+	for ptNum in range(testOffs.shape[1]):
 		correlX = np.corrcoef(testOffs[:,0,0], np.array(testPredX))[0,1]
 		correlY = np.corrcoef(testOffs[:,0,1], np.array(testPredY))[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
 	
-	for ptNum in testOffs.shape[1]:
+	for ptNum in range(testOffs.shape[1]):
 		signX = SignAgreement(testOffs[:,0,0], testPredX)
 		signY = SignAgreement(testOffs[:,0,1], testPredY)
 		signScore = 0.5 * (signX + signY)
