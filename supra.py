@@ -161,7 +161,7 @@ def TrainTracker(trainNormSamples):
 	cloudTracker = SupraCloud(trainNormSamples)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
-		print sampleCount, len(trainNormSamples)
+		print "train", sampleCount, len(trainNormSamples)
 		cloudTracker.AddTraining(sample, 50)
 
 	cloudTracker.PrepareModel()
@@ -169,38 +169,41 @@ def TrainTracker(trainNormSamples):
 	return cloudTracker
 
 def TestTracker(cloudTracker, testNormSamples):
-	testOffX, testOffY = [], []
+	testOffs = []
 	testPredX, testPredY = [], []
-	for sample in testNormSamples:
-
+	for sampleCount, sample in enumerate(testNormSamples):
+		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 
 		sobelSample = normalisedImage.KernelFilter(sample)
 
-		for count in range(3):
-			x = np.random.normal(scale=0.3)
-			y = np.random.normal(scale=0.3)
-			
-			print len(testOffX), x, y
+		for count in range(3):		
 			testPos = []
+			testOff = []
 			for pt in sample.procShape:
+				x = np.random.normal(scale=0.3)
+				y = np.random.normal(scale=0.3)
+				testOff.append((x, y))
 				testPos.append((pt[0] + x, pt[1] + y))
 
 			predX, predY = cloudTracker.Predict(sample, testPos, prevFrameFeat)[0]
 
 			#print x, pred
-			testOffX.append(x)
-			testOffY.append(y)
+			testOffs.append(testOff)
 			testPredX.append(predX)
 			testPredY.append(predY)
 
-	correlX = np.corrcoef(np.array([testOffX]), np.array([testPredX]))[0,1]
-	correlY = np.corrcoef(np.array([testOffY]), np.array([testPredY]))[0,1]
+	testOffs = np.array(testOffs)
+	print testOffs[:,0,0]
+	print testPredX
+
+	correlX = np.corrcoef(testOffs[:,0,0], np.array(testPredX))[0,1]
+	correlY = np.corrcoef(testOffs[:,0,1], np.array(testPredY))[0,1]
 	correl = 0.5*(correlX+correlY)
 	print "correl",correl
 
-	signX = SignAgreement(testOffX, testPredX)
-	signY = SignAgreement(testOffY, testPredY)
+	signX = SignAgreement(testOffs[:,0,0], testPredX)
+	signY = SignAgreement(testOffs[:,0,1], testPredY)
 	signScore = 0.5 * (signX + signY)
 	print "signScore",signX
 
