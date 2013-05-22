@@ -194,20 +194,26 @@ def TestTracker(cloudTracker, testNormSamples):
 			testPredY.append(predY)
 
 	testOffs = np.array(testOffs)
-	print testOffs[:,0,0]
-	print testPredX
+	correls, signScores = [], []
 
-	correlX = np.corrcoef(testOffs[:,0,0], np.array(testPredX))[0,1]
-	correlY = np.corrcoef(testOffs[:,0,1], np.array(testPredY))[0,1]
-	correl = 0.5*(correlX+correlY)
-	print "correl",correl
+	for ptNum in testOffs.shape[1]:
+		correlX = np.corrcoef(testOffs[:,0,0], np.array(testPredX))[0,1]
+		correlY = np.corrcoef(testOffs[:,0,1], np.array(testPredY))[0,1]
+		correl = 0.5*(correlX+correlY)
+		correls.append(correl)
+	
+	for ptNum in testOffs.shape[1]:
+		signX = SignAgreement(testOffs[:,0,0], testPredX)
+		signY = SignAgreement(testOffs[:,0,1], testPredY)
+		signScore = 0.5 * (signX + signY)
+		signScores.append(signScore)
 
-	signX = SignAgreement(testOffs[:,0,0], testPredX)
-	signY = SignAgreement(testOffs[:,0,1], testPredY)
-	signScore = 0.5 * (signX + signY)
-	print "signScore",signX
+	avCorrel = np.array(correls).mean()
+	avSignScore = np.array(signScores).mean()
+	print "correl",avCorrel
+	print "signScore",avSignScore
 
-	log.write(str(correl)+",\t"+str(signScore)+"\n")
+	log.write(str(avCorrel)+",\t"+str(avSignScore)+"\n")
 	log.flush()
 	return cloudTracker
 
