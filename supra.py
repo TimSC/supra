@@ -37,14 +37,14 @@ class SupraAxis():
 	
 class SupraAxisSet():
 
-	def __init__(self, ptNumIn):
+	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3):
 		self.ptNum = ptNumIn
 		self.supportPixOff = None
 		self.supportPixOffSobel = None
 		self.trainInt = []
 		self.trainOffX, self.trainOffY = [], []
 		self.regX, self.regY = None, None
-		self.supportPixHalfWidth = 0.3
+		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numSupportPix = 50
 
 	def AddTraining(self, sample, trainOffset, extraFeatures):
@@ -132,14 +132,16 @@ class SupraAxisSet():
 
 class SupraCloud():
 
-	def __init__(self):
+	def __init__(self, supportPixHalfWidthIn = 0.3):
 		self.trackers = None
 		self.trainingOffset = 0.3 #Standard deviation
+		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numIter = 2
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
 		if self.trackers is None:
-			self.trackers = [SupraAxisSet(x) for x in range(sample.NumPoints())]
+			self.trackers = [SupraAxisSet(x, self.supportPixHalfWidth) \
+				for x in range(sample.NumPoints())]
 
 		for sampleCount in range(numExamples):
 			perturb = []
@@ -169,10 +171,7 @@ class SupraLayers:
 		self.numShapePcaComp = 5
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
-		self.layers = [SupraCloud(),SupraCloud(),SupraCloud()]
-		self.layers[0].supportPixHalfWidth = 0.3
-		self.layers[1].supportPixHalfWidth = 0.2
-		self.layers[2].supportPixHalfWidth = 0.1
+		self.layers = [SupraCloud(0.3),SupraCloud(0.2),SupraCloud(0.1)]
 
 	def AddTraining(self, sample, numExamples):
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
