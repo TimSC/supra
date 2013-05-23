@@ -137,20 +137,37 @@ class SupraCloud():
 		self.trainingOffset = trainingOffsetIn #Standard deviations
 		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numIter = 2
+		self.shapeNoise = 0.05
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
+
+		#Initialise if needed
 		if self.trackers is None:
 			self.trackers = [SupraAxisSet(x, self.supportPixHalfWidth) \
 				for x in range(sample.NumPoints())]
 
+		#For each sample to add
 		for sampleCount in range(numExamples):
+
+			#Calculate a random pertubation
 			perturb = []
 			for num in range(sample.NumPoints()):
 				perturb.append((np.random.normal(scale=self.trainingOffset),\
 					np.random.normal(scale=self.trainingOffset)))
 
+			#Calculate relative distances between trackers
+			dists = []
+			for ptNumA in range(sample.NumPoints()):
+				for ptNumB in range(ptNumA):
+					dx = sample.procShape[ptNumA][0] - sample.procShape[ptNumB][0]
+					dy = sample.procShape[ptNumA][1] - sample.procShape[ptNumB][1]
+					noiseX = np.random.normal(self.shapeNoise)
+					noiseY = np.random.normal(self.shapeNoise)
+					dists.extend((dx + noiseX, dy + noiseY))
+
+			#Perform tracker specific training
 			for count, tracker in enumerate(self.trackers):
-				tracker.AddTraining(sample, perturb, extraFeatures)
+				tracker.AddTraining(sample, perturb, np.concatenate([extraFeatures, dists]))
 
 	def PrepareModel(self):
 		for tracker in self.trackers:
@@ -160,8 +177,18 @@ class SupraCloud():
 
 		currentModel = np.array(copy.deepcopy(model))
 		for iterNum in range(self.numIter):
+
+			#Calculate relative distances between trackers
+			dists = []
+			for ptNumA in range(len(currentModel)):
+				for ptNumB in range(ptNumA):
+					dx = currentModel[ptNumA][0] - currentModel[ptNumB][0]
+					dy = currentModel[ptNumA][1] - currentModel[ptNumB][1]
+					dists.extend((dx, dy))
+
+			#For each tracker, get a predicted correction
 			for ptNum, tracker in enumerate(self.trackers):
-				pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
+				pred = tracker.Predict(sample, currentModel, np.concatenate([prevFrameFeatures, dists]))
 				currentModel[ptNum,:] -= pred
 		return currentModel
 
@@ -171,7 +198,7 @@ class SupraLayers:
 		self.numShapePcaComp = 5
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
-		self.layers = [SupraCloud(0.3, 0.3),SupraCloud(0.2,0.2),SupraCloud(0.1,0.1)]
+		self.layers = [SupraCloud(0.3, 0.3)]
 
 	def AddTraining(self, sample, numExamples):
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
@@ -215,10 +242,6 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 		
-		print cloudTracker.layers[0].supportPixHalfWidth
-		print cloudTracker.layers[1].supportPixHalfWidth
-		print cloudTracker.layers[2].supportPixHalfWidth
-
 		for count in range(3):
 			#Purturb positions for testing
 			testPos = []
@@ -263,7 +286,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		correls.append(correl)
 		#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
 		#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
-	plt.show()
+	#plt.show()
 	
 	for ptNum in range(testOffs.shape[1]):
 		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
@@ -315,8 +338,8 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to two points
-	for sample in filteredSamples:
-		sample.procShape = sample.procShape[0:1,:]
+	#for sample in filteredSamples:
+	#	sample.procShape = sample.procShape[0:1,:]
 
 	log = open("log.txt","wt")
 
@@ -327,7 +350,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 0:
+		if 1:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
