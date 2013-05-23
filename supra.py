@@ -132,9 +132,9 @@ class SupraAxisSet():
 
 class SupraCloud():
 
-	def __init__(self, supportPixHalfWidthIn = 0.3):
+	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3):
 		self.trackers = None
-		self.trainingOffset = 0.3 #Standard deviation
+		self.trainingOffset = trainingOffsetIn #Standard deviations
 		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numIter = 2
 
@@ -171,7 +171,7 @@ class SupraLayers:
 		self.numShapePcaComp = 5
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
-		self.layers = [SupraCloud(0.3),SupraCloud(0.2),SupraCloud(0.1)]
+		self.layers = [SupraCloud(0.3, 0.3),SupraCloud(0.2,0.2),SupraCloud(0.1,0.1)]
 
 	def AddTraining(self, sample, numExamples):
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
@@ -214,6 +214,10 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+		
+		print cloudTracker.layers[0].supportPixHalfWidth
+		print cloudTracker.layers[1].supportPixHalfWidth
+		print cloudTracker.layers[2].supportPixHalfWidth
 
 		for count in range(3):
 			#Purturb positions for testing
@@ -323,7 +327,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
