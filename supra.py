@@ -47,7 +47,7 @@ class SupraAxisSet():
 		self.supportPixHalfWidth = 0.3
 		self.numSupportPix = 50
 
-	def AddTraining(self, sample, trainOffset):
+	def AddTraining(self, sample, trainOffset, extraFeatures):
 
 		if self.supportPixOff is None:
 			self.supportPixOff = np.random.uniform(low=-self.supportPixHalfWidth, \
@@ -79,14 +79,11 @@ class SupraAxisSet():
 		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, xOff, yOff))
 		hog = feature.hog(localPatch)
 
-		feat = np.concatenate([pixGreyNorm, hog, self.holisiticFeatures, pixNormSobel])
+		feat = np.concatenate([pixGreyNorm, hog, extraFeatures, pixNormSobel])
 
 		self.trainInt.append(feat)
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
-
-	def AddHolisticFeatures(self, feat):
-		self.holisiticFeatures = feat
 
 	def PrepareModel(self):
 		self.axes = []
@@ -135,21 +132,14 @@ class SupraAxisSet():
 
 class SupraCloud():
 
-	def __init__(self, trainNormSamples):
+	def __init__(self):
 		self.trackers = None
-		self.pcaShape = converge.PcaNormShape(trainNormSamples)
-		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
 		self.trainingOffset = 0.3 #Standard deviation
-		self.numIntPcaComp = 20
-		self.numShapePcaComp = 5
 		self.numIter = 2
 
-	def AddTraining(self, sample, numExamples):
+	def AddTraining(self, sample, numExamples, extraFeatures):
 		if self.trackers is None:
 			self.trackers = [SupraAxisSet(x) for x in range(sample.NumPoints())]
-
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
-		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:self.numShapePcaComp]
 
 		for sampleCount in range(numExamples):
 			perturb = []
@@ -158,20 +148,11 @@ class SupraCloud():
 					np.random.normal(scale=self.trainingOffset)))
 
 			for count, tracker in enumerate(self.trackers):
-				tracker.AddHolisticFeatures(np.concatenate([eigenPcaInt, eigenShape]))
-				tracker.AddTraining(sample, perturb)
+				tracker.AddTraining(sample, perturb, extraFeatures)
 
 	def PrepareModel(self):
 		for tracker in self.trackers:
 			tracker.PrepareModel()
-
-	def ExtractFeatures(self, sample, model):
-		pass
-
-	def CalcPrevFrameFeatures(self, sample, model):
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
-		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
-		return np.concatenate([eigenPcaInt, eigenShape])
 
 	def Predict(self, sample, model, prevFrameFeatures):
 
@@ -182,9 +163,39 @@ class SupraCloud():
 				currentModel[ptNum,:] -= pred
 		return currentModel
 
+class SupraLayers:
+	def __init__(self, trainNormSamples):
+		self.numIntPcaComp = 20
+		self.numShapePcaComp = 5
+		self.pcaShape = converge.PcaNormShape(trainNormSamples)
+		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
+		self.layers = [SupraCloud()]
+
+	def AddTraining(self, sample, numExamples):
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
+		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:self.numShapePcaComp]
+		extraFeatures = np.concatenate([eigenPcaInt, eigenShape])
+
+		for layer in self.layers:
+			layer.AddTraining(sample, numExamples, extraFeatures)
+
+	def PrepareModel(self):
+		for layer in self.layers:
+			layer.PrepareModel()
+
+	def CalcPrevFrameFeatures(self, sample, model):
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
+		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
+		return np.concatenate([eigenPcaInt, eigenShape])
+
+	def Predict(self, sample, model, prevFrameFeatures):
+		currentModel = np.array(copy.deepcopy(model))
+		for layerNum, layer in enumerate(self.layers):
+			currentModel = layer.Predict(sample, currentModel, prevFrameFeatures)
+		return currentModel
 
 def TrainTracker(trainNormSamples):
-	cloudTracker = SupraCloud(trainNormSamples)
+	cloudTracker = SupraLayers(trainNormSamples)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
