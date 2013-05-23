@@ -197,6 +197,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = []
 	testPredModels = []
 	testModels = []
+	trueModels = []
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
@@ -218,11 +219,13 @@ def TestTracker(cloudTracker, testNormSamples, log):
 			testOffs.append(testOff)
 			testPredModels.append(predModel)
 			testModels.append(testPos)
+			trueModels.append(sample.procShape)
 
 	#Calculate performance
 	testOffs = np.array(testOffs)
 	testPredModels = np.array(testPredModels)
 	testModels = np.array(testModels)
+	trueModels = np.array(trueModels)
 
 	#Calculate relative movement of tracker
 	testPreds = []
@@ -241,6 +244,9 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
+		#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
+		#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
+	plt.show()
 	
 	for ptNum in range(testOffs.shape[1]):
 		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
@@ -251,8 +257,8 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	#Calculate prediction error	
 	predErrors, offsetDist = [], []
 	for ptNum in range(testOffs.shape[1]):
-		errX = testModels[:,ptNum,0] - testPredModels[:,ptNum,0]
-		errY = testModels[:,ptNum,1] - testPredModels[:,ptNum,1]
+		errX = trueModels[:,ptNum,0] - testPredModels[:,ptNum,0]
+		errY = trueModels[:,ptNum,1] - testPredModels[:,ptNum,1]
 		offset = np.power(np.power(testOffs[:,ptNum,0],2.)+np.power(testOffs[:,ptNum,1],2.),0.5)
 		err = np.power(np.power(errX,2.)+np.power(errY,2.),0.5)
 		predErrors.append(err)
@@ -292,8 +298,8 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to two points
-	#for sample in filteredSamples:
-	#	sample.procShape = sample.procShape[0:1,:]
+	for sample in filteredSamples:
+		sample.procShape = sample.procShape[0:1,:]
 
 	log = open("log.txt","wt")
 
@@ -304,7 +310,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
