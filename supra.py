@@ -171,7 +171,7 @@ class SupraLayers:
 		self.numShapePcaComp = 5
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
-		self.layers = [SupraCloud(0.3, 0.3),SupraCloud(0.3,0.2),SupraCloud(0.3,0.1)]
+		self.layers = [SupraCloud(0.3, 0.3)]
 
 	def AddTraining(self, sample, numExamples):
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
