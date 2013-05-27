@@ -22,7 +22,7 @@ if __name__ == "__main__":
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:1,:]
 
-	log = open("singlescale-e18dde2.txt","wt")
+	log = open("singlescale-b513537.txt","wt")
 
 	while 1:
 		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"

@@ -171,7 +171,7 @@ class SupraLayers:
 		self.numShapePcaComp = 5
 		self.pcaShape = converge.PcaNormShape(trainNormSamples)
 		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
-		self.layers = [SupraCloud(0.3, 0.3)]
+		self.layers = [SupraCloud(0.3, 0.3),SupraCloud(0.3,0.2),SupraCloud(0.3,0.1)]
 
 	def AddTraining(self, sample, numExamples):
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
@@ -260,9 +260,9 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
-		plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
-		plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
-	plt.savefig("correl.svg")
+		#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
+		#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
+	#plt.savefig("correl.svg")
 	
 	for ptNum in range(testOffs.shape[1]):
 		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
