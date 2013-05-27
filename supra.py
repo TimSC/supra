@@ -215,9 +215,8 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		print "test", sampleCount, len(testNormSamples)
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 		
-		print cloudTracker.layers[0].supportPixHalfWidth
-		print cloudTracker.layers[1].supportPixHalfWidth
-		print cloudTracker.layers[2].supportPixHalfWidth
+		for layer in cloudTracker.layers:
+			print layer.supportPixHalfWidth, layer.trainingOffset
 
 		for count in range(3):
 			#Purturb positions for testing
@@ -261,9 +260,9 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
 		correls.append(correl)
-		#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
-		#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
-	plt.show()
+		plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
+		plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
+	plt.savefig("correl.svg")
 	
 	for ptNum in range(testOffs.shape[1]):
 		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
@@ -285,17 +284,17 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	avCorrel = np.array(correls).mean()
 	avSignScore = np.array(signScores).mean()
 	predErrors = np.array(predErrors)
-	avPredError = predErrors.mean()
+	medPredError = np.median(predErrors)
 	offsetDist = np.array(offsetDist)
 
 	print "correl",avCorrel
 	print "signScore",avSignScore
-	print "avPredError",avPredError
+	print "medPredError",medPredError
 
 	#plt.plot(offsetDist[0,:], predErrors[0,:] ,'x')
 	#plt.show()
 
-	log.write(str(avCorrel)+","+str(avSignScore)+","+str(avPredError)+"\n")
+	log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 	log.flush()
 
 def TestSingleExample(cloudTracker, testNormSamples, log):
