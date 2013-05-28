@@ -4,7 +4,7 @@
 
 import pygtk, math, array, numpy as np
 pygtk.require('2.0')
-import gtk, gobject, cv, cairo, multiprocessing, time, Queue
+import gtk, gobject, cv2, cv, cairo, multiprocessing, time, Queue
 from PIL import Image
 
 def IplToPilImg(imIpl):
@@ -64,7 +64,7 @@ class WebcamWidget(gtk.Invisible):
 	def PollCamera(self, toWorker, fromWorker):
 		running = True
 		cap = cv.CaptureFromCAM(-1)
-		capture_size = (320,200)
+		capture_size = (640,480)
 		cv.SetCaptureProperty(cap, cv.CV_CAP_PROP_FRAME_WIDTH, capture_size[0])
 		cv.SetCaptureProperty(cap, cv.CV_CAP_PROP_FRAME_HEIGHT, capture_size[1])
 
@@ -92,9 +92,18 @@ class WebcamWidget(gtk.Invisible):
 		
 		return True
 
+def detect(img, cascade):
+	rects = cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=3, minSize=(10, 10), flags = cv.CV_HAAR_SCALE_IMAGE)
+	if len(rects) == 0:
+		return []
+	rects[:,2:] += rects[:,:2]
+	return rects
+
 class TrackingProcess:
 	def __init__(self):
-		self.currentTracking = []
+
+		self.cascade = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
+
 		self.toWorker, self.fromWorker = multiprocessing.Queue(), multiprocessing.Queue()
 		gobject.timeout_add(int(round(1000./50.)), self.UpdatePipe)
 		self.p = multiprocessing.Process(target=self.Process, args=(self.toWorker,self.fromWorker))
@@ -113,7 +122,7 @@ class TrackingProcess:
 			self.toWorker.put(("FRAME", frameArr))
 
 	def GetCurrentTracking(self):
-		return self.currentTracking
+		return None
 
 	def UpdatePipe(self):
 
@@ -150,14 +159,20 @@ class TrackingProcess:
 				time.sleep(0.01)
 
 			if currentFrame is not None and running:
-				
-				nFeatures = 50
+				self.ProcessFrame(currentFrame)
+
 				fromWorker.put(("TRACKING",fl))
 				prevImg = currentFrame
 				currentFrame = None
 
 			time.sleep(0.01)
-	
+
+	def ProcessFrame(self, currentFrame):
+		print currentFrame
+		gray = cv2.cvtColor(np.array(currentFrame), cv.CV_BGR2GRAY)
+		gray = cv2.equalizeHist(gray)
+		rects = detect(gray, self.cascade)
+		print rects
 
 class VisualiseWidget(gtk.DrawingArea):
 	def __init__(self):
@@ -221,7 +236,6 @@ class VisualiseWidget(gtk.DrawingArea):
 
 class Base:
 	def __init__(self):
-		
 		self.fl = []
 		self.webcam = WebcamWidget()
 		self.showingFrame = None
@@ -264,12 +278,12 @@ class Base:
 			if img is not None:		
 				self.visArea.SetImageByPil(Image.fromarray(img))
 
-				currentTracking = self.trackingProcess.GetCurrentTracking()
+				#currentTracking = self.trackingProcess.GetCurrentTracking()
 				#print currentTracking
-				self.visArea.trackerPos = []
-				for pt in currentTracking:
-					if pt.val < 0: continue
-					self.visArea.trackerPos.append((pt.x,pt.y))
+				#self.visArea.trackerPos = []
+				#for pt in currentTracking:
+				#	if pt.val < 0: continue
+				#	self.visArea.trackerPos.append((pt.x,pt.y))
 
 				self.visArea.RedrawCanvas()
 				self.trackingProcess.TrackFrame(img)
