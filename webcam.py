@@ -4,10 +4,8 @@
 
 import pygtk, math, array, numpy as np
 pygtk.require('2.0')
-import gtk, gobject, cv, cairo, opencv, multiprocessing, time, Queue
+import gtk, gobject, cv, cairo, multiprocessing, time, Queue
 from PIL import Image
-
-import klt, selectGoodFeatures, writeFeatures, trackFeatures
 
 def IplToPilImg(imIpl):
 	assert imIpl.nChannels == 3
@@ -134,16 +132,13 @@ class TrackingProcess:
 	def Process(self, toWorker,fromWorker):
 		running = True
 		currentFrame = None
-		tc = klt.KLT_TrackingContext()
-		tc.sequentialMode = True
-		tc.retainTrackers = True
 		fl = []
 		prevImg = None
 
 		while running:
 
 			while not toWorker.empty():
-				print toWorker.empty(), toWorker.qsize()
+				#print toWorker.empty(), toWorker.qsize()
 				try:
 					pipeData = toWorker.get()
 					if pipeData[0] == "STOP":
@@ -157,12 +152,6 @@ class TrackingProcess:
 			if currentFrame is not None and running:
 				
 				nFeatures = 50
-				countActive = klt.KLTCountRemainingFeatures(fl)
-				if countActive == 0 or prevImg is None:
-					fl = selectGoodFeatures.KLTSelectGoodFeatures(tc, currentFrame, nFeatures)
-				else:
-					trackFeatures.KLTTrackFeatures(tc, prevImg, currentFrame, fl)
-
 				fromWorker.put(("TRACKING",fl))
 				prevImg = currentFrame
 				currentFrame = None
@@ -233,7 +222,6 @@ class VisualiseWidget(gtk.DrawingArea):
 class Base:
 	def __init__(self):
 		
-		self.tc = klt.KLT_TrackingContext()
 		self.fl = []
 		self.webcam = WebcamWidget()
 		self.showingFrame = None
