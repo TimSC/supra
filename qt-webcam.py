@@ -98,7 +98,6 @@ class MainWindow(QtGui.QMainWindow):
 		self.faces = np.array([])
 		self.cameraPipe = None
 		self.detectorPipe = None
-		self.trackingPipe = None
 		self.detectionPending = False
 
 		self.scene = QtGui.QGraphicsScene(self)
@@ -114,6 +113,8 @@ class MainWindow(QtGui.QMainWindow):
 
 		self.ctimer = QtCore.QTimer(self)
 		self.ctimer.timeout.connect(self.CheckForEvents)
+		#act = QtGui.QAction("timeout()", self.ctimer)
+		#act.triggered.connect(self.Test)
 		self.ctimer.start(10)
 
 	def __del__(self):
@@ -171,13 +172,21 @@ class MainWindow(QtGui.QMainWindow):
 			DrawPoint(self.scene,face[2],face[3])
 
 	def closeEvent(self, event):
-		if self.detectorPipe is not None: self.detectorPipe.send(["quit",1])
-		if self.cameraPipe is not None: self.cameraPipe.send(["quit",1])
-		if self.trackingPipe is not None: self.trackingPipe.send(["quit",1])
-		time.sleep(0.1)
-		if self.detectorPipe is not None: self.detectorPipe.close()
-		if self.cameraPipe is not None: self.cameraPipe.close()
-		if self.trackingPipe is not None: self.trackingPipe.close()
+		self.detectorPipe.send(["quit",1])
+		self.cameraPipe.send(["quit",1])
+		self.trackingPipe.send(["quit",1])
+		try:
+			self.detectorPipe.recv()
+		except:
+			pass
+		try:
+			self.cameraPipe.recv()
+		except:
+			pass
+		try:
+			self.trackingPipe.recv()
+		except:
+			pass
 
 if __name__ == '__main__':
 
@@ -201,10 +210,6 @@ if __name__ == '__main__':
 	trackingWorker.start()
 
 	ret = app.exec_()
-
-	del camWorker
-	del detectorWorker
-	del trackingWorker
 
 	sys.exit(ret)
 
