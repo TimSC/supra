@@ -12,17 +12,13 @@ def detect(img, cascade):
 
 class CamWorker(multiprocessing.Process): 
 
-	#webcamFrameSignal = QtCore.pyqtSignal(np.ndarray, name='webcam_frame')
-	#facesDetectedSignal = QtCore.pyqtSignal(np.ndarray, name='faces_detected')
-
 	def __init__(self, childConnIn): 
 		super(CamWorker, self).__init__()
 		self.cap = cv2.VideoCapture(-1)
-		self.cascade = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
 		self.childConn = childConnIn
 
 	def __del__(self):
-		print "Worker stopping"
+		print "CamWorker stopping"
 
 	def run(self):
 		running = True
@@ -33,12 +29,34 @@ class CamWorker(multiprocessing.Process):
 
 			if self.childConn.poll(0):
 				ev = self.childConn.recv()
-				if ev == "quit":
+				if ev[0] == "quit":
 					running = False
-			#gray = cv2.cvtColor(frame, cv.CV_RGB2GRAY)
-			#gray = cv2.equalizeHist(gray)
-			#rects = detect(gray, self.cascade)
-			#self.facesDetectedSignal.emit(rects)
+
+		self.childConn.send(["done",1])
+
+class DetectorWorker(multiprocessing.Process): 
+	def __init__(self, childConnIn): 
+		super(DetectorWorker, self).__init__()
+		self.cascade = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
+		self.childConn = childConnIn
+
+	def __del__(self):
+		print "DetectorWorker stopping"
+
+	def run(self):
+		running = True
+		while running:
+			time.sleep(0.01)
+
+			if self.childConn.poll(0):
+				ev = self.childConn.recv()
+				if ev[0] == "quit":
+					running = False
+				if ev[0] == "frame":
+					gray = cv2.cvtColor(ev[1], cv.CV_RGB2GRAY)
+					gray = cv2.equalizeHist(gray)
+					rects = detect(gray, self.cascade)
+					self.childConn.send(["faces",rects])
 
 		self.childConn.send(["done",1])
 
@@ -49,7 +67,9 @@ class MainWindow(QtGui.QMainWindow):
 		self.move(300, 300)
 		self.setWindowTitle('Qt Webcam Demo')
 		self.faces = np.array([])
-		self.parentConn = None
+		self.cameraPipe = None
+		self.detectorPipe = None
+		self.detectionPending = False
 
 		self.scene = QtGui.QGraphicsScene(self)
 		self.view  = QtGui.QGraphicsView(self.scene)
@@ -72,10 +92,19 @@ class MainWindow(QtGui.QMainWindow):
 		pass
 
 	def CheckForEvents(self):
-		if self.parentConn.poll(0):
-			ev = self.parentConn.recv()
+		if self.cameraPipe.poll(0):
+			ev = self.cameraPipe.recv()
 			if ev[0] == "frame" and ev[1] is not None:
 				self.ProcessFrame(ev[1])
+				if not self.detectionPending:
+					self.detectorPipe.send(ev)
+					self.detectionPending = True
+
+		if self.detectorPipe.poll(0):
+			ev = self.detectorPipe.recv()
+			if ev[0] == "faces":
+				self.ProcessFaces(ev[1])
+				self.detectionPending = False
 
 	def ProcessFrame(self, im):
 		print "Frame update", im.shape
@@ -94,8 +123,10 @@ class MainWindow(QtGui.QMainWindow):
 			self.scene.addRect(face[0],face[1],face[2]-face[0],face[3]-face[1])
 
 	def closeEvent(self, event):
-		self.parentConn.send("quit")
-		self.parentConn.recv()
+		self.detectorPipe.send(["quit",1])
+		self.cameraPipe.send(["quit",1])
+		self.detectorPipe.recv()
+		self.cameraPipe.recv()
 
 if __name__ == '__main__':
 
@@ -105,8 +136,13 @@ if __name__ == '__main__':
 
 	parentConn, childConn = multiprocessing.Pipe()
 	camWorker = CamWorker(childConn)
-	mainWindow.parentConn = parentConn
+	mainWindow.cameraPipe = parentConn
 	camWorker.start()
+
+	parentConn, childConn = multiprocessing.Pipe()
+	detectorWorker = DetectorWorker(childConn)
+	mainWindow.detectorPipe = parentConn
+	detectorWorker.start()
 
 	ret = app.exec_()
 
