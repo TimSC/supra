@@ -1,22 +1,30 @@
 
-import sys, time, cv
+import sys, time, cv, cv2
 from PyQt4 import QtGui, QtCore
+import numpy as np
 	
-class CamWorker(QtCore.QThread): 
-    def __init__(self): 
-		super(CamWorker, self).__init__() 
-		self.cap = cv.CaptureFromCAM(-1)
-		capture_size = (640,480)
-		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, capture_size[0])
-		cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, capture_size[1])
+webcamFrameSignal = QtCore.pyqtSignal(np.ndarray, name='webcam_frame')
 
-    def run(self):
+class CamWorker(QtCore.QThread): 
+
+	webcamFrameSignal = QtCore.pyqtSignal(np.ndarray, name='webcam_frame')
+
+	def __init__(self): 
+		super(CamWorker, self).__init__()
+		self.cap = cv2.VideoCapture(-1)
+		cascade = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
+
+	def run(self):
 		while 1:
 			time.sleep(0.01)
-			frame = cv.QueryFrame(self.cap)
-			im = QtGui.QImage(frame.tostring(), frame.width, frame.height, QtGui.QImage.Format_RGB888)
-			if im is not None:
-				self.emit(QtCore.SIGNAL('webcam_frame(QImage)'), im.rgbSwapped())
+			_,frame = self.cap.read()
+			self.webcamFrameSignal.emit(frame)
+
+			#gray = cv2.cvtColor(frame, cv.CV_RGB2GRAY)
+			#gray = cv2.equalizeHist(gray)
+			#rects = detect(gray, cascade)
+			#print rects
+			
 
 class MainWindow(QtGui.QMainWindow):
 	def __init__(self):
@@ -36,10 +44,13 @@ class MainWindow(QtGui.QMainWindow):
 		self.setCentralWidget(centralWidget)
 		self.show()
 
-
 	def ProcessFrame(self, im):
-		print "Frame update", im
-		pix = QtGui.QPixmap(im)
+		print "Frame update", im.shape
+		print im.shape, im.strides
+		im = QtGui.QImage(im.tostring(), im.shape[1], im.shape[0], im.strides[0], QtGui.QImage.Format_RGB888)
+		print im, im.size().width(), im.size().height()
+		pix = QtGui.QPixmap(im.rgbSwapped())
+		print pix
 		self.scene.clear()
 		self.scene.addPixmap(pix)
 
@@ -51,8 +62,8 @@ if __name__ == '__main__':
 	mainWindow = MainWindow()
 
 	camWorker = CamWorker()
-	QtCore.QObject.connect(camWorker, QtCore.SIGNAL("webcam_frame(QImage)"), mainWindow.ProcessFrame)
-	camWorker.start() 
+	camWorker.webcamFrameSignal.connect(mainWindow.ProcessFrame)
+	camWorker.start()
 
 	sys.exit(app.exec_())
 
