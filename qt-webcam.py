@@ -113,8 +113,6 @@ class MainWindow(QtGui.QMainWindow):
 
 		self.ctimer = QtCore.QTimer(self)
 		self.ctimer.timeout.connect(self.CheckForEvents)
-		#act = QtGui.QAction("timeout()", self.ctimer)
-		#act.triggered.connect(self.Test)
 		self.ctimer.start(10)
 
 	def __del__(self):
@@ -163,13 +161,12 @@ class MainWindow(QtGui.QMainWindow):
 		self.scene.addPixmap(self.pix)
 		for fnum in range(self.faces.shape[0]):
 			face = self.faces[fnum,:]
-			self.scene.addRect(face[0],face[1],face[2]-face[0],face[3]-face[1])
-			pts = []
-
-			DrawPoint(self.scene,face[0],face[1])
-			DrawPoint(self.scene,face[2],face[1])
-			DrawPoint(self.scene,face[0],face[3])
-			DrawPoint(self.scene,face[2],face[3])
+			w = face[2]-face[0]
+			h = face[3]-face[1]
+			self.scene.addRect(face[0],face[1],w,h)
+			pts = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
+			for pt in pts:				
+				DrawPoint(self.scene,face[0] + pt[0] * w,face[1] + pt[1] * h)
 
 	def closeEvent(self, event):
 		self.detectorPipe.send(["quit",1])
