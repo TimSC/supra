@@ -3,7 +3,8 @@ import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage
 from PyQt4 import QtGui, QtCore
 import numpy as np
 from PIL import Image
-	
+import skimage.io as io
+
 def detect(img, cascade):
 	rects = cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=3, minSize=(10, 10), flags = cv.CV_HAAR_SCALE_IMAGE)
 	if len(rects) == 0:
@@ -33,6 +34,8 @@ class CamWorker(multiprocessing.Process):
 		while running:
 			time.sleep(0.01)
 			_,frame = self.cap.read()
+			#Reorder channels
+			frame = frame[:,:,[2,1,0]]
 			self.childConn.send(["frame", frame, self.count])
 			self.count += 1
 
@@ -120,6 +123,7 @@ class TrackingWorker(multiprocessing.Process):
 					self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
 				self.currentModel = self.tracker.Predict(self.normIm, self.currentModel, self.prevFrameFeatures)
 				print self.currentFrameNum, self.currentModel
+				io.imsave("img.jpg", self.currentFrame)
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
 				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
@@ -202,7 +206,7 @@ class MainWindow(QtGui.QMainWindow):
 	def ProcessFrame(self, im):
 		#print "Frame update", im.shape
 		im = QtGui.QImage(im.tostring(), im.shape[1], im.shape[0], im.strides[0], QtGui.QImage.Format_RGB888)
-		self.pix = QtGui.QPixmap(im.rgbSwapped())
+		self.pix = QtGui.QPixmap(im)
 		self.RefreshDisplay()
 
 	def ProcessFaces(self, faces):
