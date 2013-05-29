@@ -10,6 +10,11 @@ def detect(img, cascade):
 	rects[:,2:] += rects[:,:2]
 	return rects
 
+def DrawPoint(scene,x,y):
+	pen = QtGui.QPen(QtGui.QColor(255,0,0))
+	scene.addLine(x-10,y,x+10,y,pen)
+	scene.addLine(x,y-10,x,y+10,pen)
+
 class CamWorker(multiprocessing.Process): 
 
 	def __init__(self, childConnIn): 
@@ -18,6 +23,7 @@ class CamWorker(multiprocessing.Process):
 		self.childConn = childConnIn
 
 	def __del__(self):
+		self.cap.release()
 		print "CamWorker stopping"
 
 	def run(self):
@@ -60,6 +66,29 @@ class DetectorWorker(multiprocessing.Process):
 
 		self.childConn.send(["done",1])
 
+class TrackingWorker(multiprocessing.Process): 
+	def __init__(self, childConnIn): 
+		super(TrackingWorker, self).__init__()
+		self.childConn = childConnIn
+
+	def __del__(self):
+		print "TrackingWorker stopping"
+
+	def run(self):
+		running = True
+		while running:
+			time.sleep(0.01)
+
+			if self.childConn.poll(0):
+				ev = self.childConn.recv()
+				if ev[0] == "quit":
+					running = False
+				if ev[0] == "frame":
+					pass
+
+		self.childConn.send(["done",1])
+
+
 class MainWindow(QtGui.QMainWindow):
 	def __init__(self):
 		super(MainWindow, self).__init__() 
@@ -69,6 +98,7 @@ class MainWindow(QtGui.QMainWindow):
 		self.faces = np.array([])
 		self.cameraPipe = None
 		self.detectorPipe = None
+		self.trackingPipe = None
 		self.detectionPending = False
 
 		self.scene = QtGui.QGraphicsScene(self)
@@ -84,24 +114,36 @@ class MainWindow(QtGui.QMainWindow):
 
 		self.ctimer = QtCore.QTimer(self)
 		self.ctimer.timeout.connect(self.CheckForEvents)
-		#act = QtGui.QAction("timeout()", self.ctimer)
-		#act.triggered.connect(self.Test)
 		self.ctimer.start(10)
 
 	def __del__(self):
 		pass
 
 	def CheckForEvents(self):
-		if self.cameraPipe.poll(0):
-			ev = self.cameraPipe.recv()
+		try:
+			eventWaiting = self.cameraPipe.poll(0)
+		except IOError:
+			eventWaiting = 0
+		if eventWaiting:
+			try:
+				ev = self.cameraPipe.recv()
+			except IOError:
+				ev = [None, None]
 			if ev[0] == "frame" and ev[1] is not None:
 				self.ProcessFrame(ev[1])
 				if not self.detectionPending:
 					self.detectorPipe.send(ev)
 					self.detectionPending = True
 
-		if self.detectorPipe.poll(0):
-			ev = self.detectorPipe.recv()
+		try:
+			eventWaiting = self.detectorPipe.poll(0)
+		except IOError:
+			eventWaiting = 0
+		if eventWaiting:
+			try:
+				ev = self.detectorPipe.recv()
+			except IOError:
+				ev = [None, None]
 			if ev[0] == "faces":
 				self.ProcessFaces(ev[1])
 				self.detectionPending = False
@@ -121,12 +163,21 @@ class MainWindow(QtGui.QMainWindow):
 		for fnum in range(self.faces.shape[0]):
 			face = self.faces[fnum,:]
 			self.scene.addRect(face[0],face[1],face[2]-face[0],face[3]-face[1])
+			pts = []
+
+			DrawPoint(self.scene,face[0],face[1])
+			DrawPoint(self.scene,face[2],face[1])
+			DrawPoint(self.scene,face[0],face[3])
+			DrawPoint(self.scene,face[2],face[3])
 
 	def closeEvent(self, event):
-		self.detectorPipe.send(["quit",1])
-		self.cameraPipe.send(["quit",1])
-		self.detectorPipe.recv()
-		self.cameraPipe.recv()
+		if self.detectorPipe is not None: self.detectorPipe.send(["quit",1])
+		if self.cameraPipe is not None: self.cameraPipe.send(["quit",1])
+		if self.trackingPipe is not None: self.trackingPipe.send(["quit",1])
+		time.sleep(0.1)
+		if self.detectorPipe is not None: self.detectorPipe.close()
+		if self.cameraPipe is not None: self.cameraPipe.close()
+		if self.trackingPipe is not None: self.trackingPipe.close()
 
 if __name__ == '__main__':
 
@@ -144,7 +195,16 @@ if __name__ == '__main__':
 	mainWindow.detectorPipe = parentConn
 	detectorWorker.start()
 
+	parentConn, childConn = multiprocessing.Pipe()
+	trackingWorker = TrackingWorker(childConn)
+	mainWindow.trackingPipe = parentConn
+	trackingWorker.start()
+
 	ret = app.exec_()
+
+	del camWorker
+	del detectorWorker
+	del trackingWorker
 
 	sys.exit(ret)
 
