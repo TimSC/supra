@@ -22,6 +22,7 @@ class CamWorker(multiprocessing.Process):
 		super(CamWorker, self).__init__()
 		self.cap = cv2.VideoCapture(-1)
 		self.childConn = childConnIn
+		self.count = 0
 
 	def __del__(self):
 		self.cap.release()
@@ -32,7 +33,8 @@ class CamWorker(multiprocessing.Process):
 		while running:
 			time.sleep(0.01)
 			_,frame = self.cap.read()
-			self.childConn.send(["frame",frame])
+			self.childConn.send(["frame", frame, self.count])
+			self.count += 1
 
 			if self.childConn.poll(0):
 				ev = self.childConn.recv()
@@ -74,34 +76,57 @@ class TrackingWorker(multiprocessing.Process):
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 		self.meanFace = pickle.load(open("meanFace.dat", "rb"))
 		self.currentFrame = None
+		self.currentFrameNum = None
 		self.normIm = None
+		self.tracker = None
+		self.currentModel = None
+		self.prevFrameFeatures = None
+		self.trackingPending = False
 
 	def __del__(self):
 		print "TrackingWorker stopping"
 
 	def run(self):
 		running = True
+		self.tracker = pickle.load(open("tracker-5pt.dat", "rb"))
+
 		while running:
 			time.sleep(0.01)
 
-			if self.childConn.poll(0):
+			while self.childConn.poll(0):
 				ev = self.childConn.recv()
 				if ev[0] == "quit":
 					running = False
 				if ev[0] == "frame":
 					self.currentFrame = ev[1]
+					self.trackingPending = True
+					self.currentFrameNum = ev[2]
+
 				if ev[0] == "faces":
 					posModel = []
 					if len(ev[1]) == 0: continue
 					face = ev[1][0]
-					print ev[1]
 					w = face[2]-face[0]
 					h = face[3]-face[1]
 					for pt in self.detectPtsPos:
 						posModel.append((face[0] + pt[0] * w, face[1] + pt[1] * h))
+					if self.currentModel is None:
+						self.currentModel = posModel
+				time.sleep(0.01)
 
-					if self.currentFrame is not None:
-						self.normIm = normalisedImage.NormalisedImage(self.currentFrame, posModel, self.meanFace, {})
+			if self.trackingPending and self.currentModel is not None:
+				self.normIm = normalisedImage.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
+				if self.prevFrameFeatures is None:
+					self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
+				self.currentModel = self.tracker.Predict(self.normIm, self.currentModel, self.prevFrameFeatures)
+				print self.currentFrameNum, self.currentModel
+				self.childConn.send(["tracking", self.currentModel])
+				self.trackingPending = False
+				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
+
+			if self.trackingPending and self.currentModel is None:
+				self.childConn.send(["tracking", None])
+				self.trackingPending = False
 
 		self.childConn.send(["done",1])
 
@@ -116,7 +141,9 @@ class MainWindow(QtGui.QMainWindow):
 		self.cameraPipe = None
 		self.detectorPipe = None
 		self.detectionPending = False
+		self.trackingPending = False
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
+		self.tracking = []
 
 		self.scene = QtGui.QGraphicsScene(self)
 		self.view  = QtGui.QGraphicsView(self.scene)
@@ -136,36 +163,41 @@ class MainWindow(QtGui.QMainWindow):
 	def __del__(self):
 		pass
 
-	def CheckForEvents(self):
+	def CheckPipeForEvents(self, pipe):
 		try:
-			eventWaiting = self.cameraPipe.poll(0)
+			eventWaiting = pipe.poll(0)
 		except IOError:
 			eventWaiting = 0
 		if eventWaiting:
 			try:
-				ev = self.cameraPipe.recv()
+				ev = pipe.recv()
 			except IOError:
 				ev = [None, None]
-			if ev[0] == "frame" and ev[1] is not None:
-				self.ProcessFrame(ev[1])
-				if not self.detectionPending:
-					self.detectorPipe.send(ev)
-					self.trackingPipe.send(ev)
-					self.detectionPending = True
+			self.HandleEvent(ev)
 
-		try:
-			eventWaiting = self.detectorPipe.poll(0)
-		except IOError:
-			eventWaiting = 0
-		if eventWaiting:
-			try:
-				ev = self.detectorPipe.recv()
-			except IOError:
-				ev = [None, None]
-			if ev[0] == "faces":
-				self.ProcessFaces(ev[1])
-				self.detectionPending = False
+	def HandleEvent(self,ev):
+		if ev[0] == "frame" and ev[1] is not None:
+			self.ProcessFrame(ev[1])
+			if not self.detectionPending:
+				self.detectorPipe.send(ev)
+				self.detectionPending = True
+			if not self.trackingPending:
 				self.trackingPipe.send(ev)
+				self.trackingPending = True
+
+		if ev[0] == "faces":
+			self.ProcessFaces(ev[1])
+			self.detectionPending = False
+			self.trackingPipe.send(ev)
+	
+		if ev[0] == "tracking":
+			self.trackingPending = False
+			self.tracking = ev[1]
+
+	def CheckForEvents(self):
+		self.CheckPipeForEvents(self.cameraPipe)
+		self.CheckPipeForEvents(self.detectorPipe)
+		self.CheckPipeForEvents(self.trackingPipe)
 
 	def ProcessFrame(self, im):
 		#print "Frame update", im.shape
@@ -184,8 +216,11 @@ class MainWindow(QtGui.QMainWindow):
 			w = face[2]-face[0]
 			h = face[3]-face[1]
 			self.scene.addRect(face[0],face[1],w,h)
-			for pt in self.detectPtsPos:				
-				DrawPoint(self.scene,face[0] + pt[0] * w,face[1] + pt[1] * h)
+			#for pt in self.detectPtsPos:				
+			#	DrawPoint(self.scene,face[0] + pt[0] * w,face[1] + pt[1] * h)
+		if self.tracking is not None:
+			for pt in self.tracking:
+				DrawPoint(self.scene,pt[0], pt[1])
 
 	def closeEvent(self, event):
 		self.detectorPipe.send(["quit",1])
