@@ -17,13 +17,34 @@ class CamWorker(QtCore.QThread):
 			im = QtGui.QImage(frame.tostring(), frame.width, frame.height, QtGui.QImage.Format_RGB888).rgbSwapped()	
 			self.emit(QtCore.SIGNAL('webcam_frame(QImage)'), im)
 
-def SomeFunc(im):
-	print "Frame update"
-	global scene
-	pix = QtGui.QPixmap(im)
-	scene.addPixmap(pix)
 
-scene = None
+
+
+
+class MainWindow(QtGui.QMainWindow):
+	def __init__(self):
+		super(MainWindow, self).__init__() 
+		self.resize(250, 150)
+		self.move(300, 300)
+		self.setWindowTitle('Simple')
+
+		self.scene = QtGui.QGraphicsScene(self)
+		self.view  = QtGui.QGraphicsView(self.scene)
+
+		self.vbox = QtGui.QVBoxLayout()
+		self.vbox.addWidget(self.view)
+
+		centralWidget = QtGui.QWidget()
+		centralWidget.setLayout(self.vbox)
+		self.setCentralWidget(centralWidget)
+		self.show()
+
+
+	def SomeFunc(self, im):
+		print "Frame update"
+		pix = QtGui.QPixmap(im)
+		self.scene.addPixmap(pix)
+
 
 def main():
 	app = QtGui.QApplication(sys.argv)
@@ -53,7 +74,15 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+	#main()
 	#CamWorker()
+	app = QtGui.QApplication(sys.argv)
 
+	mainWindow = MainWindow()
+
+	camWorker = CamWorker()
+	QtCore.QObject.connect(camWorker, QtCore.SIGNAL("webcam_frame(QImage)"), mainWindow.SomeFunc)
+	camWorker.start() 
+
+	sys.exit(app.exec_())
 
