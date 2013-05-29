@@ -1,7 +1,8 @@
 
-import sys, time, cv, cv2, multiprocessing
+import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage
 from PyQt4 import QtGui, QtCore
 import numpy as np
+from PIL import Image
 	
 def detect(img, cascade):
 	rects = cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=3, minSize=(10, 10), flags = cv.CV_HAAR_SCALE_IMAGE)
@@ -70,6 +71,10 @@ class TrackingWorker(multiprocessing.Process):
 	def __init__(self, childConnIn): 
 		super(TrackingWorker, self).__init__()
 		self.childConn = childConnIn
+		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
+		self.meanFace = pickle.load(open("meanFace.dat", "rb"))
+		self.currentFrame = None
+		self.normIm = None
 
 	def __del__(self):
 		print "TrackingWorker stopping"
@@ -84,7 +89,19 @@ class TrackingWorker(multiprocessing.Process):
 				if ev[0] == "quit":
 					running = False
 				if ev[0] == "frame":
-					pass
+					self.currentFrame = ev[1]
+				if ev[0] == "faces":
+					posModel = []
+					if len(ev[1]) == 0: continue
+					face = ev[1][0]
+					print ev[1]
+					w = face[2]-face[0]
+					h = face[3]-face[1]
+					for pt in self.detectPtsPos:
+						posModel.append((face[0] + pt[0] * w, face[1] + pt[1] * h))
+
+					if self.currentFrame is not None:
+						self.normIm = normalisedImage.NormalisedImage(self.currentFrame, posModel, self.meanFace, {})
 
 		self.childConn.send(["done",1])
 
@@ -99,6 +116,7 @@ class MainWindow(QtGui.QMainWindow):
 		self.cameraPipe = None
 		self.detectorPipe = None
 		self.detectionPending = False
+		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 
 		self.scene = QtGui.QGraphicsScene(self)
 		self.view  = QtGui.QGraphicsView(self.scene)
@@ -132,6 +150,7 @@ class MainWindow(QtGui.QMainWindow):
 				self.ProcessFrame(ev[1])
 				if not self.detectionPending:
 					self.detectorPipe.send(ev)
+					self.trackingPipe.send(ev)
 					self.detectionPending = True
 
 		try:
@@ -146,9 +165,10 @@ class MainWindow(QtGui.QMainWindow):
 			if ev[0] == "faces":
 				self.ProcessFaces(ev[1])
 				self.detectionPending = False
+				self.trackingPipe.send(ev)
 
 	def ProcessFrame(self, im):
-		print "Frame update", im.shape
+		#print "Frame update", im.shape
 		im = QtGui.QImage(im.tostring(), im.shape[1], im.shape[0], im.strides[0], QtGui.QImage.Format_RGB888)
 		self.pix = QtGui.QPixmap(im.rgbSwapped())
 		self.RefreshDisplay()
@@ -164,8 +184,7 @@ class MainWindow(QtGui.QMainWindow):
 			w = face[2]-face[0]
 			h = face[3]-face[1]
 			self.scene.addRect(face[0],face[1],w,h)
-			pts = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
-			for pt in pts:				
+			for pt in self.detectPtsPos:				
 				DrawPoint(self.scene,face[0] + pt[0] * w,face[1] + pt[1] * h)
 
 	def closeEvent(self, event):

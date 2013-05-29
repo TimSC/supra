@@ -6,10 +6,15 @@ import numpy as np
 
 class NormalisedImage:
 	def __init__(self, urlIn, modelIn, meanFaceIn, sampleInfo):
-		self.url = urlIn
+
+		self.im, self.iml, self.imarr = None, None, None
+		assert urlIn is not None
+		if isinstance(urlIn, basestring):
+			self.url = urlIn
+		else:
+			self.imarr = urlIn
 		self.model = modelIn
 		self.meanFace = meanFaceIn
-		self.im, self.iml, self.imarr = None, None, None
 		self.procShape = None
 		self.params = None
 		self.info = sampleInfo

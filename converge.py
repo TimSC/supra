@@ -3,7 +3,7 @@ import urllib2
 import json, pickle, math, StringIO, random
 from PIL import Image
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import procrustes, pxutil
 import normalisedImage
 from sklearn.ensemble import GradientBoostingRegressor
