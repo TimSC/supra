@@ -174,6 +174,15 @@ class SupraLayers:
 		self.layers = [SupraCloud(0.3, 0.3),SupraCloud(0.3,0.2),SupraCloud(0.3,0.1)]
 
 	def AddTraining(self, sample, numExamples):
+
+		#Add noise to shape for previous frame features
+		prevShapePerturb = copy.deepcopy(sample.procShape)
+		for ptNum in range(len(prevShapePerturb)):
+			pos = prevShapePerturb[ptNum]
+			pos[0] += np.random.normal(scale=0.1)
+			pos[1] += np.random.normal(scale=0.1)
+
+		#Extract features from synthetic previous frame
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
 		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:self.numShapePcaComp]
 		extraFeatures = np.concatenate([eigenPcaInt, eigenShape])

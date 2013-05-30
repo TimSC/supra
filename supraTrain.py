@@ -18,11 +18,11 @@ if __name__ == "__main__":
 
 	#DumpNormalisedImages(filteredSamples)
 
-	#Reduce problem to two points
+	#Reduce problem to n points
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:1,:]
 
-	log = open("singlescale-b513537.txt","wt")
+	log = open("log.txt","wt")
 
 	while 1:
 		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 		if 1:
 			cloudTracker = supra.TrainTracker(trainNormSamples)
 			print cloudTracker
-			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
+			pickle.dump(cloudTracker, open("tracker-1pt.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
 		else:
 			cloudTracker = pickle.load(open("tracker.dat","rb"))
