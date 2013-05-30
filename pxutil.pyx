@@ -1,6 +1,6 @@
 # cython: profile=True
 # cython: cdivision=True
-# cython: boundscheck=True
+# cython: boundscheck=False
 # cython: wraparound=False
 
 import cmath, math
