@@ -5,6 +5,7 @@ import scipy.optimize as opt
 def FrameToArray(framePos):
 	out = np.empty((len(framePos),2))
 	for i, pos in enumerate(framePos):
+		assert len(pos)==2
 		out[i,0] = pos[0]
 		out[i,1] = pos[1]
 	return out

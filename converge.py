@@ -45,21 +45,7 @@ def LoadSamplesFromServer():
 def DumpNormalisedImages(filteredSamples):
 	for i, sample in enumerate(filteredSamples):
 		print i
-		im = Image.new("RGB",(300,300))
-		iml = im.load()
-		pos, posIm = [], []
-		for x in range(300):
-			for y in range(300):
-				nx = (x - 150) / 50.
-				ny = (y - 150) / 50.
-				pos.append((nx,ny))
-				posIm.append((x,y))
-		
-		posInts = sample.GetPixelsImPos(pos)
-		for p, px in zip(posIm, posInts):
-			#print posIm, px
-			iml[p[0], p[1]] = tuple(map(int,map(round,px)))
-		im.save("img{0}.jpg".format(i))
+		normalisedImage.SaveNormalisedImageToFile(sample, "img{0}.jpg".format(i))
 
 class PcaNormImageIntensity():
 	def __init__(self, samples):

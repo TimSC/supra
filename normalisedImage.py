@@ -172,4 +172,20 @@ def ExtractPatchAtImg(normImage, ptX, ptY, patchw=24, patchh=24, scale=0.08):
 				(y-((patchh-1)/2))*scale+ptY)
 	return localPatch
 
+def SaveNormalisedImageToFile(sample, fina):
+	im = Image.new("RGB",(300,300))
+	iml = im.load()
+	pos, posIm = [], []
+	for x in range(300):
+		for y in range(300):
+			nx = (x - 150) / 50.
+			ny = (y - 150) / 50.
+			pos.append((nx,ny))
+			posIm.append((x,y))
+		
+	posInts = sample.GetPixelsImPos(pos)
+	for p, px in zip(posIm, posInts):
+		#print posIm, px
+		iml[p[0], p[1]] = tuple(map(int,map(round,px)))
+	im.save(fina)
 
