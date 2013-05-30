@@ -35,16 +35,15 @@ if __name__ == "__main__":
 
 	tracker = pickle.load(open("tracker-1pt-save.dat","rb"))
 
-	sample = filteredSamples[0]
-	model = sample.procShape
+	model = [normIm.procShape[0]]
 	print "true", model
 
-	model[0][0] += 0.1
+	model[0][1] += 0.1
 	print "perturbed", model
 
-	prevFeat = tracker.CalcPrevFrameFeatures(sample, model)
+	prevFeat = tracker.CalcPrevFrameFeatures(normIm, model)
 
-	pred = tracker.Predict(sample, model, prevFeat)
+	pred = tracker.Predict(normIm, model, prevFeat)
 	print "pred", pred
 
 
