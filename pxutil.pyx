@@ -25,7 +25,7 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 	np.ndarray[np.float64_t, ndim=2] out,
 	int row):
 
-	cdef int c, valid
+	cdef int c
 	cdef int xi = int(x)
 	cdef int xi2 = xi+1
 	cdef double xfrac = x - xi
