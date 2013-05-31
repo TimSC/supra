@@ -20,8 +20,9 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to n points
+	numPts = 2
 	for sample in filteredSamples:
-		sample.procShape = sample.procShape[0:1,:]
+		sample.procShape = sample.procShape[0:numPts,:]
 
 	meanFace = pickle.load(open("meanFace.dat", "rb"))
 
@@ -33,12 +34,12 @@ if __name__ == "__main__":
 	print normIm.procShape
 	normalisedImage.SaveNormalisedImageToFile(normIm, "img.jpg")
 
-	tracker = pickle.load(open("tracker-1pt-save.dat","rb"))
+	tracker = pickle.load(open("tracker-2pt-halfdata.dat","rb"))
 
-	model = [normIm.procShape[0]]
+	model = normIm.procShape[:numPts]
 	print "true", model
 
-	model[0][1] += 0.1
+	#model[1][0] += 0.1
 	print "perturbed", model
 
 	prevFeat = tracker.CalcPrevFrameFeatures(normIm, model)

@@ -91,7 +91,7 @@ class TrackingWorker(multiprocessing.Process):
 
 	def run(self):
 		running = True
-		self.tracker = pickle.load(open("tracker-5pt.dat", "rb"))
+		self.tracker = pickle.load(open("tracker-5pt-halfdata.dat", "rb"))
 
 		while running:
 			time.sleep(0.01)
@@ -119,11 +119,12 @@ class TrackingWorker(multiprocessing.Process):
 
 			if self.trackingPending and self.currentModel is not None:
 				self.normIm = normalisedImage.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
+				normalisedImage.SaveNormalisedImageToFile(self.normIm, "img.jpg")
 				if self.prevFrameFeatures is None:
 					self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
 				self.currentModel = self.tracker.Predict(self.normIm, self.currentModel, self.prevFrameFeatures)
 				print self.currentFrameNum, self.currentModel
-				io.imsave("img.jpg", self.currentFrame)
+				#io.imsave("currentFrame.jpg", self.currentFrame)
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
 				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
