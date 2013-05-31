@@ -118,16 +118,29 @@ class TrackingWorker(multiprocessing.Process):
 				time.sleep(0.01)
 
 			if self.trackingPending and self.currentModel is not None:
+				#Normalise input image using procrustes
 				self.normIm = normalisedImage.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
 				normalisedImage.SaveNormalisedImageToFile(self.normIm, "img.jpg")
+
+				#Convert coordinates to normalised space
+				normPosModel = [self.normIm.GetNormPos(*pt) for pt in self.currentModel]
+				print "normPosModel",normPosModel
+
+				#Initialise prev features if necessary
 				if self.prevFrameFeatures is None:
-					self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
-				self.currentModel = self.tracker.Predict(self.normIm, self.currentModel, self.prevFrameFeatures)
+					self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, normPosModel)
+
+				#Make prediction
+				pred = self.tracker.Predict(self.normIm, normPosModel, self.prevFrameFeatures)
+
+				#Convert prediction back to image space
+				self.currentModel = [self.normIm.GetPixelPosImPos(*pt) for pt in pred]
+
 				print self.currentFrameNum, self.currentModel
 				#io.imsave("currentFrame.jpg", self.currentFrame)
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
-				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, self.currentModel)
+				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, pred)
 
 			if self.trackingPending and self.currentModel is None:
 				self.childConn.send(["tracking", None])

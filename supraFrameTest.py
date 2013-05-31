@@ -45,11 +45,11 @@ if __name__ == "__main__":
 		#model[1][0] += 0.1
 		print "currentModel", currentModel
 
-		if prevFeat is None:
-			prevFeat = tracker.CalcPrevFrameFeatures(normIm, currentModel)
-
 		normSpaceModel = [normIm.GetNormPos(*pt) for pt in currentModel]
 		print "normSpaceModel", normSpaceModel
+
+		if prevFeat is None:
+			prevFeat = tracker.CalcPrevFrameFeatures(normIm, normSpaceModel)
 
 		pred = tracker.Predict(normIm, normSpaceModel, prevFeat)
 
