@@ -14,12 +14,12 @@ def TrainTracker(trainNormSamples):
 
 def TestTracker(cloudTracker, testNormSamples, log):
 	testOffs = []
-	testSampleStore = []
+	sampleInfo = []
 	testPredModels = []
 	testModels = []
 	trueModels = []
 	for sampleCount, sample in enumerate(testNormSamples):
-		print "test", sampleCount, len(testNormSamples)
+		print "test", sampleCount, len(testNormSamples), sample.info['roiId']
 		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
 		
 		for layer in cloudTracker.layers:
@@ -43,7 +43,8 @@ def TestTracker(cloudTracker, testNormSamples, log):
 			testPredModels.append(predModel)
 			testModels.append(testPos)
 			trueModels.append(sample.procShape)
-			testSampleStore.append(sample)
+			sampleInfo.append(sample.info)
+
 
 	#Calculate performance
 	testOffs = np.array(testOffs)
@@ -63,7 +64,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 
 	#Calculate performance metrics
 	correls, signScores = [], []
-	for ptNum in range(testOffstestOffs.shape[1]):
+	for ptNum in range(testOffs.shape[1]):
 		correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 		correl = 0.5*(correlX+correlY)
@@ -73,8 +74,8 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	#plt.savefig("correl.svg")
 	
 	for ptNum in range(testOffs.shape[1]):
-		signX = SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
-		signY = SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
+		signX = supra.SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
+		signY = supra.SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
 		signScore = 0.5 * (signX + signY)
 		signScores.append(signScore)
 
@@ -99,7 +100,16 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	print "signScore",avSignScore
 	print "medPredError",medPredError
 
-	#plt.plot(offsetDist[0,:], predErrors[0,:] ,'x')
+	#Calc sample specific error
+	roiDict = {}
+	for info, errNum in zip(sampleInfo, range(predErrors.shape[1])):
+		roiId = info['roiId']
+		if roiId not in roiDict:
+			roiDict[roiId] = []
+		roiDict[roiId].append(predErrors[:, errNum])
+	#pickle.dump(roiDict, open("roiDict.dat", "wb"), protocol = -1)
+
+	#plt.plot(offsetDist[0,:], predErrorsArr[0,:] ,'x')
 	#plt.show()
 
 	log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
@@ -134,7 +144,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			cloudTracker = TrainTracker(trainNormSamples)
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)

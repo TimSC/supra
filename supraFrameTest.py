@@ -20,32 +20,42 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to n points
-	numPts = 2
+	numPts = 5
 	for sample in filteredSamples:
 		sample.procShape = sample.procShape[0:numPts,:]
 
 	meanFace = pickle.load(open("meanFace.dat", "rb"))
 
 	#Load a raw image and normalise it
-	im = io.imread("00001.jpg")
+	im = io.imread("00091.jpg")
+	currentModel = [[3508,1445],[3592,1454],[3534,1508],[3504,1533],[3580,1539]]
+	currentModel = currentModel[:numPts]
 	
-	normIm = normalisedImage.NormalisedImage(im, [[90,203],[162,198],[138,237],[94,265],[174,259]], meanFace, {})
-	normIm.CalcProcrustes()
-	print normIm.procShape
-	normalisedImage.SaveNormalisedImageToFile(normIm, "img.jpg")
+	tracker = pickle.load(open("tracker-5pt-halfdata.dat","rb"))
+	prevFeat = None
 
-	tracker = pickle.load(open("tracker-2pt-halfdata.dat","rb"))
+	while 1:
+		normIm = normalisedImage.NormalisedImage(im, currentModel, meanFace, {})
+		normIm.CalcProcrustes()
+		#print normIm.procShape
+		normalisedImage.SaveNormalisedImageToFile(normIm, "img.jpg")
 
-	model = normIm.procShape[:numPts]
-	print "true", model
+		print "true", normIm.procShape[:numPts]
 
-	#model[1][0] += 0.1
-	print "perturbed", model
+		#model[1][0] += 0.1
+		print "currentModel", currentModel
 
-	prevFeat = tracker.CalcPrevFrameFeatures(normIm, model)
+		if prevFeat is None:
+			prevFeat = tracker.CalcPrevFrameFeatures(normIm, currentModel)
 
-	pred = tracker.Predict(normIm, model, prevFeat)
-	print "pred", pred
+		normSpaceModel = [normIm.GetNormPos(*pt) for pt in currentModel]
+		print "normSpaceModel", normSpaceModel
 
+		pred = tracker.Predict(normIm, normSpaceModel, prevFeat)
 
+		prevFeat = tracker.CalcPrevFrameFeatures(normIm, pred)
+
+		print "pred", pred
+
+		currentModel = [normIm.GetPixelPosImPos(*pt) for pt in pred]
 

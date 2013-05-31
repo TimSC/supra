@@ -73,7 +73,7 @@ def CalcProcrustes(posdata, targetShape):
 	return out
 
 def ToProcSpace(modelArr, params):
-	centModel = modelArr-params[:2]
+	centModel = np.array(modelArr)-params[:2]
 	scaledModel = centModel / params[2]
 
 	ang = math.radians(-params[3])
