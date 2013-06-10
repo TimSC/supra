@@ -9,7 +9,7 @@ import numpy as np
 
 class KernelFilter:
 	def __init__(self, normImIn):
-		self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]])
+		self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.double)
 		self.scale = 0.05
 		self.halfw = (len(self.kernel) - 1) / 2
 		self.normIm = normImIn
@@ -36,11 +36,14 @@ class KernelFilter:
 		cdef int x, y
 		cdef double comp
 		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((self.normIm.imarr.shape[2]))
+		cdef np.ndarray[np.float64_t, ndim=2] k = self.kernel
+		cdef int hw = self.halfw
+		cdef double sc = self.scale
 		
-		for x in range(-self.halfw, self.halfw+1):
-			for y in range(-self.halfw, self.halfw+1):
-				comp = self.kernel[y+self.halfw][x+self.halfw]
-				xx = self.normIm.GetPixelImPos(self.scale*x+xOff, self.scale*y+yOff)
+		for x in range(-hw, hw+1):
+			for y in range(-hw, hw+1):
+				comp = k[y+hw, x+hw]
+				xx = self.normIm.GetPixelImPos(sc*x+xOff, sc*y+yOff)
 				total += xx * comp
 		#print xOff, yOff, total
 		if self.absVal:
