@@ -47,6 +47,8 @@ class SupraAxisSet():
 		self.regX, self.regY = None, None
 		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numSupportPix = 50
+		self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 
 	def AddTraining(self, sample, trainOffset, extraFeatures):
 
@@ -56,6 +58,10 @@ class SupraAxisSet():
 		if self.supportPixOffSobel is None:
 			self.supportPixOffSobel = np.random.uniform(low=-self.supportPixHalfWidth, \
 				high=self.supportPixHalfWidth, size=(self.numSupportPix, 2))
+
+		if not hasattr(self, 'sobelKernel'): #Temporary code for old pickled data
+			self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+			self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)			
 
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
@@ -96,6 +102,11 @@ class SupraAxisSet():
 			axis.PrepareModel(self.trainInt, trainOff)
 
 	def Predict(self, sample, model, prevFrameFeatures):
+
+		if not hasattr(self, 'sobelKernel'): #Temporary code for old pickled data
+			self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+			self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)		
+
 		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
 		pix = ExtractSupportIntensity(sample, self.supportPixOff, \

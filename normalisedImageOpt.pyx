@@ -8,11 +8,20 @@ cimport numpy as np
 import numpy as np
 
 class KernelFilter:
-	def __init__(self, normImIn):
-		self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
-		self.offsets = None
+	def __init__(self, normImIn, kernelIn = None, offsetsIn = None):
+
+		if kernelIn is not None:
+			self.kernel = np.array(kernelIn, dtype=np.int32)
+		else:
+			self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+
+		if offsetsIn is not None:
+			self.halfw = (len(self.kernel) - 1) / 2
+			self.offsets = np.array(offsetsIn, dtype=np.int32)
+		else:
+			self.offsets, self.halfw = CalcKernelOffsets(self.kernel)
+
 		self.scale = 0.05
-		self.halfw = (len(self.kernel) - 1) / 2
 		self.normIm = normImIn
 		self.absVal = True
 		
@@ -38,26 +47,13 @@ class KernelFilter:
 		cdef double comp
 		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((self.normIm.imarr.shape[2]))
 		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
-		cdef np.ndarray[np.int32_t, ndim=2] offsetArr
 		cdef int hw = self.halfw
 		cdef double sc = self.scale
-		
-		if self.offsets is None:
-			self.offsets = []
-			for x in range(-hw, hw+1):
-				for y in range(-hw, hw+1):
-					self.offsets.append((x,y))
-			self.offsets = np.array(self.offsets, dtype = np.int32)
-		
-		pixs = self.normIm.GetPixelsImPos(self.offsets)
+	
+		arr = np.array(self.offsets + (xOff, yOff))
+		pixs = self.normIm.GetPixelsImPos(arr)
 		total = pixs.sum(axis=0)
 
-		#for i in range(offsetArr.shape[0]):
-		#	comp = k[offsetArr[i,1]+hw, offsetArr[i,0]+hw]
-		#	xx = self.normIm.GetPixelImPos(sc*offsetArr[i,0]+xOff, sc*offsetArr[i,1]+yOff)
-		#	total += xx * comp
-
-		#print xOff, yOff, total
 		if self.absVal:
 			return np.abs(total)
 		return total
@@ -68,4 +64,13 @@ class KernelFilter:
 			out.append(self.GetPixelImPos(pos[0], pos[1]))
 		return out
 
+def CalcKernelOffsets(kernel):
+	cdef int hw = (kernel.shape[0] - 1) / 2
+
+	offsets = []
+	for x in range(-hw, hw+1):
+		for y in range(-hw, hw+1):
+			offsets.append((x,y))
+	offsets = np.array(offsets, dtype = np.int32)
+	return offsets, hw
 
