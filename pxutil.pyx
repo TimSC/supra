@@ -3,7 +3,7 @@
 # cython: boundscheck=False
 # cython: wraparound=False
 
-import cmath, math
+import cmath, math, random
 cimport numpy as np
 import numpy as np
 
@@ -80,11 +80,13 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 			BilinearSample(iml, offsetX, offsetY, temp, out, offsetNum)
 		else:
 			if randomOob == 0 or randomOob == 2:
-				for ch in iml.shape[2]:
+				for ch in range(iml.shape[2]):
 					out[offsetNum, ch] = 0
 			if randomOob == 1:
-				for ch in iml.shape[2]:
-					out[offsetNum, ch] = np.random.uniform(0, 255)
+				for ch in range(iml.shape[2]):
+					out[offsetNum, ch] = random.uniform(0, 255)
+		
+	ch = 0 #For profiling purposes
 
 def ITUR6012(col): #ITU-R 601-2
 	return 0.299*col[0] + 0.587*col[1] + 0.114*col[2]

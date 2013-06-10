@@ -79,7 +79,11 @@ class NormalisedImage:
 		imPos = self.GetPixelPos(ptNum, x, y)
 		imLoc = np.array([imPos], dtype=np.float64)
 		
-		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2)[0][0]
+		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+		valid = np.empty(imLoc.shape[0], dtype=np.int)
+		temp = np.empty((4, self.imarr.shape[2]))
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
+		return pix[0]
 
 	def GetPixels(self, ptNum, pixPosLi):
 
@@ -93,7 +97,11 @@ class NormalisedImage:
 			posImgLi.append(imPos)
 		imLoc = np.array(posImgLi, dtype=np.float64)
 		
-		return pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2)[0]
+		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+		valid = np.empty(imLoc.shape[0], dtype=np.int)
+		temp = np.empty((4, self.imarr.shape[2]))
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)[0]
+		return pix
 
 	def GetPixelImPos(self, x, y):
 
@@ -104,8 +112,8 @@ class NormalisedImage:
 		imPos = self.GetPixelPosImPos(x, y)
 		imLoc = np.array([imPos], dtype=np.float64)
 
-		pix = np.zeros((imLoc.shape[0], self.imarr.shape[2]))
-		valid = np.zeros(imLoc.shape[0], dtype=np.int)
+		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+		valid = np.empty(imLoc.shape[0], dtype=np.int)
 		temp = np.empty((4, self.imarr.shape[2]))
 		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
 		return pix[0]
@@ -122,9 +130,8 @@ class NormalisedImage:
 			posImgLi.append(imPos)
 		imLoc = np.array(posImgLi, dtype=np.float64)
 		
-
-		pix = np.zeros((imLoc.shape[0], self.imarr.shape[2]))
-		valid = np.zeros(imLoc.shape[0], dtype=np.int)
+		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+		valid = np.empty(imLoc.shape[0], dtype=np.int)
 		temp = np.empty((4, self.imarr.shape[2]))
 		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
 		return pix
