@@ -59,20 +59,8 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 	np.ndarray[np.float64_t, ndim=2] out, \
 	np.ndarray[np.int_t, ndim=1] valid):
 
-	#cdef np.ndarray[np.float64_t, ndim=2] out = np.zeros((imLoc.shape[0], iml.shape[2]))
-	#cdef np.ndarray[np.int_t, ndim=1] valid = np.zeros(imLoc.shape[0], dtype=np.int)
-	#cdef double x, y
 	cdef float offsetX, offsetY
 	cdef int offsetNum, oob, ch
-
-	#if randomOob == 0 or randomOob == 2:
-	#	out = np.zeros((imLoc.shape[0], iml.shape[2]))
-	#	valid = np.zeros(imLoc.shape[0], dtype=np.int)
-	#if randomOob == 1:
-	#	out = np.array(np.random.random_integers(0, 255, size=(imLoc.shape[0], iml.shape[2])), dtype=np.float)
-	#	valid = np.zeros(imLoc.shape[0], dtype=np.int)		
-
-	#cdef np.ndarray[np.float64_t, ndim=2] temp = np.empty((4, iml.shape[2]))
 
 	for offsetNum in range(imLoc.shape[0]):
 		offsetX = imLoc[offsetNum, 0]
@@ -97,8 +85,6 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 			if randomOob == 1:
 				for ch in iml.shape[2]:
 					out[offsetNum, ch] = np.random.uniform(0, 255)
-
-	return out, valid
 
 def ITUR6012(col): #ITU-R 601-2
 	return 0.299*col[0] + 0.587*col[1] + 0.114*col[2]
