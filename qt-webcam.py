@@ -75,7 +75,6 @@ class DetectorWorker(multiprocessing.Process):
 class TrackingWorker(multiprocessing.Process): 
 	def __init__(self, childConnIn): 
 		super(TrackingWorker, self).__init__()
-		yappi.start()
 		self.childConn = childConnIn
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 		self.meanFace = pickle.load(open("meanFace.dat", "rb"))
@@ -94,6 +93,7 @@ class TrackingWorker(multiprocessing.Process):
 	def run(self):
 		running = True
 		self.tracker = pickle.load(open("tracker-5pt-halfdata.dat", "rb"))
+		yappi.start()
 
 		while running:
 			time.sleep(0.01)
@@ -144,11 +144,13 @@ class TrackingWorker(multiprocessing.Process):
 				self.trackingPending = False
 				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, pred)
 
+				yappi.stop()
 				self.count += 1
-				if self.count > 10:
+				if self.count > 10:	
 					stats = yappi.get_stats()
 					pickle.dump(stats, open("prof.dat","wb"), protocol = -1)
 					self.count = 0
+				yappi.start()
 
 			if self.trackingPending and self.currentModel is None:
 				self.childConn.send(["tracking", None])
