@@ -47,7 +47,6 @@ class KernelFilter:
 		cdef double comp
 		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((self.normIm.imarr.shape[2]))
 		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
-		cdef int hw = self.halfw
 		cdef double sc = self.scale
 	
 		arr = np.array((self.offsets * sc) + (xOff, yOff))
