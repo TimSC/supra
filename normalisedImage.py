@@ -47,7 +47,7 @@ class NormalisedImage:
 		modPoint2d = np.array([modPoint])
 
 		imgPos = np.empty(modPoint2d.shape)
-		procrustes.ToImageSpace(modPoint2d, self.params, imgPos)
+		procrustesopt.ToImageSpace(modPoint2d, self.params, imgPos)
 		return imgPos[0]
 
 	def GetPixelPosImPos(self, x, y):
@@ -61,7 +61,7 @@ class NormalisedImage:
 		modPoint2d = np.array([modPoint])
 
 		imgPos = np.empty(modPoint2d.shape)
-		procrustes.ToImageSpace(modPoint2d, self.params, imgPos)
+		procrustesopt.ToImageSpace(modPoint2d, self.params, imgPos)
 		return imgPos[0]
 
 	def GetNormPos(self, x, y):

@@ -64,7 +64,7 @@ def CalcProcrustesOnFrame(frameArr, targetArr):
 	#Translate to target centeroid
 	frameFinal = frameRot + targetCent
 
-	return frameFinal, params
+	return frameFinal, np.array(params)
 
 def CalcProcrustes(posdata, targetShape):
 	out = np.empty(posdata.shape)
