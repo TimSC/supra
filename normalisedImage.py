@@ -48,7 +48,7 @@ class NormalisedImage:
 		modPoint2d = np.array([modPoint])
 
 		imgPos = np.empty(modPoint2d.shape)
-		procrustesopt.ToImageSpace(modPoint2d, self.params, imgPos)
+		procrustesopt.ToImageSpace(modPoint2d, np.array(self.params), imgPos)
 		return imgPos[0]
 
 	def GetPixelPosImPos(self, x, y):
@@ -62,7 +62,7 @@ class NormalisedImage:
 		modPoint2d = np.array([modPoint])
 
 		imgPos = np.empty(modPoint2d.shape)
-		procrustesopt.ToImageSpace(modPoint2d, self.params, imgPos)
+		procrustesopt.ToImageSpace(modPoint2d, np.array(self.params), imgPos)
 		return imgPos[0]
 
 	def GetNormPos(self, x, y):
@@ -147,6 +147,12 @@ class NormalisedImage:
 	def NumPoints(self):
 		return min(len(self.model), len(self.procShape))
 
+	def GetParams(self):
+		return self.params
+
+	def NumChannels(self):
+		return self.imarr.shape[2]
+
 def ExtractPatch(normImage, ptNum, xOff, yOff, patchw=24, patchh=24, scale=0.08):
 
 	localPatch = np.zeros((patchh, patchw, 3), dtype=np.uint8)
@@ -173,4 +179,33 @@ def SaveNormalisedImageToFile(sample, fina):
 		#print posIm, px
 		iml[p[0], p[1]] = tuple(map(int,map(round,px)))
 	im.save(fina)
+
+class HorizontalMirrorNormalisedImage():
+	def __init__(self, imgIn, mapping):
+		self.img = imgIn
+		self.mapping = mapping #Maps from previous index to new index
+		
+		self.procShape = []
+		for i, pt in enumerate(self.img.procShape):
+			if i <= len(self.procShape):
+				self.procShape.append((-1.,-1.))
+			self.procShape[i] = pt
+
+	def GetPixelsImPos(self, pixPosLi):
+
+		pixPosLi = np.copy(pixPosLi) * [-1., 1.]
+		out = self.img.GetPixelsImPos(pixPosLi)
+		#self.params = self.img.GetParams()
+		return out
+
+	def GetPixel(self, ptNum, x, y):
+		ptNum2 = self.mapping[ptNum]
+		return self.img.GetPixel(ptNum2, -x, y)
+
+	def NumPoints(self):
+		return self.img.NumPoints()
+
+	def NumChannels(self):
+		return self.img.NumChannels()
+
 

@@ -45,7 +45,8 @@ class KernelFilter:
 	def GetPixelImPos(self, double xOff, double yOff):
 		cdef int x, y, i
 		cdef double comp
-		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((self.normIm.imarr.shape[2]))
+		cdef int numChan = self.normIm.NumChannels()
+		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((numChan))
 		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
 		cdef double sc = self.scale
 	

@@ -1,5 +1,5 @@
 
-import supra, pickle, random
+import supra, pickle, random, normalisedImage
 import numpy as np
 
 def TrainTracker(trainNormSamples):
@@ -145,6 +145,12 @@ if __name__ == "__main__":
 		testNormSamples = filteredSamples[halfInd:]
 
 		if 1:
+			#Reflect images to increase training data
+			mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
+			trainNormSamples.extend(mirImgs)
+			#trainNormSamples = mirImgs
+
+			#Create and train tracker
 			cloudTracker = TrainTracker(trainNormSamples)
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
