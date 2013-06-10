@@ -18,6 +18,7 @@ class NormalisedImage:
 		self.procShape = None
 		self.params = None
 		self.info = sampleInfo
+		self.singlePixArr = None
 	
 	def LoadImage(self):
 
@@ -97,11 +98,11 @@ class NormalisedImage:
 			posImgLi.append(imPos)
 		imLoc = np.array(posImgLi, dtype=np.float64)
 		
-		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
-		valid = np.empty(imLoc.shape[0], dtype=np.int)
-		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)[0]
-		return pix
+		self.pixArr = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+		self.pixValid = np.empty(imLoc.shape[0], dtype=np.int)
+		self.bilinearTemp = np.empty((4, self.imarr.shape[2]))
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.pixArr, self.pixValid)
+		return self.pixArr
 
 	def GetPixelImPos(self, x, y):
 
@@ -112,11 +113,12 @@ class NormalisedImage:
 		imPos = self.GetPixelPosImPos(x, y)
 		imLoc = np.array([imPos], dtype=np.float64)
 
-		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
-		valid = np.empty(imLoc.shape[0], dtype=np.int)
-		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
-		return pix[0]
+		if self.singlePixArr is None:
+			self.singlePixArr = np.empty((imLoc.shape[0], self.imarr.shape[2]))
+			self.singlePixValid = np.empty(imLoc.shape[0], dtype=np.int)
+			self.bilinearTemp = np.empty((4, self.imarr.shape[2]))
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.singlePixArr, self.singlePixValid)
+		return self.singlePixArr[0]
 
 	def GetPixelsImPos(self, pixPosLi):
 
