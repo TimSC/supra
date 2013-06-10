@@ -1,5 +1,6 @@
 
 import numpy as np, pickle, random, pxutil, copy, math, normalisedImage, converge
+import normalisedImageOpt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
 import matplotlib.pyplot as plt
@@ -58,7 +59,7 @@ class SupraAxisSet():
 
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
-		sobelSample = normalisedImage.KernelFilter(sample)
+		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
 		ptX, ptY = sample.procShape[self.ptNum][0], sample.procShape[self.ptNum][1]
 		pix = ExtractSupportIntensity(sample, self.supportPixOff, ptX, ptY, xOff, yOff)
@@ -95,7 +96,7 @@ class SupraAxisSet():
 			axis.PrepareModel(self.trainInt, trainOff)
 
 	def Predict(self, sample, model, prevFrameFeatures):
-		sobelSample = normalisedImage.KernelFilter(sample)
+		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
 		pix = ExtractSupportIntensity(sample, self.supportPixOff, \
 			model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
