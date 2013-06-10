@@ -9,7 +9,8 @@ import numpy as np
 
 class KernelFilter:
 	def __init__(self, normImIn):
-		self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.double)
+		self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+		self.offsets = None
 		self.scale = 0.05
 		self.halfw = (len(self.kernel) - 1) / 2
 		self.normIm = normImIn
@@ -33,18 +34,28 @@ class KernelFilter:
 		return out
 
 	def GetPixelImPos(self, double xOff, double yOff):
-		cdef int x, y
+		cdef int x, y, i
 		cdef double comp
 		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((self.normIm.imarr.shape[2]))
-		cdef np.ndarray[np.float64_t, ndim=2] k = self.kernel
+		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
+		cdef np.ndarray[np.int32_t, ndim=2] offsetArr
 		cdef int hw = self.halfw
 		cdef double sc = self.scale
 		
-		for x in range(-hw, hw+1):
-			for y in range(-hw, hw+1):
-				comp = k[y+hw, x+hw]
-				xx = self.normIm.GetPixelImPos(sc*x+xOff, sc*y+yOff)
-				total += xx * comp
+		if self.offsets is None:
+			self.offsets = []
+			for x in range(-hw, hw+1):
+				for y in range(-hw, hw+1):
+					self.offsets.append((x,y))
+			self.offsets = np.array(self.offsets, dtype = np.int32)
+		
+		offsetArr = self.offsets
+
+		for i in range(offsetArr.shape[0]):
+			comp = k[offsetArr[i,1]+hw, offsetArr[i,0]+hw]
+			xx = self.normIm.GetPixelImPos(sc*offsetArr[i,0]+xOff, sc*offsetArr[i,1]+yOff)
+			total += xx * comp
+
 		#print xOff, yOff, total
 		if self.absVal:
 			return np.abs(total)
