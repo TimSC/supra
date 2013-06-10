@@ -50,7 +50,7 @@ class KernelFilter:
 		cdef int hw = self.halfw
 		cdef double sc = self.scale
 	
-		arr = np.array(self.offsets + (xOff, yOff))
+		arr = np.array((self.offsets * sc) + (xOff, yOff))
 		pixs = self.normIm.GetPixelsImPos(arr)
 		total = pixs.sum(axis=0)
 
