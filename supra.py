@@ -1,6 +1,6 @@
 
-import numpy as np, pickle, random, pxutil, copy, math, normalisedImage, converge
-import normalisedImageOpt
+import numpy as np, pickle, random, pxutil, copy, math, converge
+import normalisedImage, normalisedImageOpt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
 import matplotlib.pyplot as plt
@@ -126,7 +126,7 @@ class SupraAxisSet():
 		pixNormSobel = np.array(pixConvSobel)
 		pixNormSobel -= pixNormSobel.mean()
 
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatchAtImg(sample, \
+		localPatch = col.rgb2grey(normalisedImageOpt.ExtractPatchAtImg(sample, \
 			model[self.ptNum][0], model[self.ptNum][1]))
 		hog = feature.hog(localPatch)
 

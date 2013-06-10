@@ -104,7 +104,7 @@ class NormalisedImage:
 		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.pixArr, self.pixValid)
 		return self.pixArr
 
-	def GetPixelImPos(self, x, y):
+	def GetPixelImPos(self, x, y, out = None):
 
 		#Lazy load of image
 		if self.imarr is None:
@@ -118,7 +118,13 @@ class NormalisedImage:
 			self.singlePixValid = np.empty(imLoc.shape[0], dtype=np.int)
 			self.bilinearTemp = np.empty((4, self.imarr.shape[2]))
 		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.singlePixArr, self.singlePixValid)
-		return self.singlePixArr[0]
+		
+		px = self.singlePixArr[0]
+		if out is not None:
+			for ch in range(self.imarr.shape[2]):
+				out[ch] = px[ch]
+
+		return px
 
 	def GetPixelsImPos(self, pixPosLi):
 

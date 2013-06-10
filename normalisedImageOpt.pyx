@@ -73,16 +73,25 @@ def CalcKernelOffsets(kernel):
 	offsets = np.array(offsets, dtype = np.int32)
 	return offsets, hw
 
-def ExtractPatchAtImg(normImage, ptX, ptY, patchw=24, patchh=24, scale=0.08):
+def ExtractPatchAtImg(normImage, double ptX, \
+	double ptY, \
+	int patchw=24, \
+	int patchh=24, \
+	double scale=0.08):
 
-	cdef int x, y
+	cdef int x, y, ch
+	cdef float rawX, rawY
+	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.imarr.shape[2], dtype=np.uint8)
 
-	localPatch = np.zeros((patchh, patchw, 3), dtype=np.uint8)
+	cdef np.ndarray[np.uint8_t, ndim=3] localPatch = np.zeros((patchh, patchw, normImage.imarr.shape[2]), dtype=np.uint8)
 	for x in range(patchw):
 		for y in range(patchh):
-			localPatch[y,x,:] = normImage.GetPixelImPos(
-				(x-((patchw-1)/2))*scale+ptX, \
-				(y-((patchh-1)/2))*scale+ptY)
+			rawX = (x-((patchw-1)/2))*scale+ptX
+			rawY = (y-((patchh-1)/2))*scale+ptY
+			normImage.GetPixelImPos(rawX, rawY, tmp)
+
+			for ch in range(tmp.shape[0]):
+				localPatch[y,x,ch] = tmp[ch]
 	return localPatch
 
 
