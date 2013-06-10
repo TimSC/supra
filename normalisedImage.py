@@ -151,16 +151,6 @@ def ExtractPatch(normImage, ptNum, xOff, yOff, patchw=24, patchh=24, scale=0.08)
 				(y-((patchh-1)/2))*scale+yOff)
 	return localPatch
 
-def ExtractPatchAtImg(normImage, ptX, ptY, patchw=24, patchh=24, scale=0.08):
-
-	localPatch = np.zeros((patchh, patchw, 3), dtype=np.uint8)
-	for x in range(patchw):
-		for y in range(patchh):
-			localPatch[y,x,:] = normImage.GetPixelImPos(
-				(x-((patchw-1)/2))*scale+ptX, \
-				(y-((patchh-1)/2))*scale+ptY)
-	return localPatch
-
 def SaveNormalisedImageToFile(sample, fina):
 	im = Image.new("RGB",(300,300))
 	iml = im.load()
