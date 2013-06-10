@@ -143,14 +143,14 @@ class TrackingWorker(multiprocessing.Process):
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
 				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, pred)
-
-				yappi.stop()
+				
 				self.count += 1
 				if self.count > 10:	
+					yappi.stop()
 					stats = yappi.get_stats()
 					pickle.dump(stats, open("prof.dat","wb"), protocol = -1)
 					self.count = 0
-				yappi.start()
+					yappi.start()
 
 			if self.trackingPending and self.currentModel is None:
 				self.childConn.send(["tracking", None])

@@ -52,23 +52,27 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 		c2 = p[2,c] * (1.-xfrac) + p[3,c] * xfrac
 		out[row,c] = c1 * (1.-yfrac) + c2 * yfrac
 
-def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, 
-	np.ndarray[np.float64_t, ndim=2] imLoc, int randomOob):
+def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
+	np.ndarray[np.float64_t, ndim=2] imLoc, \
+	int randomOob, \
+	np.ndarray[np.float64_t, ndim=2] temp, \
+	np.ndarray[np.float64_t, ndim=2] out, \
+	np.ndarray[np.int_t, ndim=1] valid):
 
-	cdef np.ndarray[np.float64_t, ndim=2] out = np.zeros((imLoc.shape[0], iml.shape[2]))
-	cdef np.ndarray[np.int_t, ndim=1] valid = np.zeros(imLoc.shape[0], dtype=np.int)
-	cdef double x, y
+	#cdef np.ndarray[np.float64_t, ndim=2] out = np.zeros((imLoc.shape[0], iml.shape[2]))
+	#cdef np.ndarray[np.int_t, ndim=1] valid = np.zeros(imLoc.shape[0], dtype=np.int)
+	#cdef double x, y
 	cdef float offsetX, offsetY
-	cdef int offsetNum, oob
+	cdef int offsetNum, oob, ch
 
-	if randomOob == 0 or randomOob == 2:
-		out = np.zeros((imLoc.shape[0], iml.shape[2]))
-		valid = np.zeros(imLoc.shape[0], dtype=np.int)
-	if randomOob == 1:
-		out = np.array(np.random.random_integers(0, 255, size=(imLoc.shape[0], iml.shape[2])), dtype=np.float)
-		valid = np.zeros(imLoc.shape[0], dtype=np.int)		
+	#if randomOob == 0 or randomOob == 2:
+	#	out = np.zeros((imLoc.shape[0], iml.shape[2]))
+	#	valid = np.zeros(imLoc.shape[0], dtype=np.int)
+	#if randomOob == 1:
+	#	out = np.array(np.random.random_integers(0, 255, size=(imLoc.shape[0], iml.shape[2])), dtype=np.float)
+	#	valid = np.zeros(imLoc.shape[0], dtype=np.int)		
 
-	cdef np.ndarray[np.float64_t, ndim=2] temp = np.empty((4, iml.shape[2]))
+	#cdef np.ndarray[np.float64_t, ndim=2] temp = np.empty((4, iml.shape[2]))
 
 	for offsetNum in range(imLoc.shape[0]):
 		offsetX = imLoc[offsetNum, 0]
@@ -86,6 +90,14 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml,
 		valid[offsetNum] = oob
 		if not oob:
 			BilinearSample(iml, offsetX, offsetY, temp, out, offsetNum)
+		else:
+			if randomOob == 0 or randomOob == 2:
+				for ch in iml.shape[2]:
+					out[offsetNum, ch] = 0
+			if randomOob == 1:
+				for ch in iml.shape[2]:
+					out[offsetNum, ch] = np.random.uniform(0, 255)
+
 	return out, valid
 
 def ITUR6012(col): #ITU-R 601-2
