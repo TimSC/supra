@@ -1,6 +1,6 @@
 
 import urllib2
-import StringIO, procrustes, pxutil, math
+import StringIO, procrustes, procrustesopt, pxutil, math
 from PIL import Image
 import numpy as np
 
@@ -44,7 +44,10 @@ class NormalisedImage:
 		#Translate in normalised space, then convert back to image space
 		startPoint = self.procShape[ptNum]
 		modPoint = [startPoint[0]+x, startPoint[1]+y]
-		imgPos = procrustes.ToImageSpace(np.array([modPoint]), self.params)
+		modPoint2d = np.array([modPoint])
+
+		imgPos = np.empty(modPoint2d.shape)
+		procrustes.ToImageSpace(modPoint2d, self.params, imgPos)
 		return imgPos[0]
 
 	def GetPixelPosImPos(self, x, y):
@@ -55,7 +58,10 @@ class NormalisedImage:
 		
 		#Translate in normalised space, then convert back to image space
 		modPoint = [x, y]
-		imgPos = procrustes.ToImageSpace(np.array([modPoint]), self.params)
+		modPoint2d = np.array([modPoint])
+
+		imgPos = np.empty(modPoint2d.shape)
+		procrustes.ToImageSpace(modPoint2d, self.params, imgPos)
 		return imgPos[0]
 
 	def GetNormPos(self, x, y):

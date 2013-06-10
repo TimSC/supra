@@ -80,12 +80,17 @@ def ToProcSpace(modelArr, params):
 	rot = np.array([[math.cos(ang), - math.sin(ang)], [math.sin(ang), math.cos(ang)]])
 	return np.dot(rot, scaledModel.transpose()).transpose()
 
-def ToImageSpace(modelArr, params):
+def ToImageSpace(modelArr, params, out):
+	assert(modelArr.shape == out.shape)
+
 	ang = math.radians(params[3])
 	rot = np.array([[math.cos(ang), - math.sin(ang)], [math.sin(ang), math.cos(ang)]])
 	rotModel = np.dot(rot, modelArr.transpose()).transpose()
 
 	scaledModel = rotModel * params[2]
-	return scaledModel + params[:2]
+	transModel = scaledModel + params[:2]
 
+	for i in range(transModel.shape[0]):
+		for j in range(transModel.shape[1]):
+			out[i,j] = transModel[i,j]
 
