@@ -1,5 +1,5 @@
 
-import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage
+import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage, yappi
 from PyQt4 import QtGui, QtCore
 import numpy as np
 from PIL import Image
@@ -75,6 +75,7 @@ class DetectorWorker(multiprocessing.Process):
 class TrackingWorker(multiprocessing.Process): 
 	def __init__(self, childConnIn): 
 		super(TrackingWorker, self).__init__()
+		yappi.start()
 		self.childConn = childConnIn
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 		self.meanFace = pickle.load(open("meanFace.dat", "rb"))
@@ -85,6 +86,7 @@ class TrackingWorker(multiprocessing.Process):
 		self.currentModel = None
 		self.prevFrameFeatures = None
 		self.trackingPending = False
+		self.count = 0
 
 	def __del__(self):
 		print "TrackingWorker stopping"
@@ -120,7 +122,7 @@ class TrackingWorker(multiprocessing.Process):
 			if self.trackingPending and self.currentModel is not None:
 				#Normalise input image using procrustes
 				self.normIm = normalisedImage.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
-				normalisedImage.SaveNormalisedImageToFile(self.normIm, "img.jpg")
+				#normalisedImage.SaveNormalisedImageToFile(self.normIm, "img.jpg")
 
 				#Convert coordinates to normalised space
 				normPosModel = [self.normIm.GetNormPos(*pt) for pt in self.currentModel]
@@ -141,6 +143,12 @@ class TrackingWorker(multiprocessing.Process):
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
 				self.prevFrameFeatures = self.tracker.CalcPrevFrameFeatures(self.normIm, pred)
+
+				self.count += 1
+				if self.count > 10:
+					stats = yappi.get_stats()
+					pickle.dump(stats, open("prof.dat","wb"), protocol = -1)
+					self.count = 0
 
 			if self.trackingPending and self.currentModel is None:
 				self.childConn.send(["tracking", None])
