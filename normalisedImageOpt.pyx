@@ -49,12 +49,13 @@ class KernelFilter:
 					self.offsets.append((x,y))
 			self.offsets = np.array(self.offsets, dtype = np.int32)
 		
-		offsetArr = self.offsets
+		pixs = self.normIm.GetPixelsImPos(self.offsets)
+		total = pixs.sum(axis=0)
 
-		for i in range(offsetArr.shape[0]):
-			comp = k[offsetArr[i,1]+hw, offsetArr[i,0]+hw]
-			xx = self.normIm.GetPixelImPos(sc*offsetArr[i,0]+xOff, sc*offsetArr[i,1]+yOff)
-			total += xx * comp
+		#for i in range(offsetArr.shape[0]):
+		#	comp = k[offsetArr[i,1]+hw, offsetArr[i,0]+hw]
+		#	xx = self.normIm.GetPixelImPos(sc*offsetArr[i,0]+xOff, sc*offsetArr[i,1]+yOff)
+		#	total += xx * comp
 
 		#print xOff, yOff, total
 		if self.absVal:
