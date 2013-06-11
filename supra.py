@@ -77,6 +77,11 @@ class SupraAxisSet():
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
 
+	def ClearTraining(self):
+		self.trainInt = None
+		self.trainOffX = None
+		self.trainOffY = None
+
 	def Predict(self, sample, model, prevFrameFeatures):
 
 		self.featureGen.SetImage(sample)
@@ -120,6 +125,10 @@ class SupraCloud():
 		for tracker in self.trackers:
 			tracker.PrepareModel()
 
+	def ClearTraining(self):
+		for tracker in self.trackers:
+			tracker.ClearTraining()
+
 	def Predict(self, sample, model, prevFrameFeatures):
 
 		currentModel = np.array(copy.deepcopy(model))
@@ -131,10 +140,7 @@ class SupraCloud():
 
 class SupraLayers:
 	def __init__(self, trainNormSamples):
-		self.numIntPcaComp = 20
-		self.numShapePcaComp = 5
-		self.pcaShape = converge.PcaNormShape(trainNormSamples)
-		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
+		self.featureGenPrevFrame = FeatureGenPrevFrame(trainNormSamples, 20, 5)
 		self.layers = [SupraCloud(0.3,0.2),SupraCloud(0.3,0.05)]
 
 	def AddTraining(self, sample, numExamples):
@@ -147,9 +153,7 @@ class SupraLayers:
 			pos[1] += np.random.normal(scale=0.1)
 
 		#Extract features from synthetic previous frame
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, sample.procShape)[:self.numIntPcaComp]
-		eigenShape = self.pcaShape.ProjectToPca(sample, sample.procShape)[:self.numShapePcaComp]
-		extraFeatures = np.concatenate([eigenPcaInt, eigenShape])
+		extraFeatures = self.featureGenPrevFrame.Gen(sample, prevShapePerturb)
 
 		for layer in self.layers:
 			layer.AddTraining(sample, numExamples, extraFeatures)
@@ -158,10 +162,13 @@ class SupraLayers:
 		for layer in self.layers:
 			layer.PrepareModel()
 
+	def ClearTraining(self):
+		for layer in self.layers:
+			layer.ClearTraining()
+
 	def CalcPrevFrameFeatures(self, sample, model):
-		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
-		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
-		return np.concatenate([eigenPcaInt, eigenShape])
+		#Extract features from synthetic previous frame
+		return self.featureGenPrevFrame.Gen(sample, model)
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		currentModel = np.array(copy.deepcopy(model))
@@ -212,6 +219,18 @@ class FeatureGen:
 
 		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel])
 		return feat
+
+class FeatureGenPrevFrame:
+	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):
+		self.numIntPcaComp = numIntPcaComp
+		self.numShapePcaComp = numShapePcaComp
+		self.pcaShape = converge.PcaNormShape(trainNormSamples)
+		self.pcaInt = converge.PcaNormImageIntensity(trainNormSamples)
+
+	def Gen(self, sample, model):
+		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
+		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
+		return np.concatenate([eigenPcaInt, eigenShape])
 
 if __name__ == "__main__":
 	pass
