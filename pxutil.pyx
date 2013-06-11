@@ -8,6 +8,7 @@ cimport numpy as np
 import numpy as np
 
 cdef int LimitToRangeByMirroring(int val, int lower, int upper):
+
 	cdef int valid = 0
 	while not valid:
 		valid = 1

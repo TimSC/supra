@@ -11,10 +11,6 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff += [ptX, ptY]
 	return normImage.GetPixelsImPos(supportPixOff)
 
-def ColConv(px):
-	out = col.rgb2xyz([[px]])[0][0]
-	return out
-
 def SignAgreement(testOff, testPred):
 	signTotal = 0
 	for tru, pred in zip(testOff, testPred):
@@ -217,7 +213,8 @@ class FeatureGen:
 	def GenIntSupport(self, ptNum, xOff, yOff):
 		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
 			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
-		pixGrey = np.array([ColConv(p) for p in pix])
+		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
+		pixGrey = col.rgb2xyz(pix)
 		pixGrey = pixGrey.reshape(pixGrey.size)
 		
 		pixGreyNorm = np.array(pixGrey)
