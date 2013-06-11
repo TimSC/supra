@@ -1,5 +1,5 @@
 
-import supra, pickle, random, normalisedImage
+import supra, pickle, random, normalisedImage, normalisedImageOpt
 import numpy as np
 
 def TrainTracker(trainNormSamples):
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
 		if 1:
 			#Reflect images to increase training data
-			mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
+			mirImgs = [normalisedImageOpt.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
 			trainNormSamples.extend(mirImgs)
 			#trainNormSamples = mirImgs
 
