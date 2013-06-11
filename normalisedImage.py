@@ -37,8 +37,9 @@ class HorizontalMirrorNormalisedImage():
 		self.mapping = mapping #Maps from previous index to new index
 		
 		self.procShape = []
-		for i, pt in enumerate(self.img.procShape):
-			if i <= len(self.procShape):
+		originalShape = self.img.GetProcrustesNormedModel()
+		for i, pt in enumerate(originalShape):
+			if i <= len(originalShape):
 				self.procShape.append((-1.,-1.))
 			self.procShape[i] = pt
 

@@ -20,7 +20,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 	trueModels = []
 	for sampleCount, sample in enumerate(testNormSamples):
 		print "test", sampleCount, len(testNormSamples), sample.info['roiId']
-		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.procShape)
+		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
 		for layer in cloudTracker.layers:
 			print layer.supportPixHalfWidth, layer.trainingOffset
@@ -29,7 +29,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 			#Purturb positions for testing
 			testPos = []
 			testOff = []
-			for pt in sample.procShape:
+			for pt in sample.GetProcrustesNormedModel():
 				x = np.random.normal(scale=0.3)
 				y = np.random.normal(scale=0.3)
 				testOff.append((x, y))
@@ -42,7 +42,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 			testOffs.append(testOff)
 			testPredModels.append(predModel)
 			testModels.append(testPos)
-			trueModels.append(sample.procShape)
+			trueModels.append(sample.GetProcrustesNormedModel())
 			sampleInfo.append(sample.info)
 
 
@@ -119,9 +119,9 @@ if __name__ == "__main__":
 
 	if 0:
 		normalisedSamples = LoadSamplesFromServer()
-		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
+		pickle.dump(normalisedSamples, open("normalisedSamples2.dat","wb"), protocol=-1)
 	else:
-		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
+		normalisedSamples = pickle.load(open("normalisedSamples2.dat","rb"))		
 
 	#Only use larger faces
 	filteredSamples = []
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
 	#Reduce problem to n points
 	#for sample in filteredSamples:
-	#	sample.procShape = sample.procShape[0:1,:]
+	#	sample.procShape = sample.GetProcrustesNormedModel()[0:1,:]
 
 	log = open("log.txt","wt")
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
 		if 1:
 			#Reflect images to increase training data
-			mirImgs = [normalisedImageOpt.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
+			mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
 			trainNormSamples.extend(mirImgs)
 			#trainNormSamples = mirImgs
 

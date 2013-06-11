@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 #import matplotlib.pyplot as plt
 import procrustes, pxutil
-import normalisedImage
+import normalisedImage, normalisedImageOpt
 from sklearn.ensemble import GradientBoostingRegressor
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 
@@ -30,7 +30,7 @@ def LoadSamplesFromServer():
 	for sample in sampleList:
 		if sample['model'] is None: continue
 		url = "http://192.168.1.2/photodb/roiimg.php?roiId="+str(sample['roiId'])
-		normalisedSamples.append(normalisedImage.NormalisedImage(url, sample['model'], meanFace, sample))
+		normalisedSamples.append(normalisedImageOpt.NormalisedImage(url, sample['model'], meanFace, sample))
 		
 	trainNormSamples = normalisedSamples[:400]
 	testNormSamples = normalisedSamples[400:]

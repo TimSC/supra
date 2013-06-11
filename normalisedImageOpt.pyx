@@ -169,6 +169,12 @@ class NormalisedImage:
 	def NumChannels(self):
 		return self.imarr.shape[2]
 
+	def GetProcrustesNormedModel(self):
+		#Lazy procrustes calculation
+		if self.params is None:
+			self.CalcProcrustes()
+		return self.procShape
+
 class KernelFilter:
 	def __init__(self, normImIn, kernelIn = None, offsetsIn = None):
 
