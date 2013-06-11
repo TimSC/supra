@@ -65,6 +65,16 @@ class NormalisedImage:
 		procrustesopt.ToImageSpace(modPoint2d, np.array(self.params), imgPos)
 		return imgPos[0]
 
+	def GetPixelsPosImPos(self, normPts, out = None):
+
+		#Lazy procrustes calculation
+		if self.params is None:
+			self.CalcProcrustes()
+		if out is None:
+			out = np.empty(normPts.shape)
+		procrustesopt.ToImageSpace(normPts, np.array(self.params), out)
+		return out
+
 	def GetNormPos(self, x, y):
 		#Lazy procrustes calculation
 		if self.params is None:
@@ -135,16 +145,12 @@ class NormalisedImage:
 		if self.imarr is None:
 			self.LoadImage()
 
-		posImgLi = []
-		for pos in pixPosLi:
-			imPos = self.GetPixelPosImPos(pos[0], pos[1])
-			posImgLi.append(imPos)
-		imLoc = np.array(posImgLi, dtype=np.float64)
+		imPos = self.GetPixelsPosImPos(pixPosLi)
 		
-		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
-		valid = np.empty(imLoc.shape[0], dtype=np.int)
+		pix = np.empty((imPos.shape[0], self.NumChannels()))
+		valid = np.empty(imPos.shape[0], dtype=np.int)
 		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imPos, 2, temp, pix, valid)
 		return pix
 
 	def NumPoints(self):

@@ -246,11 +246,11 @@ class FeatureGen:
 	def Gen(self, ptNum, xOff=0., yOff=0.):
 
 		pixGreyNorm = self.GenIntSupport(ptNum, xOff, yOff)
-		print pixGreyNorm.shape
+		#print pixGreyNorm.shape
 		pixNormSobel = self.GenSobelSupport(ptNum, xOff, yOff)
-		print pixNormSobel.shape
+		#print pixNormSobel.shape
 		hog = self.GenHog(ptNum, xOff, yOff)
-		print hog.shape
+		#print hog.shape
 
 		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel])
 		return feat

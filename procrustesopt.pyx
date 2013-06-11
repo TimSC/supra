@@ -25,3 +25,4 @@ def ToImageSpace(np.ndarray[np.double_t, ndim=2] modelArr, \
 		out[i,0] = (modelArr[i,0] * angcos - modelArr[i,1] * angsin) * params[2] + params[0]
 		out[i,1] = (modelArr[i,0] * angsin + modelArr[i,1] * angcos) * params[2] + params[1]
 
+
