@@ -216,9 +216,11 @@ class FeatureGen:
 		return pixNormSobel
 
 	def GenHog(self, ptNum, xOff, yOff):
-		localPatch = col.rgb2grey(normalisedImageOpt.ExtractPatchAtImg(self.sample, \
-			self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff))
-		return feature.hog(localPatch)
+		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff)
+		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
+		localPatchGrey = col.rgb2grey(np.array([localPatch]))
+		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
+		return feature.hog(localPatchGrey)
 
 	def Gen(self, ptNum, xOff=0., yOff=0.):
 

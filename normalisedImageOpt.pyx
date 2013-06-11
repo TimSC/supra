@@ -74,25 +74,30 @@ def CalcKernelOffsets(kernel):
 	offsets = np.array(offsets, dtype = np.int32)
 	return offsets, hw
 
-def ExtractPatchAtImg(normImage, double ptX, \
+def GenPatchOffsetList(double ptX, \
 	double ptY, \
 	int patchw=24, \
 	int patchh=24, \
 	double scale=0.08):
 
-	cdef int x, y, ch
+	cdef int x, y, count = 0
 	cdef float rawX, rawY
-	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.NumChannels(), dtype=np.uint8)
+	
+	cdef np.ndarray[np.float64_t, ndim=2] imLocs = np.empty((patchw * patchh, 2), dtype=np.float64)
 
-	cdef np.ndarray[np.uint8_t, ndim=3] localPatch = np.zeros((patchh, patchw, normImage.NumChannels()), dtype=np.uint8)
 	for x in range(patchw):
 		for y in range(patchh):
 			rawX = (x-((patchw-1)/2))*scale+ptX
 			rawY = (y-((patchh-1)/2))*scale+ptY
-			normImage.GetPixelImPos(rawX, rawY, tmp)
+			imLocs[count,0] = rawX
+			imLocs[count,1] = rawY
+			count += 1
 
-			for ch in range(tmp.shape[0]):
-				localPatch[y,x,ch] = tmp[ch]
-	return localPatch
+	return imLocs
 
+def ExtractPatchAtImg(normImage, imLocs):
+
+	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.NumChannels(), dtype=np.uint8)
+	pix = normImage.GetPixelsImPos(imLocs)
+	return pix
 
