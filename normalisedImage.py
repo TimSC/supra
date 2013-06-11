@@ -113,6 +113,9 @@ class NormalisedImage:
 		imPos = self.GetPixelPosImPos(x, y)
 		imLoc = np.array([imPos], dtype=np.float64)
 
+		if not hasattr(self, 'singlePixArr'): #Temporary function to set member var
+			self.singlePixArr = None
+
 		if self.singlePixArr is None:
 			self.singlePixArr = np.empty((imLoc.shape[0], self.imarr.shape[2]))
 			self.singlePixValid = np.empty(imLoc.shape[0], dtype=np.int)
