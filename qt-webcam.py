@@ -94,6 +94,7 @@ class TrackingWorker(multiprocessing.Process):
 		running = True
 		#self.tracker = pickle.load(open("tracker-5pt-halfdata.dat", "rb"))
 		self.tracker = pickle.load(open("tracker-lite.dat", "rb"))
+
 		yappi.start(True)
 
 		while running:

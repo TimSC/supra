@@ -35,7 +35,10 @@ class SupraAxis():
 		offsets = np.array(offsets)
 		labels = offsets[:,0] * self.x + offsets[:,1] * self.y
 		self.reg.fit(features, labels)
-	
+
+	def GetFeatureImportance(self):
+		return self.reg.feature_importances_
+
 class SupraAxisSet():
 
 	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3):
@@ -81,6 +84,12 @@ class SupraAxisSet():
 		self.trainInt = None
 		self.trainOffX = None
 		self.trainOffY = None
+
+	def GetFeatureImportance(self):
+		out = []
+		for axis in self.axes:
+			out.append(axis.GetFeatureImportance())
+		return out
 
 	def Predict(self, sample, model, prevFrameFeatures):
 
@@ -129,6 +138,12 @@ class SupraCloud():
 		for tracker in self.trackers:
 			tracker.ClearTraining()
 
+	def GetFeatureImportance(self):
+		out = []
+		for tracker in self.trackers:
+			out.extend(tracker.GetFeatureImportance())		
+		return out
+
 	def Predict(self, sample, model, prevFrameFeatures):
 
 		currentModel = np.array(copy.deepcopy(model))
@@ -166,6 +181,12 @@ class SupraLayers:
 		for layer in self.layers:
 			layer.ClearTraining()
 
+	def GetFeatureImportance(self):
+		out = []
+		for layer in self.layers:
+			out.extend(layer.GetFeatureImportance())
+		return out
+
 	def CalcPrevFrameFeatures(self, sample, model):
 		#Extract features from synthetic previous frame
 		return self.featureGenPrevFrame.Gen(sample, model)
@@ -177,7 +198,7 @@ class SupraLayers:
 		return currentModel
 
 class FeatureGen:
-	def __init__(self, supportPixHalfWidth, numSupportPix):
+	def __init__(self, supportPixHalfWidth, numSupportPix=50):
 		self.sample = None
 		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
