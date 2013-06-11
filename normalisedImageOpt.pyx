@@ -121,7 +121,10 @@ class NormalisedImage:
 		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.pixArr, self.pixValid)
 		return self.pixArr
 
-	def GetPixelImPos(self, x, y, out = None):
+	def GetPixelImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi, int num, out = None):
+
+		cdef double x = pixPosLi[num,0]
+		cdef double y = pixPosLi[num,1]
 
 		#Lazy load of image
 		if self.imarr is None:
@@ -175,29 +178,48 @@ class NormalisedImage:
 			self.CalcProcrustes()
 		return self.procShape
 
-class KernelFilter:
+cdef class KernelFilter:
+
+	cdef np.ndarray kernel, offsets, scaleOffsets
+	cdef double scale
+	cdef int halfw
+	cdef normIm
+	cdef int absVal, numChans
+
 	def __init__(self, normImIn, kernelIn = None, offsetsIn = None):
 
+		cdef np.ndarray[np.int32_t, ndim=2] kernel = self.kernel
+		cdef np.ndarray[np.int32_t, ndim=2] offsets = self.offsets
+		cdef np.ndarray[np.float64_t, ndim=2] scaleOffsets = self.scaleOffsets
+
 		if kernelIn is not None:
-			self.kernel = np.array(kernelIn, dtype=np.int32)
+			kernel = np.array(kernelIn, dtype=np.int32)
 		else:
-			self.kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+			kernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
+		self.kernel = kernel
 
 		if offsetsIn is not None:
-			self.halfw = (len(self.kernel) - 1) / 2
-			self.offsets = np.array(offsetsIn, dtype=np.int32)
+			self.halfw = (len(kernel) - 1) / 2
+			offsets = np.array(offsetsIn, dtype=np.int32)
 		else:
-			self.offsets, self.halfw = CalcKernelOffsets(self.kernel)
+			offsets, self.halfw = CalcKernelOffsets(kernel)
+		self.offsets = offsets
+
+		scaleOffsets = offsets * self.scale
+		self.scaleOffsets = scaleOffsets
 
 		self.scale = 0.05
 		self.normIm = normImIn
 		self.absVal = True
+		self.numChans = self.normIm.NumChannels()
 		
 	def GetPixel(self, ptNum, xOff, yOff):
+		cdef np.ndarray[np.int32_t, ndim=2] kernel = self.kernel
 		total = 0.
+
 		for x in range(-self.halfw, self.halfw+1):
 			for y in range(-self.halfw, self.halfw+1):
-				comp = self.kernel[y+self.halfw][x+self.halfw]
+				comp = kernel[y+self.halfw][x+self.halfw]
 				total += self.normIm.GetPixel(ptNum, self.scale*x+xOff, self.scale*y+yOff) * comp
 		#print xOff, yOff, total
 		if self.absVal:
@@ -210,26 +232,27 @@ class KernelFilter:
 			out.append(self.GetPixel(ptNum, pos[0], pos[1]))
 		return out
 
-	def GetPixelImPos(self, double xOff, double yOff):
+	def GetPixelImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi, int num):
 		cdef int x, y, i
 		cdef double comp
-		cdef int numChan = self.normIm.NumChannels()
-		cdef np.ndarray[np.float64_t, ndim=1] total = np.zeros((numChan))
+
 		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
-		cdef double sc = self.scale
+		cdef np.ndarray[np.float64_t, ndim=2] scaleOffsets = self.scaleOffsets
 	
-		arr = np.array((self.offsets * sc) + (xOff, yOff))
-		pixs = self.normIm.GetPixelsImPos(arr)
-		total = pixs.sum(axis=0)
+		cdef np.ndarray[np.float64_t, ndim=1] off = pixPosLi[num,:]
+		cdef np.ndarray[np.float64_t, ndim=2] arr = scaleOffsets + off
+		cdef np.ndarray[np.float64_t, ndim=2] pixs = self.normIm.GetPixelsImPos(arr)
+		cdef np.ndarray[np.float64_t, ndim=1] total = pixs.sum(axis=0)
 
 		if self.absVal:
 			return np.abs(total)
 		return total
 
-	def GetPixelsImPos(self, pixPosLi):
-		out = []
-		for pos in pixPosLi:
-			out.append(self.GetPixelImPos(pos[0], pos[1]))
+	def GetPixelsImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi):
+
+		cdef np.ndarray[np.float64_t, ndim=2] out = np.empty((pixPosLi.shape[0], self.numChans))
+		for num in range(pixPosLi.shape[0]):
+			out[num, :] = self.GetPixelImPos(pixPosLi, num)
 		return out
 
 def CalcKernelOffsets(kernel):
