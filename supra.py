@@ -193,9 +193,7 @@ class FeatureGen:
 	def SetPrevFrameFeatures(self, prevFeat):
 		self.prevFrameFeatures = prevFeat
 
-	def Gen(self, ptNum, xOff=0., yOff=0.):
-		sobelSample = normalisedImageOpt.KernelFilter(self.sample)
-
+	def GenIntSupport(self, ptNum, xOff, yOff):
 		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
 			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
 		pixGrey = np.array([ColConv(p) for p in pix])
@@ -203,7 +201,10 @@ class FeatureGen:
 		
 		pixGreyNorm = np.array(pixGrey)
 		pixGreyNorm -= pixGreyNorm.mean()
+		return pixGreyNorm
 
+	def GenSobelSupport(self, ptNum, xOff, yOff):
+		sobelSample = normalisedImageOpt.KernelFilter(self.sample)
 		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, \
 			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
 		pixConvSobel = []
@@ -212,10 +213,18 @@ class FeatureGen:
 
 		pixNormSobel = np.array(pixConvSobel)
 		pixNormSobel -= pixNormSobel.mean()
+		return pixNormSobel
 
+	def GenHog(self, ptNum, xOff, yOff):
 		localPatch = col.rgb2grey(normalisedImageOpt.ExtractPatchAtImg(self.sample, \
 			self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff))
-		hog = feature.hog(localPatch)
+		return feature.hog(localPatch)
+
+	def Gen(self, ptNum, xOff=0., yOff=0.):
+
+		pixGreyNorm = self.GenIntSupport(ptNum, xOff, yOff)
+		pixNormSobel = self.GenSobelSupport(ptNum, xOff, yOff)
+		hog = self.GenHog(ptNum, xOff, yOff)
 
 		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel])
 		return feat
