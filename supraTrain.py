@@ -7,7 +7,7 @@ def TrainTracker(trainNormSamples):
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
-		cloudTracker.AddTraining(sample, 35)
+		cloudTracker.AddTraining(sample, 2) #35
 
 	cloudTracker.PrepareModel()
 	return cloudTracker
@@ -132,8 +132,8 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to n points
-	#for sample in filteredSamples:
-	#	sample.procShape = sample.procShape[0:1,:]
+	for sample in filteredSamples:
+		sample.procShape = sample.procShape[0:1,:]
 
 	log = open("log.txt","wt")
 

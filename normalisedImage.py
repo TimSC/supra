@@ -194,6 +194,9 @@ class HorizontalMirrorNormalisedImage():
 				self.procShape.append((-1.,-1.))
 			self.procShape[i] = pt
 
+	def GetPixelImPos(self, x, y, out = None):
+		return self.img.GetPixelImPos(-x, y, out)
+
 	def GetPixelsImPos(self, pixPosLi):
 
 		pixPosLi = np.copy(pixPosLi) * [-1., 1.]
@@ -210,5 +213,7 @@ class HorizontalMirrorNormalisedImage():
 
 	def NumChannels(self):
 		return self.img.NumChannels()
+
+
 
 

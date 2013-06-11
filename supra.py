@@ -49,46 +49,22 @@ class SupraAxisSet():
 		self.numSupportPix = 50
 		self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
 		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
+		self.featureGen = None
 
 	def AddTraining(self, sample, trainOffset, extraFeatures):
 
-		if self.supportPixOff is None:
-			self.supportPixOff = np.random.uniform(low=-self.supportPixHalfWidth, \
-				high=self.supportPixHalfWidth, size=(self.numSupportPix, 2))
-		if self.supportPixOffSobel is None:
-			self.supportPixOffSobel = np.random.uniform(low=-self.supportPixHalfWidth, \
-				high=self.supportPixHalfWidth, size=(self.numSupportPix, 2))
-
-		if not hasattr(self, 'sobelKernel'): #Temporary code for old pickled data
-			self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
-			self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)			
-
+		if self.featureGen is None:
+			self.featureGen = FeatureGen(self.supportPixHalfWidth, self.numSupportPix)
+			
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
-		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
-		ptX, ptY = sample.procShape[self.ptNum][0], sample.procShape[self.ptNum][1]
-		pix = ExtractSupportIntensity(sample, self.supportPixOff, ptX, ptY, xOff, yOff)
-		pixGrey = np.array([ColConv(p) for p in pix])
-		pixGrey = pixGrey.reshape(pixGrey.size)
+		self.featureGen.SetImage(sample)
+		self.featureGen.SetModel(sample.procShape)
+		self.featureGen.SetPrevFrameFeatures(extraFeatures)
+		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
 
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
-
-		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, ptX, ptY, xOff, yOff)
-		pixConvSobel = []
-		for px in pixSobel:
-			pixConvSobel.extend(px)
-
-		pixNormSobel = np.array(pixConvSobel)
-		pixNormSobel -= pixNormSobel.mean()
-
-		localPatch = col.rgb2grey(normalisedImage.ExtractPatch(sample, self.ptNum, xOff, yOff))
-		hog = feature.hog(localPatch)
-
-		feat = np.concatenate([pixGreyNorm, hog, extraFeatures, pixNormSobel])
-
-		self.trainInt.append(feat)
+		self.trainInt.append(features)
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -103,38 +79,14 @@ class SupraAxisSet():
 
 	def Predict(self, sample, model, prevFrameFeatures):
 
-		if not hasattr(self, 'sobelKernel'): #Temporary code for old pickled data
-			self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
-			self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)		
-
-		sobelSample = normalisedImageOpt.KernelFilter(sample)
-
-		pix = ExtractSupportIntensity(sample, self.supportPixOff, \
-			model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
-		pixGrey = np.array([ColConv(p) for p in pix])
-		pixGrey = pixGrey.reshape(pixGrey.size)
-			
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
-
-		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, \
-			model[self.ptNum][0], model[self.ptNum][1], 0., 0.)
-		pixConvSobel = []
-		for px in pixSobel:
-			pixConvSobel.extend(px)
-
-		pixNormSobel = np.array(pixConvSobel)
-		pixNormSobel -= pixNormSobel.mean()
-
-		localPatch = col.rgb2grey(normalisedImageOpt.ExtractPatchAtImg(sample, \
-			model[self.ptNum][0], model[self.ptNum][1]))
-		hog = feature.hog(localPatch)
-
-		feat = np.concatenate([pixGreyNorm, hog, prevFrameFeatures, pixNormSobel])
+		self.featureGen.SetImage(sample)
+		self.featureGen.SetModel(model)
+		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
+		features = self.featureGen.Gen(self.ptNum)
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
-			pred = axis.reg.predict([feat])[0]
+			pred = axis.reg.predict([features])[0]
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x
@@ -216,6 +168,50 @@ class SupraLayers:
 		for layerNum, layer in enumerate(self.layers):
 			currentModel = layer.Predict(sample, currentModel, prevFrameFeatures)
 		return currentModel
+
+class FeatureGen:
+	def __init__(self, supportPixHalfWidth, numSupportPix):
+		self.sample = None
+		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
+			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
+			high=supportPixHalfWidth, size=(numSupportPix, 2))
+
+	def SetImage(self, img):
+		self.sample = img
+
+	def SetModel(self, model):
+		self.model = model
+
+	def SetPrevFrameFeatures(self, prevFeat):
+		self.prevFrameFeatures = prevFeat
+
+	def Gen(self, ptNum, xOff=0., yOff=0.):
+		sobelSample = normalisedImageOpt.KernelFilter(self.sample)
+
+		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
+			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
+		pixGrey = np.array([ColConv(p) for p in pix])
+		pixGrey = pixGrey.reshape(pixGrey.size)
+		
+		pixGreyNorm = np.array(pixGrey)
+		pixGreyNorm -= pixGreyNorm.mean()
+
+		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, \
+			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
+		pixConvSobel = []
+		for px in pixSobel:
+			pixConvSobel.extend(px)
+
+		pixNormSobel = np.array(pixConvSobel)
+		pixNormSobel -= pixNormSobel.mean()
+
+		localPatch = col.rgb2grey(normalisedImageOpt.ExtractPatchAtImg(self.sample, \
+			self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff))
+		hog = feature.hog(localPatch)
+
+		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel])
+		return feat
 
 if __name__ == "__main__":
 	pass

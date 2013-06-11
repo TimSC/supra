@@ -82,9 +82,9 @@ def ExtractPatchAtImg(normImage, double ptX, \
 
 	cdef int x, y, ch
 	cdef float rawX, rawY
-	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.imarr.shape[2], dtype=np.uint8)
+	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.NumChannels(), dtype=np.uint8)
 
-	cdef np.ndarray[np.uint8_t, ndim=3] localPatch = np.zeros((patchh, patchw, normImage.imarr.shape[2]), dtype=np.uint8)
+	cdef np.ndarray[np.uint8_t, ndim=3] localPatch = np.zeros((patchh, patchw, normImage.NumChannels()), dtype=np.uint8)
 	for x in range(patchw):
 		for y in range(patchh):
 			rawX = (x-((patchw-1)/2))*scale+ptX
