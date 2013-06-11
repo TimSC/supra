@@ -1,5 +1,5 @@
 
-import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage, yappi
+import sys, time, cv, cv2, multiprocessing, pickle, supra, normalisedImage, yappi, normalisedImageOpt
 from PyQt4 import QtGui, QtCore
 import numpy as np
 from PIL import Image
@@ -123,7 +123,7 @@ class TrackingWorker(multiprocessing.Process):
 
 			if self.trackingPending and self.currentModel is not None:
 				#Normalise input image using procrustes
-				self.normIm = normalisedImage.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
+				self.normIm = normalisedImageOpt.NormalisedImage(self.currentFrame, self.currentModel, self.meanFace, {})
 				#normalisedImage.SaveNormalisedImageToFile(self.normIm, "img.jpg")
 
 				#Convert coordinates to normalised space
