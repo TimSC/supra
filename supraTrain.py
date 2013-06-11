@@ -25,7 +25,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		for layer in cloudTracker.layers:
 			print layer.supportPixHalfWidth, layer.trainingOffset
 
-		for count in range(10):
+		for count in range(3):
 			#Purturb positions for testing
 			testPos = []
 			testOff = []

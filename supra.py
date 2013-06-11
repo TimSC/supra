@@ -61,6 +61,7 @@ class SupraAxisSet():
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(sample.procShape)
 		self.featureGen.SetPrevFrameFeatures(extraFeatures)
+		self.featureGen.SetModelOffset(trainOffset)
 		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
 
 		self.trainInt.append(features)
@@ -92,6 +93,7 @@ class SupraAxisSet():
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(model)
 		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
+		self.featureGen.ClearModelOffset()
 		features = self.featureGen.Gen(self.ptNum)
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
@@ -210,6 +212,12 @@ class FeatureGen:
 	def SetPrevFrameFeatures(self, prevFeat):
 		self.prevFrameFeatures = prevFeat
 
+	def SetModelOffset(self, modelOffset):
+		self.modelOffset = modelOffset
+
+	def ClearModelOffset(self):
+		self.modelOffset = np.zeros(np.array(self.modelOffset).shape)
+
 	def GenIntSupport(self, ptNum, xOff, yOff):
 		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
 			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
@@ -240,6 +248,16 @@ class FeatureGen:
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 		return feature.hog(localPatchGrey)
 
+	def GenDistancePairs(self, ptNum, xOff, yOff):
+		out = []
+		modifiedPos = np.array(self.model) + np.array(self.modelOffset)
+
+		for i in range(len(self.modelOffset)):
+			if i == ptNum: continue	
+			out.append((modifiedPos[i,0] - modifiedPos[ptNum,0]))
+			out.append((modifiedPos[i,1] - modifiedPos[ptNum,1]))
+		return out
+
 	def Gen(self, ptNum, xOff=0., yOff=0.):
 
 		pixGreyNorm = self.GenIntSupport(ptNum, xOff, yOff)
@@ -248,8 +266,9 @@ class FeatureGen:
 		#print pixNormSobel.shape
 		hog = self.GenHog(ptNum, xOff, yOff)
 		#print hog.shape
+		relDist = self.GenDistancePairs(ptNum, xOff, yOff)
 
-		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel])
+		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
 		return feat
 
 class FeatureGenPrevFrame:
