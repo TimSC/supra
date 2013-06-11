@@ -62,6 +62,7 @@ class SupraAxisSet():
 		self.featureGen.SetModel(sample.procShape)
 		self.featureGen.SetPrevFrameFeatures(extraFeatures)
 		self.featureGen.SetModelOffset(trainOffset)
+		self.featureGen.SetShapeNoise(0.5)
 		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
 
 		self.trainInt.append(features)
@@ -94,6 +95,7 @@ class SupraAxisSet():
 		self.featureGen.SetModel(model)
 		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
 		self.featureGen.ClearModelOffset()
+		self.featureGen.SetShapeNoise(0.)
 		features = self.featureGen.Gen(self.ptNum)
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
@@ -218,6 +220,9 @@ class FeatureGen:
 	def ClearModelOffset(self):
 		self.modelOffset = np.zeros(np.array(self.modelOffset).shape)
 
+	def SetShapeNoise(self, noise):
+		self.shapeNoise = noise
+
 	def GenIntSupport(self, ptNum, xOff, yOff):
 		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
 			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
@@ -254,8 +259,13 @@ class FeatureGen:
 
 		for i in range(len(self.modelOffset)):
 			if i == ptNum: continue	
-			out.append((modifiedPos[i,0] - modifiedPos[ptNum,0]))
-			out.append((modifiedPos[i,1] - modifiedPos[ptNum,1]))
+			dx = (modifiedPos[i,0] - modifiedPos[ptNum,0])
+			dy = (modifiedPos[i,1] - modifiedPos[ptNum,1])
+			if self.shapeNoise > 0.:
+				dx += np.random.randn() * self.shapeNoise
+				dy += np.random.randn() * self.shapeNoise
+			out.append(dx)
+			out.append(dy)
 		return out
 
 	def Gen(self, ptNum, xOff=0., yOff=0.):

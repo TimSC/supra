@@ -119,6 +119,10 @@ class TrackingWorker(multiprocessing.Process):
 						posModel.append((face[0] + pt[0] * w, face[1] + pt[1] * h))
 					if self.currentModel is None:
 						self.currentModel = posModel
+
+				if ev[0] == "reinit":
+					self.currentModel = None
+
 				time.sleep(0.01)
 
 			if self.trackingPending and self.currentModel is not None:
@@ -185,6 +189,7 @@ class MainWindow(QtGui.QMainWindow):
 		centralWidget.setLayout(self.vbox)
 		self.setCentralWidget(centralWidget)
 		self.show()
+		self.trackingErrorScore = 0
 
 		self.ctimer = QtCore.QTimer(self)
 		self.ctimer.timeout.connect(self.CheckForEvents)
@@ -205,6 +210,29 @@ class MainWindow(QtGui.QMainWindow):
 				ev = [None, None]
 			self.HandleEvent(ev)
 
+	def GetLargestFace(self):
+		if len(self.faces)==0: return None
+		bestArea = 0.
+		bestFace = 0
+		for i, face in enumerate(self.faces):
+			dx = face[2]-face[0]
+			dy = face[3]-face[1]
+			a = dx * dy
+			if a > bestArea:
+				bestArea = a
+				bestFace = i
+		return bestFace
+
+	def CountPointsInBox(self, tracking, bbox):
+		count = 0
+		for pt in tracking:
+			if pt[0] < bbox[0]: continue
+			if pt[0] > bbox[2]: continue
+			if pt[1] < bbox[1]: continue
+			if pt[1] > bbox[3]: continue
+			count += 1
+		return count
+
 	def HandleEvent(self,ev):
 		if ev[0] == "frame" and ev[1] is not None:
 			self.ProcessFrame(ev[1])
@@ -223,6 +251,21 @@ class MainWindow(QtGui.QMainWindow):
 		if ev[0] == "tracking":
 			self.trackingPending = False
 			self.tracking = ev[1]
+
+			#Check for loss of tracking
+			largestFace = self.GetLargestFace()
+			#print largestFace, self.faces[largestFace]
+			#print "tracking", self.tracking
+			if largestFace is not None and self.tracking is not None:
+				validCount = self.CountPointsInBox(self.tracking, self.faces[largestFace])
+				if validCount == len(self.tracking):
+					self.trackingErrorScore = 0
+				else:
+					self.trackingErrorScore += len(self.tracking) - validCount
+			print "score", self.trackingErrorScore
+			if self.trackingErrorScore > 20:
+				self.trackingPipe.send(("reinit",))
+				self.trackingErrorScore = 0
 
 	def CheckForEvents(self):
 		self.CheckPipeForEvents(self.cameraPipe)
@@ -293,4 +336,5 @@ if __name__ == '__main__':
 	ret = app.exec_()
 
 	sys.exit(ret)
+
 
