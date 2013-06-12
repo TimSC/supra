@@ -34,8 +34,7 @@ cdef class FeatureGenTest:
 		val = arr[key]
 		return val
 
-cdef double SimplePred(tree, \
-	FeatureGenTest features, \
+cdef double SimplePred(FeatureGenTest features, \
 	int *children_left, \
 	int *children_right, \
 	int *feature, \
@@ -76,8 +75,7 @@ def PredictGbrt(model, FeatureGenTest features):
 		assert tree.n_outputs == 1
 		assert tree.n_classes[0] == 1
 
-		nodeVal = SimplePred(tree, \
-			features, \
+		nodeVal = SimplePred(features, \
 			tree.children_left, \
 			tree.children_right, \
 			tree.feature, \
