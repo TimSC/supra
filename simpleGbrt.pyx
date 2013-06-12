@@ -17,22 +17,49 @@ cdef class FeatureGenTest:
 	
 	cdef np.ndarray arr
 	cdef float val
+	cdef object generators
+	cdef np.ndarray mapToGen, mapToInd
 
-	def __init__(self, arrIn):
-		self.arr = np.array(arrIn, dtype=np.float32)
+	def __init__(self):
+		self.mapToGen = None
+		self.mapToInd = None
+		self.generators = []
 
 	def __getitem__(self, key):
-		cdef np.ndarray[np.float32_t, ndim=1] arr = self.arr
-		return arr[key]
+		return self.GetItemFast(key)
 
 	def __len__(self):
-		cdef np.ndarray[np.float32_t, ndim=1] arr = self.arr
-		return len(arr)
+		cdef np.ndarray[np.int32_t, ndim=1] mapToInd = self.mapToInd
+		return len(mapToInd)
 
-	cdef float GetItemFast(self, int key):
-		cdef np.ndarray[np.float32_t, ndim=1] arr = self.arr
-		val = arr[key]
-		return val
+	cdef double GetItemFast(self, int key):
+		cdef np.ndarray[np.int32_t, ndim=1] mapToInd = self.mapToInd
+		cdef np.ndarray[np.int32_t, ndim=1] mapToGen = self.mapToGen
+		
+		if key < 0 or key >= mapToGen.shape[0]: raise Exception("Invalid key "+str(key))
+
+		generatorInd = mapToGen[key]
+		generator = self.generators[generatorInd]
+		val = generator[mapToInd[key]]
+		return val 
+
+	def AddFeatureSet(self, generator):
+		cdef np.ndarray[np.int32_t, ndim=1] mapToInd = self.mapToInd
+		cdef np.ndarray[np.int32_t, ndim=1] mapToGen = self.mapToGen
+	
+		genNum = len(self.generators)
+		self.generators.append(generator)
+		l = len(generator)
+		if mapToGen is None:
+			mapToGen = np.array([genNum for i in range(l)], dtype=np.int32)
+			mapToInd = np.array(range(l), dtype=np.int32)
+			self.mapToGen = mapToGen
+			self.mapToInd = mapToInd
+		else:
+			mapToGen = np.concatenate((mapToGen, [genNum for i in range(l)]))
+			mapToInd = np.concatenate((mapToInd, range(l)))
+			self.mapToGen = mapToGen
+			self.mapToInd = mapToInd
 
 cdef double SimplePred(FeatureGenTest features, \
 	int *children_left, \
@@ -42,7 +69,7 @@ cdef double SimplePred(FeatureGenTest features, \
 	double *value):
 
 	cdef int node = 0, featNum
-	cdef float featureVal
+	cdef double featureVal
 
 	while children_left[node] != -1 and children_right[node] != -1:	
 		featNum = feature[node]
@@ -61,7 +88,6 @@ def PredictGbrt(model, FeatureGenTest features):
 	cdef sklearn.tree._tree.Tree tree
 	cdef float learn_rate = model.learn_rate
 
-	
 	if hasattr(model,"init"):
 		currentVal = model.init.mean
 		initSet = 1
