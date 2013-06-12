@@ -7,7 +7,7 @@ def TrainTracker(trainNormSamples):
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
-		cloudTracker.AddTraining(sample, 2) #35
+		cloudTracker.AddTraining(sample, 50) #35
 
 	cloudTracker.PrepareModel()
 	return cloudTracker
@@ -25,7 +25,7 @@ def TestTracker(cloudTracker, testNormSamples, log):
 		for layer in cloudTracker.layers:
 			print layer.supportPixHalfWidth, layer.trainingOffset
 
-		for count in range(3):
+		for count in range(10):
 			#Purturb positions for testing
 			testPos = []
 			testOff = []
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
 		halfInd = len(filteredSamples)/2
 		random.shuffle(filteredSamples)
-		trainNormSamples = filteredSamples[:halfInd]
+		trainNormSamples = filteredSamples#[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
 		if 1:
