@@ -35,13 +35,8 @@ class HorizontalMirrorNormalisedImage():
 	def __init__(self, imgIn, mapping):
 		self.img = imgIn
 		self.mapping = mapping #Maps from previous index to new index
-		
-		self.procShape = []
-		originalShape = self.img.GetProcrustesNormedModel()
-		for i, pt in enumerate(originalShape):
-			if i <= len(originalShape):
-				self.procShape.append((-1.,-1.))
-			self.procShape[i] = pt
+		self.procShape = None
+		self.GetProcrustesNormedModel()
 
 	def GetPixelImPos(self, x, y, out = None):
 		return self.img.GetPixelImPos(-x, y, out)
@@ -63,6 +58,13 @@ class HorizontalMirrorNormalisedImage():
 	def NumChannels(self):
 		return self.img.NumChannels()
 
-
-
+	def GetProcrustesNormedModel(self):
+		if self.procShape is None:
+			self.procShape = []
+			originalShape = self.img.GetProcrustesNormedModel()
+			for i, pt in enumerate(originalShape):
+				if i <= len(originalShape):
+					self.procShape.append((-1.,-1.))
+				self.procShape[i] = pt
+		return self.procShape
 
