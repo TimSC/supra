@@ -1,5 +1,5 @@
 
-import numpy as np, pickle, random, pxutil, copy, math, converge, shove, os
+import numpy as np, pickle, random, pxutil, copy, math, converge, sqlitedict, os
 import normalisedImage, normalisedImageOpt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
@@ -69,7 +69,7 @@ class SupraAxisSet():
 
 		if self.trainIntDb is None:
 			self.trainIntDbFina = "traindata"+str(id(self))+".db"
-			self.trainIntDb = shove.Shove("filesystem:///"+self.trainIntDbFina)
+			self.trainIntDb = sqlitedict.SqliteDict(self.trainIntDbFina, autocommit=True)
 			#self.trainIntDbFina = None
 			#self.trainIntDb = shove.Shove()
 
@@ -81,7 +81,7 @@ class SupraAxisSet():
 		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
 
 		#self.trainInt.append(features)
-		self.trainIntDb[len(self.trainOffX)] = features
+		self.trainIntDb[str(len(self.trainOffX))] = features
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -96,7 +96,7 @@ class SupraAxisSet():
 		print "Loading",len(keys),"samples for training"
 		keys.sort()
 		for k in keys:
-			self.trainInt.append(self.trainIntDb[k])
+			self.trainInt.append(self.trainIntDb[str(k)])
 
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
