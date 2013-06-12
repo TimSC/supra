@@ -154,10 +154,10 @@ if __name__ == "__main__":
 			cloudTracker = TrainTracker(trainNormSamples)
 			cloudTracker.ClearTraining()
 			print cloudTracker
-			pickle.dump(cloudTracker, open("trackerx.dat","wb"), protocol=-1)
+			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamplesx.dat","wb"), protocol=-1)
 		else:
-			cloudTracker = pickle.load(open("trackerx.dat","rb"))
+			cloudTracker = pickle.load(open("tracker.dat","rb"))
 			testNormSamples = pickle.load(open("testNormSamplesx.dat","rb"))
 			print cloudTracker
 

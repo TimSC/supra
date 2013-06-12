@@ -258,9 +258,9 @@ class FeatureGen:
 		pixGrey = col.rgb2xyz(pix)
 		pixGrey = pixGrey.reshape(pixGrey.size)
 		
-		pixGreyNorm = np.array(pixGrey)
-		pixGreyNorm -= pixGreyNorm.mean()
-		return pixGreyNorm
+		#pixGreyNorm = np.array(pixGrey)
+		#pixGreyNorm -= pixGreyNorm.mean()
+		return pixGrey
 
 	def GenSobelSupport(self, ptNum, xOff, yOff):
 		sobelSample = normalisedImageOpt.KernelFilter(self.sample)
@@ -270,9 +270,9 @@ class FeatureGen:
 		for px in pixSobel:
 			pixConvSobel.extend(px)
 
-		pixNormSobel = np.array(pixConvSobel)
-		pixNormSobel -= pixNormSobel.mean()
-		return pixNormSobel
+		#pixNormSobel = np.array(pixConvSobel)
+		#pixNormSobel -= pixNormSobel.mean()
+		return pixConvSobel
 
 	def GenHog(self, ptNum, xOff, yOff):
 		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff)
