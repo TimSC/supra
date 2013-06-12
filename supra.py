@@ -1,5 +1,5 @@
 
-import numpy as np, pickle, random, pxutil, copy, math, converge, sqlitedict, os
+import numpy as np, pickle, random, pxutil, copy, math, converge, sqlitedict, os, tempfile
 import normalisedImage, normalisedImageOpt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
@@ -68,10 +68,8 @@ class SupraAxisSet():
 		yOff = trainOffset[self.ptNum][1]
 
 		if self.trainIntDb is None:
-			self.trainIntDbFina = "traindata"+str(id(self))+".db"
+			self.trainIntDbFina = tempfile.mkstemp()[1]
 			self.trainIntDb = sqlitedict.SqliteDict(self.trainIntDbFina, autocommit=True)
-			#self.trainIntDbFina = None
-			#self.trainIntDb = shove.Shove()
 
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(sample.procShape)
