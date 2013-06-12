@@ -76,7 +76,9 @@ class SupraAxisSet():
 		self.featureGen.SetPrevFrameFeatures(extraFeatures)
 		self.featureGen.SetModelOffset(trainOffset)
 		self.featureGen.SetShapeNoise(0.3)
-		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
+		self.featureGen.SetPointNum(self.ptNum)
+		self.featureGen.SetOffset(xOff, yOff)
+		features = self.featureGen.Gen()
 
 		#self.trainInt.append(features)
 		self.trainIntDb[str(len(self.trainOffX))] = features
@@ -124,7 +126,9 @@ class SupraAxisSet():
 		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
 		self.featureGen.ClearModelOffset()
 		self.featureGen.SetShapeNoise(0.)
-		features = self.featureGen.Gen(self.ptNum)
+		self.featureGen.SetPointNum(self.ptNum)
+		self.featureGen.SetOffset(0., 0.)
+		features = self.featureGen.Gen()
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
@@ -228,6 +232,7 @@ class SupraLayers:
 class FeatureGen:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
 		self.sample = None
+		self.feat = None
 		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
@@ -250,6 +255,13 @@ class FeatureGen:
 
 	def SetShapeNoise(self, noise):
 		self.shapeNoise = noise
+
+	def SetPointNum(self, ptNum):
+		self.ptNum = ptNum
+
+	def SetOffset(self, offX, offY):
+		self.xOff = offX
+		self.yOff = offY
 
 	def GenIntSupport(self, ptNum, xOff, yOff):
 		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
@@ -296,18 +308,20 @@ class FeatureGen:
 			out.append(dy)
 		return out
 
-	def Gen(self, ptNum, xOff=0., yOff=0.):
+	def Gen(self):
 
-		pixGreyNorm = self.GenIntSupport(ptNum, xOff, yOff)
+		pixGreyNorm = self.GenIntSupport(self.ptNum, self.xOff, self.yOff)
 		#print pixGreyNorm.shape
-		pixNormSobel = self.GenSobelSupport(ptNum, xOff, yOff)
+		pixNormSobel = self.GenSobelSupport(self.ptNum, self.xOff, self.yOff)
 		#print pixNormSobel.shape
-		hog = self.GenHog(ptNum, xOff, yOff)
+		hog = self.GenHog(self.ptNum, self.xOff, self.yOff)
 		#print hog.shape
-		relDist = self.GenDistancePairs(ptNum, xOff, yOff)
+		relDist = self.GenDistancePairs(self.ptNum, self.xOff, self.yOff)
 
-		feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
-		return feat
+		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
+		return self.feat
+
+
 
 class FeatureGenPrevFrame:
 	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):
