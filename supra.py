@@ -78,10 +78,10 @@ class SupraAxisSet():
 		self.featureGen.SetShapeNoise(0.3)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(xOff, yOff)
-		features = self.featureGen.Gen()
+		self.featureGen.Gen()
 
 		#self.trainInt.append(features)
-		self.trainIntDb[str(len(self.trainOffX))] = features
+		self.trainIntDb[str(len(self.trainOffX))] = self.featureGen[:]
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -128,11 +128,11 @@ class SupraAxisSet():
 		self.featureGen.SetShapeNoise(0.)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(0., 0.)
-		features = self.featureGen.Gen()
+		self.featureGen.Gen()
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
-			pred = axis.reg.predict([features])[0]
+			pred = axis.reg.predict([self.featureGen[:]])[0]
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x
@@ -319,9 +319,12 @@ class FeatureGen:
 		relDist = self.GenDistancePairs(self.ptNum, self.xOff, self.yOff)
 
 		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
-		return self.feat
 
+	def __getitem__(self, ind):
+		return self.feat[ind]
 
+	def __len__(self):
+		return len(self.feat)
 
 class FeatureGenPrevFrame:
 	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):
