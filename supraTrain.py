@@ -7,7 +7,7 @@ def TrainTracker(trainNormSamples):
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
-		cloudTracker.AddTraining(sample, 50) #35
+		cloudTracker.AddTraining(sample, 2) #35
 
 	cloudTracker.PrepareModel()
 	return cloudTracker
@@ -132,8 +132,8 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	#Reduce problem to n points
-	#for sample in filteredSamples:
-	#	sample.procShape = sample.GetProcrustesNormedModel()[0:1,:]
+	for sample in filteredSamples:
+		sample.procShape = sample.GetProcrustesNormedModel()[0:1,:]
 
 	log = open("log.txt","wt")
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
 		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
 		halfInd = len(filteredSamples)/2
 		random.shuffle(filteredSamples)
-		trainNormSamples = filteredSamples#[:halfInd]
+		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
 		if 1:
@@ -154,11 +154,11 @@ if __name__ == "__main__":
 			cloudTracker = TrainTracker(trainNormSamples)
 			cloudTracker.ClearTraining()
 			print cloudTracker
-			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
-			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
+			pickle.dump(cloudTracker, open("trackerx.dat","wb"), protocol=-1)
+			pickle.dump(testNormSamples, open("testNormSamplesx.dat","wb"), protocol=-1)
 		else:
-			cloudTracker = pickle.load(open("tracker.dat","rb"))
-			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
+			cloudTracker = pickle.load(open("trackerx.dat","rb"))
+			testNormSamples = pickle.load(open("testNormSamplesx.dat","rb"))
 			print cloudTracker
 
 		#Run performance test

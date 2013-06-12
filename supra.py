@@ -1,5 +1,5 @@
 
-import numpy as np, pickle, random, pxutil, copy, math, converge
+import numpy as np, pickle, random, pxutil, copy, math, converge, shove, os
 import normalisedImage, normalisedImageOpt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
@@ -49,6 +49,15 @@ class SupraAxisSet():
 		self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
 		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 		self.featureGen = None
+		self.trainIntDb = None
+
+	def __del__(self):
+		del self.trainIntDb
+		try:
+			if self.trainIntDbFina is not None:
+				os.remove(self.trainIntDbFina)
+		except:
+			pass
 
 	def AddTraining(self, sample, trainOffset, extraFeatures):
 
@@ -58,6 +67,12 @@ class SupraAxisSet():
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
 
+		if self.trainIntDb is None:
+			self.trainIntDbFina = "traindata"+str(id(self))+".db"
+			self.trainIntDb = shove.Shove("filesystem:///"+self.trainIntDbFina)
+			#self.trainIntDbFina = None
+			#self.trainIntDb = shove.Shove()
+
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(sample.procShape)
 		self.featureGen.SetPrevFrameFeatures(extraFeatures)
@@ -65,7 +80,8 @@ class SupraAxisSet():
 		self.featureGen.SetShapeNoise(0.3)
 		features = self.featureGen.Gen(self.ptNum, xOff, yOff)
 
-		self.trainInt.append(features)
+		#self.trainInt.append(features)
+		self.trainIntDb[len(self.trainOffX)] = features
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -75,11 +91,25 @@ class SupraAxisSet():
 		self.axes.append(SupraAxis(0., 1.))
 		trainOff = np.vstack([self.trainOffX, self.trainOffY]).transpose()
 		
+		self.trainInt = []
+		keys = map(int, self.trainIntDb.keys())
+		print "Loading",len(keys),"samples for training"
+		keys.sort()
+		for k in keys:
+			self.trainInt.append(self.trainIntDb[k])
+
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
 
+		self.trainInt = None
+
 	def ClearTraining(self):
 		self.trainInt = None
+		del self.trainIntDb
+		try:
+			os.remove(self.trainIntDbFina)
+		except:
+			pass
 		self.trainOffX = None
 		self.trainOffY = None
 
