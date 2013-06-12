@@ -16,6 +16,7 @@ np.import_array()
 cdef class FeatureGenTest:
 	
 	cdef np.ndarray arr
+	cdef float val
 
 	def __init__(self, arrIn):
 		self.arr = np.array(arrIn, dtype=np.float32)
@@ -30,7 +31,8 @@ cdef class FeatureGenTest:
 
 	cdef float GetItemFast(self, int key):
 		cdef np.ndarray[np.float32_t, ndim=1] arr = self.arr
-		return arr[key]
+		val = arr[key]
+		return val
 
 cdef SimplePred(tree, \
 	FeatureGenTest features, \
@@ -51,7 +53,7 @@ cdef SimplePred(tree, \
 		else:
 			node = children_right[node]
 	
-	return tree.value[node][0][0]
+	return value[node]
 
 def PredictGbrt(model, FeatureGenTest features):
 
