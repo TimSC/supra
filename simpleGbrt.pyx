@@ -34,7 +34,7 @@ cdef class FeatureGenTest:
 		val = arr[key]
 		return val
 
-cdef SimplePred(tree, \
+cdef double SimplePred(tree, \
 	FeatureGenTest features, \
 	int *children_left, \
 	int *children_right, \
@@ -57,9 +57,10 @@ cdef SimplePred(tree, \
 
 def PredictGbrt(model, FeatureGenTest features):
 
-	cdef float currentVal, nodeVal
+	cdef float currentVal = None, nodeVal
 	cdef int i
 	cdef sklearn.tree._tree.Tree tree
+	cdef float learn_rate = model.learn_rate
 
 	if hasattr(model,"init"):
 		currentVal = model.init.mean
@@ -69,8 +70,8 @@ def PredictGbrt(model, FeatureGenTest features):
 	
 	for i in range(model.n_estimators):
 		tree = model.estimators_[i,0]
-		#assert tree.n_classes == 1
-		#assert tree.n_outputs == 1
+		assert tree.n_outputs == 1
+		assert tree.n_classes[0] == 1
 
 		nodeVal = SimplePred(tree, \
 			features, \
@@ -80,7 +81,7 @@ def PredictGbrt(model, FeatureGenTest features):
 			tree.threshold, \
 			tree.value)
 
-		currentVal += nodeVal*model.learn_rate
+		currentVal += nodeVal*learn_rate
 	return currentVal
 
 if __name__=="__main__":
