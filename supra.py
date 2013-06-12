@@ -1,6 +1,6 @@
 
 import numpy as np, pickle, random, pxutil, copy, math, converge, sqlitedict, os, tempfile
-import normalisedImage, normalisedImageOpt
+import normalisedImage, normalisedImageOpt, simpleGbrt
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 from sklearn.ensemble import GradientBoostingRegressor
 import matplotlib.pyplot as plt
@@ -132,7 +132,7 @@ class SupraAxisSet():
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
-			pred = axis.reg.predict([self.featureGen[:]])[0]
+			pred = simpleGbrt.PredictGbrt(axis.reg, self.featureGen)
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x

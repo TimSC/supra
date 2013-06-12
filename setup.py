@@ -5,7 +5,8 @@ from numpy.distutils.misc_util import get_numpy_include_dirs
 
 ext_modules = [Extension("pxutil", ["pxutil.pyx"], include_dirs=get_numpy_include_dirs()),
 	Extension("procrustesopt", ["procrustesopt.pyx"], include_dirs=get_numpy_include_dirs()),
-	Extension("normalisedImageOpt", ["normalisedImageOpt.pyx"], include_dirs=get_numpy_include_dirs())]
+	Extension("normalisedImageOpt", ["normalisedImageOpt.pyx"], include_dirs=get_numpy_include_dirs()),
+	Extension("simpleGbrt", ["simpleGbrt.pyx"], include_dirs=get_numpy_include_dirs())]
 
 setup(
   name = 'supra',
