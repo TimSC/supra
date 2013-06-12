@@ -91,12 +91,12 @@ class SupraAxisSet():
 		self.axes.append(SupraAxis(0., 1.))
 		trainOff = np.vstack([self.trainOffX, self.trainOffY]).transpose()
 		
-		self.trainInt = []
 		keys = map(int, self.trainIntDb.keys())
 		print "Loading",len(keys),"samples for training"
 		keys.sort()
+		self.trainInt = np.empty((len(keys), len(self.trainIntDb[0])), dtype=np.float32, order='C')
 		for k in keys:
-			self.trainInt.append(self.trainIntDb[str(k)])
+			self.trainInt[k, :] = self.trainIntDb[str(k)]
 
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
