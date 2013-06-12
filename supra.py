@@ -105,7 +105,7 @@ class SupraAxisSet():
 
 	def ClearTraining(self):
 		self.trainInt = None
-		del self.trainIntDb
+		self.trainIntDb = None
 		try:
 			os.remove(self.trainIntDbFina)
 		except:
