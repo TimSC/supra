@@ -57,16 +57,19 @@ cdef double SimplePred(tree, \
 
 def PredictGbrt(model, FeatureGenTest features):
 
-	cdef float currentVal = None, nodeVal
-	cdef int i
+	cdef float currentVal = 0., nodeVal
+	cdef int i, initSet = 0
 	cdef sklearn.tree._tree.Tree tree
 	cdef float learn_rate = model.learn_rate
 
+	
 	if hasattr(model,"init"):
 		currentVal = model.init.mean
+		initSet = 1
 	if hasattr(model,"init_"):
 		currentVal = model.init_.mean
-	assert currentVal is not None
+		initSet = 1
+	assert initSet
 	
 	for i in range(model.n_estimators):
 		tree = model.estimators_[i,0]
