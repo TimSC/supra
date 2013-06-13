@@ -16,13 +16,14 @@ np.import_array()
 cdef class FeatureGenTest:
 	
 	cdef np.ndarray arr
-	cdef object generators
+	cdef public object generators, accessedFest
 	cdef np.ndarray mapToGen, mapToInd
 
 	def __init__(self):
 		self.mapToGen = None
 		self.mapToInd = None
 		self.generators = []
+		self.accessedFest = set()
 
 	def __getitem__(self, key):
 		return self.GetItemFast(key)
@@ -37,6 +38,8 @@ cdef class FeatureGenTest:
 		
 		if key < 0 or key >= mapToGen.shape[0]: 
 			raise Exception("Invalid key "+str(key))
+
+		self.accessedFest.add(key)
 
 		cdef int generatorInd = mapToGen[key]
 		generator = self.generators[generatorInd]
@@ -66,6 +69,7 @@ cdef class FeatureGenTest:
 		self.mapToGen = None
 		self.mapToInd = None
 		self.generators = []		
+		self.accessedFest = set()
 
 cdef double SimplePred(FeatureGenTest features, \
 	int *children_left, \
