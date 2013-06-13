@@ -233,6 +233,8 @@ class SupraLayers:
 			currentModel = layer.Predict(sample, currentModel, prevFrameFeatures)
 		return currentModel
 
+############# Feature Generation #####################
+
 class FeatureGen:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
 		self.sample = None
