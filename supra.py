@@ -49,6 +49,7 @@ class SupraAxisSet():
 		self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
 		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 		self.featureGen = None
+		self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
 
 	def __del__(self):
@@ -130,9 +131,12 @@ class SupraAxisSet():
 		self.featureGen.SetOffset(0., 0.)
 		self.featureGen.Gen()
 
+		self.featureMultiplex.ClearFeatureSets()
+		self.featureMultiplex.AddFeatureSet(self.featureGen[:])
+
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
-			pred = simpleGbrt.PredictGbrt(axis.reg, simpleGbrt.FeatureGenTest(self.featureGen[:]))
+			pred = simpleGbrt.PredictGbrt(axis.reg, self.featureMultiplex)
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x

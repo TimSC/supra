@@ -16,7 +16,6 @@ np.import_array()
 cdef class FeatureGenTest:
 	
 	cdef np.ndarray arr
-	cdef float val
 	cdef object generators
 	cdef np.ndarray mapToGen, mapToInd
 
@@ -36,11 +35,13 @@ cdef class FeatureGenTest:
 		cdef np.ndarray[np.int32_t, ndim=1] mapToInd = self.mapToInd
 		cdef np.ndarray[np.int32_t, ndim=1] mapToGen = self.mapToGen
 		
-		if key < 0 or key >= mapToGen.shape[0]: raise Exception("Invalid key "+str(key))
+		if key < 0 or key >= mapToGen.shape[0]: 
+			raise Exception("Invalid key "+str(key))
 
-		generatorInd = mapToGen[key]
+		cdef int generatorInd = mapToGen[key]
 		generator = self.generators[generatorInd]
-		val = generator[mapToInd[key]]
+		cdef int valInd = mapToInd[key]
+		cdef double val = generator[valInd]
 		return val 
 
 	def AddFeatureSet(self, generator):
@@ -60,6 +61,11 @@ cdef class FeatureGenTest:
 			mapToInd = np.concatenate((mapToInd, range(l)))
 			self.mapToGen = mapToGen
 			self.mapToInd = mapToInd
+
+	def ClearFeatureSets(self):
+		self.mapToGen = None
+		self.mapToInd = None
+		self.generators = []		
 
 cdef double SimplePred(FeatureGenTest features, \
 	int *children_left, \
