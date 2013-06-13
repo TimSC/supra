@@ -26,6 +26,9 @@ class NormalisedImage:
 		self.params = None
 		self.info = sampleInfo
 		self.singlePixArr = None
+		self.pixCache = np.empty((300,300,self.NumChannels()), dtype=np.uint8)
+		self.pixCacheSet = np.zeros((300,300), dtype=np.uint8)
+		self.pixCacheScale = 3.
 	
 	def LoadImage(self):
 
@@ -149,18 +152,88 @@ class NormalisedImage:
 
 		return px
 
-	def GetPixelsImPos(self, pixPosLi):
+	def SetCacheCol(self, double x, double y, col):
+		cdef np.ndarray[np.uint8_t, ndim=3] pixCache = self.pixCache
+		cdef double pixCacheScale = self.pixCacheScale
+
+		cdef int halfx = pixCache.shape[1] / 2
+		cdef int halfy = pixCache.shape[0] / 2
+
+		cdef int ix = int((x * pixCache.shape[1] / pixCacheScale) + 0.5) + halfx
+		cdef int iy = int((y * pixCache.shape[0] / pixCacheScale) + 0.5) + halfy
+		if ix < 0:
+			return
+		if ix >= pixCache.shape[1]:
+			return
+		if iy < 0:
+			return
+		if iy >= pixCache.shape[0]:
+			return
+		for ch in range(pixCache.shape[2]):
+			self.pixCache[iy, ix, ch] = col[ch]
+		self.pixCacheSet[iy, ix] = 1
+
+	def GetCacheCol(self, double x, double y, np.ndarray[np.float64_t, ndim=1] out):
+		cdef np.ndarray[np.uint8_t, ndim=3] pixCache = self.pixCache
+		cdef double pixCacheScale = self.pixCacheScale
+
+		cdef int halfx = pixCache.shape[1] / 2
+		cdef int halfy = pixCache.shape[0] / 2
+
+		cdef int ix = int((x * pixCache.shape[1] / pixCacheScale) + 0.5) + halfx
+		cdef int iy = int((y * pixCache.shape[0] / pixCacheScale) + 0.5) + halfy
+		if ix < 0:
+			return 0
+		if ix >= pixCache.shape[1]:
+			return 0
+		if iy < 0:
+			return 0
+		if iy >= pixCache.shape[0]:
+			return 0
+		if not self.pixCacheSet[iy, ix]:
+			return 0
+
+		cdef int ch
+		for ch in range(pixCache.shape[2]):
+			out[ch] = pixCache[ix, iy, ch]
+
+		return 1
+
+	def GetPixelsImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi):
 
 		#Lazy load of image
 		if self.imarr is None:
 			self.LoadImage()
 
+		cdef int numChans = self.NumChannels()
+		cdef int hitc=0, missc = 0, pixNum, hit, ch
+		cdef np.ndarray[np.int8_t, ndim=1] process = np.ones((pixPosLi.shape[0]), dtype=np.int8)
+		cdef np.ndarray[np.float64_t, ndim=2] pix = np.empty((pixPosLi.shape[0], self.NumChannels()), dtype=np.float64)
+		cdef np.ndarray[np.int_t, ndim=1] valid = np.empty(pixPosLi.shape[0], dtype=np.int)
+		cdef np.ndarray[np.float64_t, ndim=1] temp = np.empty((4, self.imarr.shape[2]), dtype=np.float64)
+
+		for pixNum in range(pixPosLi.shape[0]):
+			#pos = pixPosLi[pixNum,:]
+			hit = self.GetCacheCol(pixPosLi[pixNum,0], pixPosLi[pixNum,1], temp)
+			#print pos, temp
+			if hit:
+				for ch in range(numChans):
+					pix[pixNum,ch] = temp[ch]
+				hitc += 1
+				process[pixNum] = 0
+			else:
+				missc += 1
+				process[pixNum] = 1
+		#print hitc, missc, self.pixCacheSet.sum()
+
 		imPos = self.GetPixelsPosImPos(pixPosLi)
 		
-		pix = np.empty((imPos.shape[0], self.NumChannels()))
-		valid = np.empty(imPos.shape[0], dtype=np.int)
-		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imPos, 2, temp, pix, valid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imPos, 2, process, temp, pix, valid)
+
+		#Store in cache
+		for pixNum in range(pix.shape[0]):
+			self.SetCacheCol(pixPosLi[pixNum,0], pixPosLi[pixNum,1], pix[pixNum])
+
 		return pix
 
 	def NumPoints(self):
@@ -170,6 +243,9 @@ class NormalisedImage:
 		return self.params
 
 	def NumChannels(self):
+		#Lazy load of image
+		if self.imarr is None:
+			self.LoadImage()
 		return self.imarr.shape[2]
 
 	def GetProcrustesNormedModel(self):
@@ -269,7 +345,7 @@ def GenPatchOffsetList(double ptX, \
 	double ptY, \
 	int patchw=24, \
 	int patchh=24, \
-	double scale=0.08):
+	double scale=0.12):
 
 	cdef int x, y, count = 0
 	cdef float rawX, rawY

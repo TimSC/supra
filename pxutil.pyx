@@ -56,6 +56,7 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 	np.ndarray[np.float64_t, ndim=2] imLoc, \
 	int randomOob, \
+	np.ndarray[np.int8_t, ndim=1] process, \
 	np.ndarray[np.float64_t, ndim=2] temp, \
 	np.ndarray[np.float64_t, ndim=2] out, \
 	np.ndarray[np.int_t, ndim=1] valid):
@@ -64,6 +65,10 @@ def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 	cdef int offsetNum, oob, ch
 
 	for offsetNum in range(imLoc.shape[0]):
+		if not process[offsetNum]:
+			valid[offsetNum] = 0
+			continue
+
 		offsetX = imLoc[offsetNum, 0]
 		offsetY = imLoc[offsetNum, 1]
 

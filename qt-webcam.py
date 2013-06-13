@@ -262,7 +262,7 @@ class MainWindow(QtGui.QMainWindow):
 					self.trackingErrorScore = 0
 				else:
 					self.trackingErrorScore += len(self.tracking) - validCount
-			print "score", self.trackingErrorScore
+			#print "score", self.trackingErrorScore
 			if self.trackingErrorScore > 20:
 				self.trackingPipe.send(("reinit",))
 				self.trackingErrorScore = 0
