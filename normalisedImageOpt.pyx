@@ -100,7 +100,7 @@ class NormalisedImage:
 		pix = np.empty((imLoc.shape[0], self.imarr.shape[2]))
 		valid = np.empty(imLoc.shape[0], dtype=np.int)
 		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, temp, pix, valid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, 1, temp, pix, valid)
 		return pix[0]
 
 	def GetPixels(self, ptNum, pixPosLi):
@@ -118,7 +118,7 @@ class NormalisedImage:
 		self.pixArr = np.empty((imLoc.shape[0], self.imarr.shape[2]))
 		self.pixValid = np.empty(imLoc.shape[0], dtype=np.int)
 		self.bilinearTemp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.pixArr, self.pixValid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, 1, self.bilinearTemp, self.pixArr, self.pixValid)
 		return self.pixArr
 
 	def GetPixelImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi, int num, out = None):
@@ -140,7 +140,7 @@ class NormalisedImage:
 			self.singlePixArr = np.empty((imLoc.shape[0], self.imarr.shape[2]))
 			self.singlePixValid = np.empty(imLoc.shape[0], dtype=np.int)
 			self.bilinearTemp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, self.bilinearTemp, self.singlePixArr, self.singlePixValid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imLoc, 2, 1, self.bilinearTemp, self.singlePixArr, self.singlePixValid)
 		
 		px = self.singlePixArr[0]
 		if out is not None:
@@ -160,7 +160,7 @@ class NormalisedImage:
 		pix = np.empty((imPos.shape[0], self.NumChannels()))
 		valid = np.empty(imPos.shape[0], dtype=np.int)
 		temp = np.empty((4, self.imarr.shape[2]))
-		pxutil.GetPixIntensityAtLoc(self.imarr, imPos, 2, temp, pix, valid)
+		pxutil.GetPixIntensityAtLoc(self.imarr, imPos, 2, 1, temp, pix, valid)
 		return pix
 
 	def NumPoints(self):

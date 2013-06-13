@@ -142,7 +142,7 @@ class SupraAxisSet():
 			weightx += axis.x
 			weighty += axis.y
 
-		print "accessed",len(self.featureMultiplex.accessedFest),"of",len(self.featureGen)
+		#print "accessed",len(self.featureMultiplex.accessedFest),"of",len(self.featureGen)
 
 		return totalx / weightx, totaly / weighty
 

@@ -21,9 +21,9 @@ cdef int LimitToRangeByMirroring(int val, int lower, int upper):
 	return val
 
 cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
-	float x, float y, 
+	float x, float y, int mirror, \
 	np.ndarray[np.float64_t, ndim=2] p, #Temporary storage
-	np.ndarray[np.float64_t, ndim=2] out,
+	np.ndarray[np.float64_t, ndim=2] out, \
 	int row):
 
 	cdef int c
@@ -36,10 +36,11 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 	cdef double c1, c2
 
 	#Ensure position is in bounds by reflect image as necessary
-	xi = LimitToRangeByMirroring(xi, 0, imgPix.shape[1])
-	xi2 = LimitToRangeByMirroring(xi2, 0, imgPix.shape[1])
-	yi = LimitToRangeByMirroring(yi, 0, imgPix.shape[0])
-	yi2 = LimitToRangeByMirroring(yi2, 0, imgPix.shape[0])
+	if mirror:
+		xi = LimitToRangeByMirroring(xi, 0, imgPix.shape[1])
+		xi2 = LimitToRangeByMirroring(xi2, 0, imgPix.shape[1])
+		yi = LimitToRangeByMirroring(yi, 0, imgPix.shape[0])
+		yi2 = LimitToRangeByMirroring(yi2, 0, imgPix.shape[0])
 
 	#Get surrounding pixels
 	for c in range(imgPix.shape[2]):
@@ -53,39 +54,88 @@ cdef BilinearSample(np.ndarray[np.uint8_t, ndim=3] imgPix,
 		c2 = p[2,c] * (1.-xfrac) + p[3,c] * xfrac
 		out[row,c] = c1 * (1.-yfrac) + c2 * yfrac
 
+'''
+GetPixIntensityAtLoc
+
+Values for randomOob
+
+0: Black background
+1: Random background intensity
+2: Mirrored background
+
+Values for sampleMode
+
+1: Nearest neighbour
+2: Bilinear sampled
+
+'''
+
 def GetPixIntensityAtLoc(np.ndarray[np.uint8_t, ndim=3] iml, \
 	np.ndarray[np.float64_t, ndim=2] imLoc, \
 	int randomOob, \
+	int sampleMode, \
 	np.ndarray[np.float64_t, ndim=2] temp, \
 	np.ndarray[np.float64_t, ndim=2] out, \
 	np.ndarray[np.int_t, ndim=1] valid):
 
+
 	cdef float offsetX, offsetY
 	cdef int offsetNum, oob, ch
+	cdef int mirror, offsetXi, offsetYi
 
 	for offsetNum in range(imLoc.shape[0]):
 		offsetX = imLoc[offsetNum, 0]
 		offsetY = imLoc[offsetNum, 1]
+		mirror = (randomOob == 2)
 
-		#Check bounds
-		oob = 0
-		if randomOob == 0 or randomOob == 1:
-			if offsetX < 0 or offsetX >= iml.shape[1]:
+		if sampleMode == 1:
+			#Nearest neighbour
+			offsetXi = <int>(offsetX + 0.5)
+			offsetYi = <int>(offsetY + 0.5)
+		
+			if offsetXi < 0 or offsetXi >= iml.shape[1]:
 				oob = 1
-			if offsetY < 0 or offsetY >= iml.shape[0]:
+			if offsetYi < 0 or offsetYi >= iml.shape[0]:
 				oob = 1
 
-		#Get pixel at this location
-		valid[offsetNum] = oob
-		if not oob:
-			BilinearSample(iml, offsetX, offsetY, temp, out, offsetNum)
-		else:
-			if randomOob == 0 or randomOob == 2:
+			if mirror and oob:
+				offsetXi = LimitToRangeByMirroring(offsetXi, 0, iml.shape[1])
+				offsetYi = LimitToRangeByMirroring(offsetYi, 0, iml.shape[0])
+				oob = 0
+
+			if not oob:
 				for ch in range(iml.shape[2]):
-					out[offsetNum, ch] = 0
-			if randomOob == 1:
-				for ch in range(iml.shape[2]):
-					out[offsetNum, ch] = random.uniform(0, 255)
+					out[offsetNum, ch] = iml[offsetYi, offsetXi, ch]
+			else:
+				if randomOob == 0 or randomOob == 2:
+					for ch in range(iml.shape[2]):
+						out[offsetNum, ch] = 0
+				if randomOob == 1:
+					for ch in range(iml.shape[2]):
+						out[offsetNum, ch] = random.uniform(0, 255)
+
+		if sampleMode == 2:
+			#Bilinear
+
+			#Check bounds
+			oob = 0
+			if randomOob == 0 or randomOob == 1:
+				if offsetX < 0 or offsetX >= iml.shape[1]:
+					oob = 1
+				if offsetY < 0 or offsetY >= iml.shape[0]:
+					oob = 1
+
+			#Get pixel at this location
+			valid[offsetNum] = oob
+			if not oob:
+				BilinearSample(iml, offsetX, offsetY, mirror, temp, out, offsetNum)
+			else:
+				if randomOob == 0 or randomOob == 2:
+					for ch in range(iml.shape[2]):
+						out[offsetNum, ch] = 0
+				if randomOob == 1:
+					for ch in range(iml.shape[2]):
+						out[offsetNum, ch] = random.uniform(0, 255)
 		
 	ch = 0 #For profiling purposes
 
