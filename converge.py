@@ -20,7 +20,7 @@ def ExtractSupportIntensityAsImg(normImage, supportPixOff, ptX, ptY):
 	return normImage.GetPixelsImPos(supportPixOff)
 
 def LoadSamplesFromServer():
-	urlHandle = urllib2.urlopen("http://192.168.1.2/photodb/getsamples.php")
+	urlHandle = urllib2.urlopen("http://192.168.1.9/photodb/getsamples.php")
 	sampleJson = urlHandle.read()
 
 	meanFace = pickle.load(open("meanFace.dat", "rb"))
@@ -29,7 +29,7 @@ def LoadSamplesFromServer():
 
 	for sample in sampleList:
 		if sample['model'] is None: continue
-		url = "http://192.168.1.2/photodb/roiimg.php?roiId="+str(sample['roiId'])
+		url = "http://192.168.1.9/photodb/roiimg.php?roiId="+str(sample['roiId'])
 		normalisedSamples.append(normalisedImageOpt.NormalisedImage(url, sample['model'], meanFace, sample))
 		
 	trainNormSamples = normalisedSamples[:400]
@@ -184,9 +184,9 @@ def RunTest(log):
 
 	for sample in trainNormSamples:
 
-		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
-		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		sobelSample = normalisedImage.KernelFilter(sample)
+		eigenPcaInt = pcaInt.ProjectToPca(sample, sample.GetProcrustesNormedModel())[:20]
+		eigenShape = pcaShape.ProjectToPca(sample, sample.GetProcrustesNormedModel())[:5]
+		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
 		for count in range(50):
 			x = np.random.normal(scale=0.3)
@@ -232,7 +232,7 @@ def RunTest(log):
 	for sample in testNormSamples:
 		eigenPcaInt = pcaInt.ProjectToPca(sample)[:20]
 		eigenShape = pcaShape.ProjectToPca(sample)[:5]
-		sobelSample = normalisedImage.KernelFilter(sample)
+		sobelSample = normalisedImageOpt.KernelFilter(sample)
 
 		for count in range(3):
 			x = np.random.normal(scale=0.3)
