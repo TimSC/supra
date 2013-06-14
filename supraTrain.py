@@ -119,9 +119,9 @@ if __name__ == "__main__":
 
 	if 0:
 		normalisedSamples = LoadSamplesFromServer()
-		pickle.dump(normalisedSamples, open("normalisedSamples2.dat","wb"), protocol=-1)
+		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
 	else:
-		normalisedSamples = pickle.load(open("normalisedSamples2.dat","rb"))		
+		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
 
 	#Only use larger faces
 	filteredSamples = []
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
 
-		if 1:
+		if 0:
 			#Reflect images to increase training data
 			mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in trainNormSamples]
 			trainNormSamples.extend(mirImgs)

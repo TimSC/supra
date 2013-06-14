@@ -7,7 +7,7 @@ cimport sklearn.tree._tree
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.datasets import load_boston
 #from sklearn import tree
-import sklearn.tree.tree
+import sklearn.tree as tree
 
 import numpy as np
 cimport numpy as np
@@ -94,29 +94,42 @@ cdef double SimplePred(FeatureGenTest features, \
 def PredictGbrt(model, FeatureGenTest features):
 
 	cdef float currentVal = 0., nodeVal
-	cdef int i, initSet = 0
-	cdef sklearn.tree._tree.Tree tree
-	cdef float learn_rate = model.learn_rate
+	cdef int i, initSet = 0, learnRateSet = 0, treeType = 0
+	cdef sklearn.tree._tree.Tree treeObj
+	cdef float learn_rate = 0.1
 
-	if hasattr(model,"init"):
-		currentVal = model.init.mean
-		initSet = 1
+	if hasattr(model, "learn_rate"):
+		learn_rate = model.learn_rate
+		learnRateSet = 1
+	if hasattr(model, "learning_rate"):
+		learn_rate = model.learning_rate
+		learnRateSet = 1
+	assert learnRateSet
+
 	if hasattr(model,"init_"):
 		currentVal = model.init_.mean
 		initSet = 1
+	if hasattr(model,"init") and not initSet:
+		currentVal = model.init.mean
+		initSet = 1
 	assert initSet
 	
+	treeType = isinstance(model.estimators_[0,0], tree.DecisionTreeRegressor)
+	
 	for i in range(model.n_estimators):
-		tree = model.estimators_[i,0]
-		assert tree.n_outputs == 1
-		assert tree.n_classes[0] == 1
+		if treeType:
+			treeObj = model.estimators_[i,0].tree_ #sklearn 0.14 style
+		else:
+			treeObj = model.estimators_[i,0] #sklearn 0.12 style
+		assert treeObj.n_outputs == 1
+		assert treeObj.n_classes[0] == 1
 
 		nodeVal = SimplePred(features, \
-			tree.children_left, \
-			tree.children_right, \
-			tree.feature, \
-			tree.threshold, \
-			tree.value)
+			treeObj.children_left, \
+			treeObj.children_right, \
+			treeObj.feature, \
+			treeObj.threshold, \
+			treeObj.value)
 
 		currentVal += nodeVal*learn_rate
 	return currentVal
