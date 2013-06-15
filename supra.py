@@ -143,6 +143,9 @@ class SupraAxisSet():
 	def SetFeatureMask(self, mask):
 		self.featureGen.SetFeatureMask(mask)
 
+	def GetFeatureList(self):
+		return self.featureGen.GetFeatureList()
+
 class SupraCloud():
 
 	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3, numPoints = 5):
@@ -194,6 +197,12 @@ class SupraCloud():
 	def SetFeatureMasks(self, masks):
 		for tracker, mask in zip(self.trackers, masks):
 			tracker.SetFeatureMask(mask)
+
+	def GetFeatureList(self):
+		masks = []
+		for tracker in self.trackers:
+			masks.append(tracker.GetFeatureList())
+		return masks
 
 class SupraLayers:
 	def __init__(self, trainNormSamples, featureMask):
@@ -249,6 +258,12 @@ class SupraLayers:
 	def SetFeatureMasks(self, masks):
 		for layer, masksIt in zip(self.layers, masks):
 			layer.SetFeatureMasks(masksIt)
+
+	def GetFeatureList(self):
+		out = []
+		for layer in self.layers:
+			out.append(layer.GetFeatureList())
+		return out
 
 ############# Feature Generation #####################
 
@@ -344,8 +359,6 @@ class FeatureGen:
 
 		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
 
-		assert self.featureMask is not None
-
 		if self.featureMask is None:
 			return self.feat
 
@@ -365,6 +378,9 @@ class FeatureGen:
 
 	def SetFeatureMask(self, mask):
 		self.featureMask = mask
+
+	def GetFeatureList(self):
+		return range(414)
 
 class FeatureGenPrevFrame:
 	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):

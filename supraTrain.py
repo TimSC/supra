@@ -17,7 +17,9 @@ def TrainTracker(trainNormSamples):
 		featureMasks.append(layer)
 
 	cloudTracker = supra.SupraLayers(trainNormSamples, featureMasks)
-	cloudTracker.SetFeatureMasks(featureMasks)
+	masks = cloudTracker.GetFeatureList()
+
+	cloudTracker.SetFeatureMasks(masks)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
