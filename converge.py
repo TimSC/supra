@@ -86,11 +86,10 @@ class PcaNormImageIntensity():
 		return imgSparseInt
 
 	def ProjectToPca(self, sample, model):
-		
 		feat = self.ExtractFeatures(sample, model)
 		centred = feat - self.meanInt
-
-		return np.dot(centred, self.v.transpose()) / self.s		
+		ret = np.dot(centred, self.v.transpose()) / self.s
+		return ret
 
 class PcaNormShape():
 	def __init__(self, samples):
@@ -149,7 +148,7 @@ def SignAgreement(testOff, testPred):
 
 def RunTest(log):
 
-	if 0:
+	if 1:
 		normalisedSamples = LoadSamplesFromServer()
 		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
 	else:

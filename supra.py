@@ -121,7 +121,6 @@ class SupraAxisSet():
 		return out
 
 	def Predict(self, sample, model, prevFrameFeatures):
-
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(model)
 		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
@@ -129,14 +128,15 @@ class SupraAxisSet():
 		self.featureGen.SetShapeNoise(0.)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(0., 0.)
-		self.featureGen.Gen()
+		feat = self.featureGen.Gen()
 
-		self.featureMultiplex.ClearFeatureSets()
-		self.featureMultiplex.AddFeatureSet(self.featureGen[:])
+		#self.featureMultiplex.ClearFeatureSets()
+		#self.featureMultiplex.AddFeatureSet(self.featureGen[:])
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
-			pred = simpleGbrt.PredictGbrt(axis.reg, self.featureMultiplex)
+			#pred = simpleGbrt.PredictGbrt(axis.reg, self.featureMultiplex)
+			pred = axis.reg.predict(feat)
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x
