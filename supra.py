@@ -37,7 +37,7 @@ class SupraAxis():
 
 class SupraAxisSet():
 
-	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3):
+	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3, featureMask = None):
 		self.ptNum = ptNumIn
 		self.supportPixOff = None
 		self.supportPixOffSobel = None
@@ -51,6 +51,7 @@ class SupraAxisSet():
 		self.featureGen = None
 		self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
+		self.featureMask = featureMask
 
 	def __del__(self):
 		del self.trainIntDb
@@ -81,8 +82,10 @@ class SupraAxisSet():
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
 
+		feat = self.featureGen[self.featureMask]
+
 		#self.trainInt.append(features)
-		self.trainIntDb[str(len(self.trainOffX))] = self.featureGen[:]
+		self.trainIntDb[str(len(self.trainOffX))] = feat
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -130,6 +133,8 @@ class SupraAxisSet():
 		self.featureGen.SetOffset(0., 0.)
 		feat = self.featureGen.Gen()
 
+		feat = feat[self.featureMask]
+
 		#self.featureMultiplex.ClearFeatureSets()
 		#self.featureMultiplex.AddFeatureSet(self.featureGen[:])
 
@@ -148,15 +153,16 @@ class SupraAxisSet():
 
 class SupraCloud():
 
-	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3):
+	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3, featureMask = None):
 		self.trackers = None
 		self.trainingOffset = trainingOffsetIn #Standard deviations
 		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numIter = 2
+		self.featureMask = featureMask
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
 		if self.trackers is None:
-			self.trackers = [SupraAxisSet(x, self.supportPixHalfWidth) \
+			self.trackers = [SupraAxisSet(x, self.supportPixHalfWidth, self.featureMask) \
 				for x in range(sample.NumPoints())]
 
 		for sampleCount in range(numExamples):
@@ -192,9 +198,9 @@ class SupraCloud():
 		return currentModel
 
 class SupraLayers:
-	def __init__(self, trainNormSamples):
+	def __init__(self, trainNormSamples, featureMask):
 		self.featureGenPrevFrame = FeatureGenPrevFrame(trainNormSamples, 20, 5)
-		self.layers = [SupraCloud(0.3,0.2),SupraCloud(0.3,0.05)]
+		self.layers = [SupraCloud(0.3,0.2,featureMask),SupraCloud(0.3,0.05,featureMask)]
 
 	def AddTraining(self, sample, numExamples):
 
