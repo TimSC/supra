@@ -2,8 +2,22 @@
 import supra, pickle, random, normalisedImage, normalisedImageOpt
 import numpy as np
 
-def TrainTracker(trainNormSamples, featureMask):
-	cloudTracker = supra.SupraLayers(trainNormSamples, featureMask)
+def TrainTracker(trainNormSamples):
+
+	featureMasks = []
+	for layerNum in range(2):
+		layer = []
+		for trackerNum in range(5):
+			featureMask = np.ones(414, dtype=np.bool)
+
+			#featureMask[0] = 0
+			#featureMask[1] = 0
+			#featureMask[2] = 0
+			layer.append(featureMask)
+		featureMasks.append(layer)
+
+	cloudTracker = supra.SupraLayers(trainNormSamples, featureMasks)
+	cloudTracker.SetFeatureMasks(featureMasks)
 
 	for sampleCount, sample in enumerate(trainNormSamples):
 		print "train", sampleCount, len(trainNormSamples)
@@ -143,11 +157,6 @@ if __name__ == "__main__":
 		random.shuffle(filteredSamples)
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
-		featureMask = np.ones(414, dtype=np.bool)
-
-		featureMask[0] = 0
-		featureMask[1] = 0
-		featureMask[2] = 0
 
 		if 1:
 			#Reflect images to increase training data
@@ -156,7 +165,7 @@ if __name__ == "__main__":
 			#trainNormSamples = mirImgs
 
 			#Create and train tracker
-			cloudTracker = TrainTracker(trainNormSamples, featureMask)
+			cloudTracker = TrainTracker(trainNormSamples)
 			cloudTracker.ClearTraining()
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)

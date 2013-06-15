@@ -37,21 +37,18 @@ class SupraAxis():
 
 class SupraAxisSet():
 
-	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3, featureMask = None):
+	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3, numSupportPix = 50):
 		self.ptNum = ptNumIn
 		self.supportPixOff = None
 		self.supportPixOffSobel = None
 		self.trainInt = []
 		self.trainOffX, self.trainOffY = [], []
 		self.regX, self.regY = None, None
-		self.supportPixHalfWidth = supportPixHalfWidthIn
-		self.numSupportPix = 50
 		self.sobelKernel = np.array([[1,0,-1],[2,0,-2],[1,0,-1]], dtype=np.int32)
 		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
-		self.featureGen = None
 		self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
-		self.featureMask = featureMask
+		self.featureGen = FeatureGen(supportPixHalfWidthIn, numSupportPix)
 
 	def __del__(self):
 		del self.trainIntDb
@@ -62,9 +59,6 @@ class SupraAxisSet():
 			pass
 
 	def AddTraining(self, sample, trainOffset, extraFeatures):
-
-		if self.featureGen is None:
-			self.featureGen = FeatureGen(self.supportPixHalfWidth, self.numSupportPix)
 			
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
@@ -81,8 +75,7 @@ class SupraAxisSet():
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
-
-		feat = self.featureGen[self.featureMask]
+		feat = self.featureGen[:]
 
 		#self.trainInt.append(features)
 		self.trainIntDb[str(len(self.trainOffX))] = feat
@@ -133,8 +126,6 @@ class SupraAxisSet():
 		self.featureGen.SetOffset(0., 0.)
 		feat = self.featureGen.Gen()
 
-		feat = feat[self.featureMask]
-
 		#self.featureMultiplex.ClearFeatureSets()
 		#self.featureMultiplex.AddFeatureSet(self.featureGen[:])
 
@@ -147,23 +138,26 @@ class SupraAxisSet():
 			weightx += axis.x
 			weighty += axis.y
 
-		#print "accessed",len(self.featureMultiplex.accessedFest),"of",len(self.featureGen)
-
 		return totalx / weightx, totaly / weighty
+
+	def SetFeatureMask(self, mask):
+		self.featureGen.SetFeatureMask(mask)
 
 class SupraCloud():
 
-	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3, featureMask = None):
-		self.trackers = None
+	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3, numPoints = 5):
 		self.trainingOffset = trainingOffsetIn #Standard deviations
 		self.supportPixHalfWidth = supportPixHalfWidthIn
 		self.numIter = 2
-		self.featureMask = featureMask
+		self.numPoints = numPoints
+
+		self.trackers = []
+		self.featureGen = []
+
+		for i in range(self.numPoints):
+			self.trackers.append(SupraAxisSet(i, self.supportPixHalfWidth))
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
-		if self.trackers is None:
-			self.trackers = [SupraAxisSet(x, self.supportPixHalfWidth, self.featureMask) \
-				for x in range(sample.NumPoints())]
 
 		for sampleCount in range(numExamples):
 			perturb = []
@@ -197,10 +191,21 @@ class SupraCloud():
 				currentModel[ptNum,:] -= pred
 		return currentModel
 
+	def SetFeatureMasks(self, masks):
+		for tracker, mask in zip(self.trackers, masks):
+			tracker.SetFeatureMask(mask)
+
 class SupraLayers:
 	def __init__(self, trainNormSamples, featureMask):
 		self.featureGenPrevFrame = FeatureGenPrevFrame(trainNormSamples, 20, 5)
-		self.layers = [SupraCloud(0.3,0.2,featureMask),SupraCloud(0.3,0.05,featureMask)]
+		self.numPoints = trainNormSamples[0].NumPoints()
+		if self.numPoints == 0:
+			raise ValueError("Model must have non-zero number of points")
+		for sample in trainNormSamples: 
+			if sample.NumPoints() != self.numPoints:
+				raise ValueError("Model must have consistent number of points")
+
+		self.layers = [SupraCloud(0.3,0.2,self.numPoints),SupraCloud(0.3,0.05,self.numPoints)]
 
 	def AddTraining(self, sample, numExamples):
 
@@ -241,6 +246,10 @@ class SupraLayers:
 			currentModel = layer.Predict(sample, currentModel, prevFrameFeatures)
 		return currentModel
 
+	def SetFeatureMasks(self, masks):
+		for layer, masksIt in zip(self.layers, masks):
+			layer.SetFeatureMasks(masksIt)
+
 ############# Feature Generation #####################
 
 class FeatureGen:
@@ -251,6 +260,7 @@ class FeatureGen:
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.featureMask = None
 
 	def SetImage(self, img):
 		self.sample = img
@@ -333,13 +343,28 @@ class FeatureGen:
 		relDist = self.GenDistancePairs(self.ptNum, self.xOff, self.yOff)
 
 		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
-		return self.feat
+
+		assert self.featureMask is not None
+
+		if self.featureMask is None:
+			return self.feat
+
+		return self.feat[self.featureMask]
 
 	def __getitem__(self, ind):
-		return self.feat[ind]
+		if 	self.featureMask is not None:
+			feat = self.feat[self.featureMask]
+		else:
+			feat = self.feat
+		return feat[ind]
 
 	def __len__(self):
+		if self.featureMask is not None:
+			return self.featureMask.sum()
 		return len(self.feat)
+
+	def SetFeatureMask(self, mask):
+		self.featureMask = mask
 
 class FeatureGenPrevFrame:
 	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):

@@ -164,7 +164,7 @@ class NormalisedImage:
 		return pix
 
 	def NumPoints(self):
-		return min(len(self.model), len(self.procShape))
+		return len(self.model)
 
 	def GetParams(self):
 		return self.params
