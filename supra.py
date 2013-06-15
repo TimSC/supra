@@ -136,7 +136,7 @@ class SupraAxisSet():
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
 			#pred = simpleGbrt.PredictGbrt(axis.reg, self.featureMultiplex)
-			pred = axis.reg.predict(feat)
+			pred = axis.reg.predict([feat])[0]
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x
@@ -327,6 +327,7 @@ class FeatureGen:
 		relDist = self.GenDistancePairs(self.ptNum, self.xOff, self.yOff)
 
 		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
+		return self.feat
 
 	def __getitem__(self, ind):
 		return self.feat[ind]
