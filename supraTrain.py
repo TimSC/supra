@@ -141,6 +141,7 @@ class FeatureSelection:
 	def __init__(self):
 		self.currentConfig = None
 		self.log = open("log.txt","wt")
+		self.metric = 'medPredError'
 
 	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
@@ -185,9 +186,19 @@ class FeatureSelection:
 			perf = self.currentConfig.Test(self.testNormSamples)
 
 			#Store result
-			testPerfs.append((perf, self.testMasks))
+			testPerfs.append((perf[self.metric], perf, self.testMasks))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
+
+		testPerfs.sort()
+		
+		return testPerfs
+
+	def SetFeatureMasks(self, masks):
+		self.currentMask = masks
+
+	def ClearCurrentModel(self):
+		self.currentConfig = None
 
 def EvalSingleConfig(filteredSamples):
 	
@@ -245,6 +256,21 @@ if __name__ == "__main__":
 	#DumpNormalisedImages(filteredSamples)
 
 	featureSelection = FeatureSelection()
-	featureSelection.SplitSamples(filteredSamples)
-	featureSelection.EvaluateForwardSteps()
+
+	running = True
+	count = 0
+	while running:
+		featureSelection.SplitSamples(filteredSamples)
+		perfs = featureSelection.EvaluateForwardSteps()
+
+		#Find best feature
+		if len(perfs) > 0:
+			bestMasks = perfs[0]
+			featureSelection.SetFeatureMasks(bestMasks[2])
+			featureSelection.ClearCurrentModel()
+			count += 1
+
+			pickle.dump(bestMasks, open("iter"+str(count)+".dat"), protocol = 0)
+		else:
+			running = False
 
