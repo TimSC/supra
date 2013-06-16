@@ -1,6 +1,7 @@
 
 import supra, pickle, random, normalisedImage, normalisedImageOpt, copy
 import numpy as np
+from multiprocessing import Pool, cpu_count
 
 class TrainEval:
 	def __init__(self, trainNormSamples):
@@ -137,6 +138,17 @@ class TrainEval:
 
 		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError}
 
+def EvalTrackerConfig(args):
+	currentConfig = args[0]
+	trainNormSamples = args[1]
+	testNormSamples = args[2]
+	testMasks = args[3]
+
+	currentConfig.SetFeatureMasks(testMasks)
+	cloudTracker = currentConfig.Train(trainNormSamples)
+	perf = currentConfig.Test(testNormSamples)
+	return perf
+
 class FeatureSelection:
 	def __init__(self):
 		self.currentConfig = None
@@ -176,23 +188,25 @@ class FeatureSelection:
 		print "Using a sample of size", len(componentsToTest)
 
 		#Evaluate each component
-		testPerfs = []
+		testArgList = []
+		testMaskList = []
 		for test in componentsToTest:
 			testLayer = test[0]
 			testTracker = test[1]
 			testComponent = test[2]
 
 			#Create temporary mask
-			self.testMasks = copy.deepcopy(self.currentMask)
-			self.testMasks[testLayer][testTracker].append(testComponent)
+			testMasks = copy.deepcopy(self.currentMask)
+			testMasks[testLayer][testTracker].append(testComponent)
 
-			#Evaluate performance
-			self.currentConfig.SetFeatureMasks(self.testMasks)
-			cloudTracker = self.currentConfig.Train(self.trainNormSamples)
-			perf = self.currentConfig.Test(self.testNormSamples)
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
-			#Store result
-			testPerfs.append((perf[self.metric], perf, self.testMasks, test))
+		pool = Pool(processes=cpu_count())
+		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
+
+		testPerfs = []
+		for perf, test, testMasks in zip(evalPerfs, testArgList, testMaskList):
+			testPerfs.append((perf[self.metric], perf, testMasks, test))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -223,29 +237,25 @@ class FeatureSelection:
 		print "Using a sample of size", len(componentsToTest)
 
 		#Evaluate each component
-		testPerfs = []
+		testArgList = []
+		testMaskList = []
 		for test in componentsToTest:
 			testLayer = test[0]
 			testTracker = test[1]
 			testComponent = test[2]
 
 			#Create temporary mask
-			self.testMasks = copy.deepcopy(self.currentMask)
-			
-			trackerMask = self.testMasks[testLayer][testTracker]
-			trackerMaskFilt = []
-			for comp in trackerMask:
-				if comp != testComponent:
-					trackerMaskFilt.append(comp)
-			self.testMasks[testLayer][testTracker] = trackerMaskFilt
+			testMasks = copy.deepcopy(self.currentMask)
+			testMasks[testLayer][testTracker].append(testComponent)
 
-			#Evaluate performance
-			self.currentConfig.SetFeatureMasks(self.testMasks)
-			cloudTracker = self.currentConfig.Train(self.trainNormSamples)
-			perf = self.currentConfig.Test(self.testNormSamples)
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
-			#Store result
-			testPerfs.append((perf[self.metric], perf, self.testMasks, test))
+		pool = Pool(processes=cpu_count())
+		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
+
+		testPerfs = []
+		for perf, test, testMasks in zip(evalPerfs, testArgList, testMaskList):
+			testPerfs.append((perf[self.metric], perf, testMasks, test))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -320,8 +330,8 @@ if __name__ == "__main__":
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(10)
-		perfs2 = featureSelection.EvaluateBackwardSteps(10)
+		perfs = featureSelection.EvaluateForwardSteps(16)
+		perfs2 = featureSelection.EvaluateBackwardSteps(16)
 		perfs.extend(perfs2)
 		perfs.sort()
 
