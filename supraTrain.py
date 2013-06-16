@@ -345,7 +345,7 @@ if __name__ == "__main__":
 			featureSelection.ClearCurrentModel()
 			count += 1
 
-			pickle.dump(bestMasks, open("iter"+str(count)+".dat"), protocol = 0)
+			pickle.dump(bestMasks, open("iter"+str(count)+".dat", "wt"), protocol = 0)
 		else:
 			running = False
 
