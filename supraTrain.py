@@ -9,13 +9,13 @@ class TrainEval:
 		self.masks = self.cloudTracker.GetFeatureList()
 		self.fullMasks = copy.deepcopy(self.masks)
 
-	def Train(self, trainNormSamples):
+	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
 		self.cloudTracker.SetFeatureMasks(self.masks)
 
 		for sampleCount, sample in enumerate(trainNormSamples):
 			print "train", sampleCount, len(trainNormSamples)
-			self.cloudTracker.AddTraining(sample, 10) #35
+			self.cloudTracker.AddTraining(sample, numTrainOffsets) #35
 
 		self.cloudTracker.PrepareModel()
 		self.cloudTracker.ClearTraining()
@@ -32,7 +32,7 @@ class TrainEval:
 						filt.append(featComp)
 				layer[trackerNum] = filt
 
-	def Test(self, testNormSamples, log = None):
+	def Test(self, testNormSamples, numTestOffsets = 10, log = None):
 		testOffs = []
 		sampleInfo = []
 		testPredModels = []
@@ -45,7 +45,7 @@ class TrainEval:
 			for layer in self.cloudTracker.layers:
 				print layer.supportPixHalfWidth, layer.trainingOffset
 
-			for count in range(10):
+			for count in range(numTestOffsets):
 				#Purturb positions for testing
 				testPos = []
 				testOff = []
@@ -145,8 +145,8 @@ def EvalTrackerConfig(args):
 	testMasks = args[3]
 
 	currentConfig.SetFeatureMasks(testMasks)
-	cloudTracker = currentConfig.Train(trainNormSamples)
-	perf = currentConfig.Test(testNormSamples)
+	cloudTracker = currentConfig.Train(trainNormSamples, 2)
+	perf = currentConfig.Test(testNormSamples, 2)
 	return perf
 
 class FeatureSelection:
@@ -189,7 +189,6 @@ class FeatureSelection:
 
 		#Evaluate each component
 		testArgList = []
-		testMaskList = []
 		for test in componentsToTest:
 			testLayer = test[0]
 			testTracker = test[1]
@@ -205,8 +204,8 @@ class FeatureSelection:
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 
 		testPerfs = []
-		for perf, test, testMasks in zip(evalPerfs, testArgList, testMaskList):
-			testPerfs.append((perf[self.metric], perf, testMasks, test))
+		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
+			testPerfs.append((perf[self.metric], perf, test))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -238,7 +237,6 @@ class FeatureSelection:
 
 		#Evaluate each component
 		testArgList = []
-		testMaskList = []
 		for test in componentsToTest:
 			testLayer = test[0]
 			testTracker = test[1]
@@ -254,8 +252,8 @@ class FeatureSelection:
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 
 		testPerfs = []
-		for perf, test, testMasks in zip(evalPerfs, testArgList, testMaskList):
-			testPerfs.append((perf[self.metric], perf, testMasks, test))
+		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
+			testPerfs.append((perf[self.metric], perf, test))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -292,7 +290,7 @@ def EvalSingleConfig(filteredSamples):
 
 			#Create and train tracker
 			#trainTracker.InitRandomMask()
-			cloudTracker = trainTracker.Train(trainNormSamples)
+			cloudTracker = trainTracker.Train(trainNormSamples, 10)
 			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
@@ -305,7 +303,7 @@ def EvalSingleConfig(filteredSamples):
 			trainTracker.cloudTracker = cloudTracker
 
 		#Run performance test
-		trainTracker.Test(testNormSamples, log)
+		trainTracker.Test(testNormSamples, 10, log)
 
 if __name__ == "__main__":
 
@@ -330,7 +328,7 @@ if __name__ == "__main__":
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(16)
+		perfs = featureSelection.EvaluateForwardSteps(8)
 		perfs2 = featureSelection.EvaluateBackwardSteps(16)
 		perfs.extend(perfs2)
 		perfs.sort()
