@@ -205,7 +205,7 @@ class SupraCloud():
 		return masks
 
 class SupraLayers:
-	def __init__(self, trainNormSamples, featureMask):
+	def __init__(self, trainNormSamples):
 		self.featureGenPrevFrame = FeatureGenPrevFrame(trainNormSamples, 20, 5)
 		self.numPoints = trainNormSamples[0].NumPoints()
 		if self.numPoints == 0:
