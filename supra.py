@@ -31,7 +31,7 @@ class SupraAxis():
 
 class SupraAxisSet():
 
-	def __init__(self, ptNumIn, supportPixHalfWidthIn = 0.3, numSupportPix = 50):
+	def __init__(self, ptNumIn, numPoints = 5, supportPixHalfWidthIn = 0.3, numSupportPix = 50):
 		self.ptNum = ptNumIn
 		self.supportPixOff = None
 		self.supportPixOffSobel = None
@@ -42,7 +42,8 @@ class SupraAxisSet():
 		self.sobelOffsets, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 		self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
-		self.featureGen = supraFeatures.FeatureGen(supportPixHalfWidthIn, numSupportPix)
+		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix)
+		self.numPoints = numPoints
 
 	def __del__(self):
 		del self.trainIntDb
@@ -63,16 +64,16 @@ class SupraAxisSet():
 
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(sample.procShape)
-		self.featureGen.SetPrevFrameFeatures(extraFeatures)
 		self.featureGen.SetModelOffset(trainOffset)
 		self.featureGen.SetShapeNoise(0.3)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
 		feat = self.featureGen.GetGenFeat()
+		featComp = np.concatenate((feat, extraFeatures))
 
 		#self.trainInt.append(features)
-		self.trainIntDb[str(len(self.trainOffX))] = feat
+		self.trainIntDb[str(len(self.trainOffX))] = featComp
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
 
@@ -112,12 +113,12 @@ class SupraAxisSet():
 	def Predict(self, sample, model, prevFrameFeatures):
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(model)
-		self.featureGen.SetPrevFrameFeatures(prevFrameFeatures)
 		self.featureGen.ClearModelOffset()
 		self.featureGen.SetShapeNoise(0.)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(0., 0.)
 		feat = self.featureGen.Gen()
+		featComp = np.concatenate((feat, prevFrameFeatures))
 
 		#self.featureMultiplex.ClearFeatureSets()
 		#self.featureMultiplex.AddFeatureSet(self.featureGen.GetGenFeat())
@@ -151,7 +152,7 @@ class SupraCloud():
 		self.featureGen = []
 
 		for i in range(self.numPoints):
-			self.trackers.append(SupraAxisSet(i, self.supportPixHalfWidth))
+			self.trackers.append(SupraAxisSet(i, self.numPoints, self.supportPixHalfWidth))
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
 
