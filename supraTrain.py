@@ -2,7 +2,7 @@
 import supra, pickle, random, normalisedImage, normalisedImageOpt, copy
 import numpy as np
 
-class TrainTracker:
+class TrainEval:
 	def __init__(self, trainNormSamples):
 		self.cloudTracker = supra.SupraLayers(trainNormSamples)
 		self.masks = self.cloudTracker.GetFeatureList()
@@ -131,22 +131,28 @@ class TrainTracker:
 		log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 		log.flush()
 
-if __name__ == "__main__":
+class FeatureSelection
+	def __init__(self):
+		self.currentConfig = None
 
-	if 0:
-		normalisedSamples = LoadSamplesFromServer()
-		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
-	else:
-		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
+	def SplitSamples(self, normalisedSamples)
+		halfInd = len(filteredSamples)/2
+		random.shuffle(filteredSamples)
+		self.trainNormSamples = filteredSamples[:halfInd]
+		self.testNormSamples = filteredSamples[halfInd:]
 
-	#Only use larger faces
-	filteredSamples = []
-	for sample in normalisedSamples:
-		if np.array(sample.model).std(axis=1)[0] > 15.:
-			filteredSamples.append(sample)
+	def EvaluateForwardSteps(self):
+		if self.currentConfig = None:
+			self.currentConfig = TrainEval(self.trainNormSamples)
+		
+		for layers, fullMaskLayers in zip(self.currentConfig.masks, self.currentConfig.fullMasks):
+			for mask, fullMask in zip(layers, fullMaskLayers):
+				print len(mask), len(fullMask)
 
-	#DumpNormalisedImages(filteredSamples)
+		exit(0)
 
+def EvalSingleConfig(filteredSamples):
+	
 	#Reduce problem to n points
 	#for sample in filteredSamples:
 	#	sample.procShape = sample.GetProcrustesNormedModel()[0:1,:]
@@ -154,12 +160,11 @@ if __name__ == "__main__":
 	log = open("log.txt","wt")
 
 	while 1:
-		print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
 		halfInd = len(filteredSamples)/2
 		random.shuffle(filteredSamples)
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
-		trainTracker = TrainTracker(trainNormSamples)
+		trainTracker = TrainEval(trainNormSamples)
 
 		if 1:
 			#Reflect images to increase training data
@@ -184,6 +189,24 @@ if __name__ == "__main__":
 		#Run performance test
 		trainTracker.Test(testNormSamples, log)
 
-		#TestSingleExample(cloudTracker, testNormSamples, log)
+if __name__ == "__main__":
 
+	if 0:
+		normalisedSamples = LoadSamplesFromServer()
+		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
+	else:
+		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
+
+	#Only use larger faces
+	filteredSamples = []
+	for sample in normalisedSamples:
+		if np.array(sample.model).std(axis=1)[0] > 15.:
+			filteredSamples.append(sample)
+	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
+
+	#DumpNormalisedImages(filteredSamples)
+
+	featureSelection = FeatureSelection()
+	featureSelection.SplitSamples(filteredSamples)
+	featureSelection.EvaluateForwardSteps()
 
