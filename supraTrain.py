@@ -14,7 +14,7 @@ class TrainEval:
 
 		for sampleCount, sample in enumerate(trainNormSamples):
 			print "train", sampleCount, len(trainNormSamples)
-			self.cloudTracker.AddTraining(sample, 2) #35
+			self.cloudTracker.AddTraining(sample, 10) #35
 
 		self.cloudTracker.PrepareModel()
 		self.cloudTracker.ClearTraining()
