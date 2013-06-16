@@ -19,6 +19,9 @@ class TrainEval:
 		self.cloudTracker.PrepareModel()
 		self.cloudTracker.ClearTraining()
 
+	def SetFeatureMasks(self, masks):
+		self.masks = masks
+
 	def InitRandomMask(self, frac=0.1):
 		for layer in self.masks:
 			for trackerNum, tracker in enumerate(layer):
@@ -28,7 +31,7 @@ class TrainEval:
 						filt.append(featComp)
 				layer[trackerNum] = filt
 
-	def Test(self, testNormSamples, log):
+	def Test(self, testNormSamples, log = None):
 		testOffs = []
 		sampleInfo = []
 		testPredModels = []
@@ -128,28 +131,63 @@ class TrainEval:
 		#plt.plot(offsetDist[0,:], predErrorsArr[0,:] ,'x')
 		#plt.show()
 
-		log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
-		log.flush()
+		if log is not None:
+			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
+			log.flush()
 
-class FeatureSelection
+		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError}
+
+class FeatureSelection:
 	def __init__(self):
 		self.currentConfig = None
+		self.log = open("log.txt","wt")
 
-	def SplitSamples(self, normalisedSamples)
+	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
 		random.shuffle(filteredSamples)
 		self.trainNormSamples = filteredSamples[:halfInd]
 		self.testNormSamples = filteredSamples[halfInd:]
 
-	def EvaluateForwardSteps(self):
-		if self.currentConfig = None:
-			self.currentConfig = TrainEval(self.trainNormSamples)
-		
-		for layers, fullMaskLayers in zip(self.currentConfig.masks, self.currentConfig.fullMasks):
-			for mask, fullMask in zip(layers, fullMaskLayers):
-				print len(mask), len(fullMask)
+		mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in self.trainNormSamples]
+		self.trainNormSamples.extend(mirImgs)
 
-		exit(0)
+	def EvaluateForwardSteps(self):
+		if self.currentConfig == None:
+			self.currentConfig = TrainEval(self.trainNormSamples)
+			self.currentConfig.InitRandomMask()
+			self.currentMask = self.currentConfig.masks
+		
+		#Plan which componenets to test
+		componentsToTest = []
+		for layerNum, (layers, fullMaskLayers) in enumerate(zip(self.currentMask,
+				self.currentConfig.fullMasks)):
+			for trackerNum, (mask, fullMask) in enumerate(zip(layers, fullMaskLayers)):
+				for component in fullMask:
+					if component not in mask:
+						componentsToTest.append((layerNum, trackerNum, component))
+
+		print "Num components to test in forward step", len(componentsToTest)
+
+		#Evaluate each component
+		testPerfs = []
+		for test in componentsToTest:
+			testLayer = test[0]
+			testTracker = test[1]
+			testComponent = test[2]
+
+			#Create temporary mask
+			self.testMasks = copy.deepcopy(self.currentMask)
+			self.testMasks[testLayer][testTracker].append(testComponent)
+
+			#Evaluate performance
+			self.currentConfig.SetFeatureMasks(self.testMasks)
+			cloudTracker = self.currentConfig.Train(self.trainNormSamples)
+			perf = self.currentConfig.Test(self.testNormSamples)
+
+			#Store result
+			testPerfs.append(perf)
+			self.log.write(str(test)+str(perf)+"\n")
+			self.log.flush()
 
 def EvalSingleConfig(filteredSamples):
 	
@@ -173,7 +211,7 @@ def EvalSingleConfig(filteredSamples):
 			#trainNormSamples = mirImgs
 
 			#Create and train tracker
-			trainTracker.InitRandomMask()
+			#trainTracker.InitRandomMask()
 			cloudTracker = trainTracker.Train(trainNormSamples)
 			
 			cloudTracker = trainTracker.cloudTracker

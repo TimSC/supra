@@ -107,8 +107,7 @@ class SupraAxisSet():
 			os.remove(self.trainIntDbFina)
 		except:
 			pass
-		self.trainOffX = None
-		self.trainOffY = None
+		self.trainOffX, self.trainOffY = [], []
 
 	def GetFeatureImportance(self):
 		out = []
