@@ -185,7 +185,7 @@ class FeatureSelection:
 			perf = self.currentConfig.Test(self.testNormSamples)
 
 			#Store result
-			testPerfs.append(perf)
+			testPerfs.append((perf, self.testMasks))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
