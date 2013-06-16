@@ -69,7 +69,7 @@ class SupraAxisSet():
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
-		feat = self.featureGen[:]
+		feat = self.featureGen.GetGenFeat()
 
 		#self.trainInt.append(features)
 		self.trainIntDb[str(len(self.trainOffX))] = feat
@@ -120,7 +120,7 @@ class SupraAxisSet():
 		feat = self.featureGen.Gen()
 
 		#self.featureMultiplex.ClearFeatureSets()
-		#self.featureMultiplex.AddFeatureSet(self.featureGen[:])
+		#self.featureMultiplex.AddFeatureSet(self.featureGen.GetGenFeat())
 
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:

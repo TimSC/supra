@@ -310,22 +310,7 @@ def EvalSingleConfig(filteredSamples):
 		#Run performance test
 		trainTracker.Test(testNormSamples, 10, log)
 
-if __name__ == "__main__":
-
-	if 0:
-		normalisedSamples = LoadSamplesFromServer()
-		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
-	else:
-		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
-
-	#Only use larger faces
-	filteredSamples = []
-	for sample in normalisedSamples:
-		if np.array(sample.model).std(axis=1)[0] > 15.:
-			filteredSamples.append(sample)
-	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
-
-	#DumpNormalisedImages(filteredSamples)
+def FeatureSelectRunScript(filteredSamples):
 
 	featureSelection = FeatureSelection()
 
@@ -349,3 +334,22 @@ if __name__ == "__main__":
 		else:
 			running = False
 
+
+if __name__ == "__main__":
+
+	if 0:
+		normalisedSamples = LoadSamplesFromServer()
+		pickle.dump(normalisedSamples, open("normalisedSamples.dat","wb"), protocol=-1)
+	else:
+		normalisedSamples = pickle.load(open("normalisedSamples.dat","rb"))		
+
+	#Only use larger faces
+	filteredSamples = []
+	for sample in normalisedSamples:
+		if np.array(sample.model).std(axis=1)[0] > 15.:
+			filteredSamples.append(sample)
+	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
+
+	#DumpNormalisedImages(filteredSamples)
+	EvalSingleConfig(filteredSamples)
+	

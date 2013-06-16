@@ -10,21 +10,42 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 
 ############# Feature Generation #####################
 
+class FeatureIntSupport:
+	def __init__(self, supportPixHalfWidth, numSupportPix=50):
+		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
+			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.model = None
+		self.sample = None
+		self.numSupportPix = numSupportPix
+
+	def Gen(self, ptNum, xOff, yOff):
+		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
+			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
+		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
+		pixGrey = col.rgb2xyz(pix)
+		pixGrey = pixGrey.reshape(pixGrey.size)
+		
+		return pixGrey
+
+	def GetFeatureList(self):
+		return ["int"+str(num) for num in range(self.numSupportPix)]
+
 class FeatureGen:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
 		self.sample = None
 		self.feat = None
-		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
-			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.featureIntSupport = FeatureIntSupport(supportPixHalfWidth, numSupportPix)
 		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.featureMask = None
 
 	def SetImage(self, img):
 		self.sample = img
+		self.featureIntSupport.sample = img
 
 	def SetModel(self, model):
 		self.model = model
+		self.featureIntSupport.model = model
 
 	def SetPrevFrameFeatures(self, prevFeat):
 		self.prevFrameFeatures = prevFeat
@@ -45,17 +66,6 @@ class FeatureGen:
 		self.xOff = offX
 		self.yOff = offY
 
-	def GenIntSupport(self, ptNum, xOff, yOff):
-		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
-			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
-		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
-		pixGrey = col.rgb2xyz(pix)
-		pixGrey = pixGrey.reshape(pixGrey.size)
-		
-		#pixGreyNorm = np.array(pixGrey)
-		#pixGreyNorm -= pixGreyNorm.mean()
-		return pixGrey
-
 	def GenSobelSupport(self, ptNum, xOff, yOff):
 		sobelSample = normalisedImageOpt.KernelFilter(self.sample)
 		pixSobel = ExtractSupportIntensity(sobelSample, self.supportPixOffSobel, \
@@ -64,8 +74,6 @@ class FeatureGen:
 		for px in pixSobel:
 			pixConvSobel.extend(px)
 
-		#pixNormSobel = np.array(pixConvSobel)
-		#pixNormSobel -= pixNormSobel.mean()
 		return pixConvSobel
 
 	def GenHog(self, ptNum, xOff, yOff):
@@ -92,7 +100,7 @@ class FeatureGen:
 
 	def Gen(self):
 
-		pixGreyNorm = self.GenIntSupport(self.ptNum, self.xOff, self.yOff)
+		self.pixGreyNorm = self.featureIntSupport.Gen(self.ptNum, self.xOff, self.yOff)
 		#print pixGreyNorm.shape
 		pixNormSobel = self.GenSobelSupport(self.ptNum, self.xOff, self.yOff)
 		#print pixNormSobel.shape
@@ -100,30 +108,43 @@ class FeatureGen:
 		#print hog.shape
 		relDist = self.GenDistancePairs(self.ptNum, self.xOff, self.yOff)
 
-		self.feat = np.concatenate([pixGreyNorm, hog, self.prevFrameFeatures, pixNormSobel, relDist])
+		self.feat = np.concatenate([hog, self.prevFrameFeatures, pixNormSobel, relDist])
 
 		if self.featureMask is None:
 			return self.feat
 
-		return self.feat[self.featureMask]
+		return self.GetGenFeat()
+
+	def GetGenFeat(self):
+		out = []
+		for i in range(len(self)):
+			out.append(self[i])
+		return out
 
 	def __getitem__(self, ind):
 		if 	self.featureMask is not None:
-			feat = self.feat[self.featureMask]
+			indc = self.featureMask[ind]
+			prefix = indc[0:3]
+			cnum = int(indc[3:])
+			if prefix == "aaa":
+				return self.feat[cnum]
+			if prefix == "int":
+				return self.pixGreyNorm[cnum]
 		else:
-			feat = self.feat
-		return feat[ind]
+			return self.feat[ind]
 
 	def __len__(self):
 		if self.featureMask is not None:
-			return self.featureMask.sum()
+			return len(self.featureMask)
 		return len(self.feat)
 
 	def SetFeatureMask(self, mask):
 		self.featureMask = mask
 
 	def GetFeatureList(self):
-		return range(414)
+		comp = ["aaa"+str(i) for i in range(264)]
+		comp.extend(self.featureIntSupport.GetFeatureList())
+		return comp
 
 class FeatureGenPrevFrame:
 	def __init__(self, trainNormSamples, numIntPcaComp, numShapePcaComp):
