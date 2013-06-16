@@ -145,8 +145,9 @@ def EvalTrackerConfig(args):
 	testMasks = args[3]
 
 	currentConfig.SetFeatureMasks(testMasks)
-	cloudTracker = currentConfig.Train(trainNormSamples, 2)
+	currentConfig.Train(trainNormSamples, 2)
 	perf = currentConfig.Test(testNormSamples, 2)
+	del currentConfig
 	return perf
 
 class FeatureSelection:
@@ -202,6 +203,7 @@ class FeatureSelection:
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
+		del pool
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
@@ -250,6 +252,7 @@ class FeatureSelection:
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
+		del pool
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):

@@ -136,3 +136,4 @@ class FeatureGenPrevFrame:
 		eigenPcaInt = self.pcaInt.ProjectToPca(sample, model)[:self.numIntPcaComp]
 		eigenShape = self.pcaShape.ProjectToPca(sample, model)[:self.numShapePcaComp]
 		return np.concatenate([eigenPcaInt, eigenShape])
+
