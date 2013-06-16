@@ -152,7 +152,7 @@ class FeatureSelection:
 		mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in self.trainNormSamples]
 		self.trainNormSamples.extend(mirImgs)
 
-	def EvaluateForwardSteps(self):
+	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
 			self.currentConfig = TrainEval(self.trainNormSamples)
 			self.currentConfig.InitRandomMask()
@@ -165,9 +165,15 @@ class FeatureSelection:
 			for trackerNum, (mask, fullMask) in enumerate(zip(layers, fullMaskLayers)):
 				for component in fullMask:
 					if component not in mask:
-						componentsToTest.append((layerNum, trackerNum, component))
+						componentsToTest.append((layerNum, trackerNum, component, "Forward"))
 
 		print "Num components to test in forward step", len(componentsToTest)
+
+		if numTests is None:
+			numTests = len(componentsToTest)
+		componentsToTest = random.sample(componentsToTest, numTests)
+
+		print "Using a sample of size", len(componentsToTest)
 
 		#Evaluate each component
 		testPerfs = []
@@ -186,7 +192,60 @@ class FeatureSelection:
 			perf = self.currentConfig.Test(self.testNormSamples)
 
 			#Store result
-			testPerfs.append((perf[self.metric], perf, self.testMasks))
+			testPerfs.append((perf[self.metric], perf, self.testMasks, test))
+			self.log.write(str(test)+str(perf)+"\n")
+			self.log.flush()
+
+		testPerfs.sort()
+		
+		return testPerfs
+
+	def EvaluateBackwardSteps(self, numTests=None):
+
+		if self.currentConfig == None:
+			self.currentConfig = TrainEval(self.trainNormSamples)
+			self.currentConfig.InitRandomMask()
+			self.currentMask = self.currentConfig.masks
+		
+		#Plan which componenets to test
+		componentsToTest = []
+		for layerNum, layers in enumerate(self.currentMask):
+			for trackerNum, mask in enumerate(layers):
+				for component in mask:
+					componentsToTest.append((layerNum, trackerNum, component, "Backward"))
+
+		print "Num components to test in backward step", len(componentsToTest)
+
+		if numTests is None:
+			numTests = len(componentsToTest)
+		componentsToTest = random.sample(componentsToTest, numTests)
+
+		print "Using a sample of size", len(componentsToTest)
+
+		#Evaluate each component
+		testPerfs = []
+		for test in componentsToTest:
+			testLayer = test[0]
+			testTracker = test[1]
+			testComponent = test[2]
+
+			#Create temporary mask
+			self.testMasks = copy.deepcopy(self.currentMask)
+			
+			trackerMask = self.testMasks[testLayer][testTracker]
+			trackerMaskFilt = []
+			for comp in trackerMask:
+				if comp != testComponent:
+					trackerMaskFilt.append(comp)
+			self.testMasks[testLayer][testTracker] = trackerMaskFilt
+
+			#Evaluate performance
+			self.currentConfig.SetFeatureMasks(self.testMasks)
+			cloudTracker = self.currentConfig.Train(self.trainNormSamples)
+			perf = self.currentConfig.Test(self.testNormSamples)
+
+			#Store result
+			testPerfs.append((perf[self.metric], perf, self.testMasks, test))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -261,7 +320,10 @@ if __name__ == "__main__":
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps()
+		perfs = featureSelection.EvaluateForwardSteps(10)
+		perfs2 = featureSelection.EvaluateBackwardSteps(10)
+		perfs.extend(perfs2)
+		perfs.sort()
 
 		#Find best feature
 		if len(perfs) > 0:
