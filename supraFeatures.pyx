@@ -17,15 +17,23 @@ class FeatureIntSupport:
 		self.model = None
 		self.sample = None
 		self.numSupportPix = numSupportPix
+		self.pixGrey = None
 
 	def Gen(self, ptNum, xOff, yOff):
-		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
-			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
-		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
-		pixGrey = col.rgb2xyz(pix)
-		pixGrey = pixGrey.reshape(pixGrey.size)
-		
-		return pixGrey
+		self.pixGrey = None
+		self.ptNum = ptNum
+		self.xOff = xOff
+		self.yOff = yOff
+
+	def __getitem__(self, ind):
+		if self.pixGrey is None:
+			pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
+				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
+			pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
+			pixGrey = col.rgb2xyz(pix)
+			self.pixGrey = pixGrey.reshape(pixGrey.size)
+
+		return self.pixGrey[ind]
 
 	def GetFeatureList(self):
 		return range(self.numSupportPix)
@@ -139,7 +147,7 @@ class FeatureGen:
 		self.yOff = offY
 
 	def Gen(self):
-		self.pixGreyNorm = self.featureIntSupport.Gen(self.ptNum, self.xOff, self.yOff)
+		self.featureIntSupport.Gen(self.ptNum, self.xOff, self.yOff)
 		self.pixNormSobel = self.sobelGen.Gen(self.ptNum, self.xOff, self.yOff)
 		self.hog = self.hogGen.Gen(self.ptNum, self.xOff, self.yOff)
 		self.relDist = self.relDistGen.Gen(self.ptNum, self.xOff, self.yOff)
