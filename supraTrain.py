@@ -3,124 +3,123 @@ import supra, pickle, random, normalisedImage, normalisedImageOpt
 import numpy as np
 
 class TrainTracker:
-	def __init__(self):
+	def __init__(self, trainNormSamples):
 		self.cloudTracker = supra.SupraLayers(trainNormSamples)
-
-		self.masks = cloudTracker.GetFeatureList()
+		self.masks = self.cloudTracker.GetFeatureList()
 
 	def Train(self, trainNormSamples):
 
-		cloudTracker.SetFeatureMasks(self.masks)
+		self.cloudTracker.SetFeatureMasks(self.masks)
 
 		for sampleCount, sample in enumerate(trainNormSamples):
 			print "train", sampleCount, len(trainNormSamples)
-			cloudTracker.AddTraining(sample, 2) #35
+			self.cloudTracker.AddTraining(sample, 2) #35
 
-		cloudTracker.PrepareModel()
-		return cloudTracker
+		self.cloudTracker.PrepareModel()
+		self.cloudTracker.ClearTraining()
 
-def TestTracker(cloudTracker, testNormSamples, log):
-	testOffs = []
-	sampleInfo = []
-	testPredModels = []
-	testModels = []
-	trueModels = []
-	for sampleCount, sample in enumerate(testNormSamples):
-		print "test", sampleCount, len(testNormSamples), sample.info['roiId']
-		prevFrameFeat = cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
+	def Test(self, testNormSamples, log):
+		testOffs = []
+		sampleInfo = []
+		testPredModels = []
+		testModels = []
+		trueModels = []
+		for sampleCount, sample in enumerate(testNormSamples):
+			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
+			prevFrameFeat = self.cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
-		for layer in cloudTracker.layers:
-			print layer.supportPixHalfWidth, layer.trainingOffset
+			for layer in self.cloudTracker.layers:
+				print layer.supportPixHalfWidth, layer.trainingOffset
 
-		for count in range(10):
-			#Purturb positions for testing
-			testPos = []
-			testOff = []
-			for pt in sample.GetProcrustesNormedModel():
-				x = np.random.normal(scale=0.3)
-				y = np.random.normal(scale=0.3)
-				testOff.append((x, y))
-				testPos.append((pt[0] + x, pt[1] + y))
+			for count in range(10):
+				#Purturb positions for testing
+				testPos = []
+				testOff = []
+				for pt in sample.GetProcrustesNormedModel():
+					x = np.random.normal(scale=0.3)
+					y = np.random.normal(scale=0.3)
+					testOff.append((x, y))
+					testPos.append((pt[0] + x, pt[1] + y))
 
-			#Make predicton
-			predModel = cloudTracker.Predict(sample, testPos, prevFrameFeat)
+				#Make predicton
+				predModel = self.cloudTracker.Predict(sample, testPos, prevFrameFeat)
 
-			#Store result
-			testOffs.append(testOff)
-			testPredModels.append(predModel)
-			testModels.append(testPos)
-			trueModels.append(sample.GetProcrustesNormedModel())
-			sampleInfo.append(sample.info)
+				#Store result
+				testOffs.append(testOff)
+				testPredModels.append(predModel)
+				testModels.append(testPos)
+				trueModels.append(sample.GetProcrustesNormedModel())
+				sampleInfo.append(sample.info)
 
 
-	#Calculate performance
-	testOffs = np.array(testOffs)
-	testPredModels = np.array(testPredModels)
-	testModels = np.array(testModels)
-	trueModels = np.array(trueModels)
+		#Calculate performance
+		testOffs = np.array(testOffs)
+		testPredModels = np.array(testPredModels)
+		testModels = np.array(testModels)
+		trueModels = np.array(trueModels)
 
-	#Calculate relative movement of tracker
-	testPreds = []
-	for sampleNum in range(testOffs.shape[0]):
-		diff = []
+		#Calculate relative movement of tracker
+		testPreds = []
+		for sampleNum in range(testOffs.shape[0]):
+			diff = []
+			for ptNum in range(testOffs.shape[1]):
+				diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
+					testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
+			testPreds.append(diff)
+		testPreds = np.array(testPreds)
+
+		#Calculate performance metrics
+		correls, signScores = [], []
 		for ptNum in range(testOffs.shape[1]):
-			diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
-				testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
-		testPreds.append(diff)
-	testPreds = np.array(testPreds)
-
-	#Calculate performance metrics
-	correls, signScores = [], []
-	for ptNum in range(testOffs.shape[1]):
-		correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
-		correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
-		correl = 0.5*(correlX+correlY)
-		correls.append(correl)
-		#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
-		#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
-	#plt.savefig("correl.svg")
+			correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
+			correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
+			correl = 0.5*(correlX+correlY)
+			correls.append(correl)
+			#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
+			#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
+		#plt.savefig("correl.svg")
 	
-	for ptNum in range(testOffs.shape[1]):
-		signX = supra.SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
-		signY = supra.SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
-		signScore = 0.5 * (signX + signY)
-		signScores.append(signScore)
+		for ptNum in range(testOffs.shape[1]):
+			signX = supra.SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
+			signY = supra.SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
+			signScore = 0.5 * (signX + signY)
+			signScores.append(signScore)
 
-	#Calculate prediction error	
-	predErrors, offsetDist = [], []
-	for ptNum in range(testOffs.shape[1]):
-		errX = trueModels[:,ptNum,0] - testPredModels[:,ptNum,0]
-		errY = trueModels[:,ptNum,1] - testPredModels[:,ptNum,1]
-		offset = np.power(np.power(testOffs[:,ptNum,0],2.)+np.power(testOffs[:,ptNum,1],2.),0.5)
-		err = np.power(np.power(errX,2.)+np.power(errY,2.),0.5)
-		predErrors.append(err)
-		offsetDist.append(offset)
+		#Calculate prediction error	
+		predErrors, offsetDist = [], []
+		for ptNum in range(testOffs.shape[1]):
+			errX = trueModels[:,ptNum,0] - testPredModels[:,ptNum,0]
+			errY = trueModels[:,ptNum,1] - testPredModels[:,ptNum,1]
+			offset = np.power(np.power(testOffs[:,ptNum,0],2.)+np.power(testOffs[:,ptNum,1],2.),0.5)
+			err = np.power(np.power(errX,2.)+np.power(errY,2.),0.5)
+			predErrors.append(err)
+			offsetDist.append(offset)
 
-	#Get average performance
-	avCorrel = np.array(correls).mean()
-	avSignScore = np.array(signScores).mean()
-	predErrors = np.array(predErrors)
-	medPredError = np.median(predErrors)
-	offsetDist = np.array(offsetDist)
+		#Get average performance
+		avCorrel = np.array(correls).mean()
+		avSignScore = np.array(signScores).mean()
+		predErrors = np.array(predErrors)
+		medPredError = np.median(predErrors)
+		offsetDist = np.array(offsetDist)
 
-	print "correl",avCorrel
-	print "signScore",avSignScore
-	print "medPredError",medPredError
+		print "correl",avCorrel
+		print "signScore",avSignScore
+		print "medPredError",medPredError
 
-	#Calc sample specific error
-	roiDict = {}
-	for info, errNum in zip(sampleInfo, range(predErrors.shape[1])):
-		roiId = info['roiId']
-		if roiId not in roiDict:
-			roiDict[roiId] = []
-		roiDict[roiId].append(predErrors[:, errNum])
-	#pickle.dump(roiDict, open("roiDict.dat", "wb"), protocol = -1)
+		#Calc sample specific error
+		roiDict = {}
+		for info, errNum in zip(sampleInfo, range(predErrors.shape[1])):
+			roiId = info['roiId']
+			if roiId not in roiDict:
+				roiDict[roiId] = []
+			roiDict[roiId].append(predErrors[:, errNum])
+		#pickle.dump(roiDict, open("roiDict.dat", "wb"), protocol = -1)
 
-	#plt.plot(offsetDist[0,:], predErrorsArr[0,:] ,'x')
-	#plt.show()
+		#plt.plot(offsetDist[0,:], predErrorsArr[0,:] ,'x')
+		#plt.show()
 
-	log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
-	log.flush()
+		log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
+		log.flush()
 
 if __name__ == "__main__":
 
@@ -150,6 +149,7 @@ if __name__ == "__main__":
 		random.shuffle(filteredSamples)
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
+		trainTracker = TrainTracker(trainNormSamples)
 
 		if 1:
 			#Reflect images to increase training data
@@ -158,9 +158,8 @@ if __name__ == "__main__":
 			#trainNormSamples = mirImgs
 
 			#Create and train tracker
-			trainTracker = TrainTracker(trainNormSamples)
-			cloudTracker = trainTracker.Train()
-			cloudTracker.ClearTraining()
+			cloudTracker = trainTracker.Train(trainNormSamples)
+			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
 			pickle.dump(testNormSamples, open("testNormSamples.dat","wb"), protocol=-1)
@@ -168,9 +167,10 @@ if __name__ == "__main__":
 			cloudTracker = pickle.load(open("tracker.dat","rb"))
 			testNormSamples = pickle.load(open("testNormSamples.dat","rb"))
 			print cloudTracker
+			trainTracker.cloudTracker = cloudTracker
 
 		#Run performance test
-		TestTracker(cloudTracker, testNormSamples, log)
+		trainTracker.Test(testNormSamples, log)
 
 		#TestSingleExample(cloudTracker, testNormSamples, log)
 
