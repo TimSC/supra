@@ -203,7 +203,8 @@ class FeatureSelection:
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
-		del pool
+		pool.close()
+		pool.join()
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
@@ -252,7 +253,8 @@ class FeatureSelection:
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
-		del pool
+		pool.close()
+		pool.join()
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
