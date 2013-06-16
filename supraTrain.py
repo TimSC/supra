@@ -1,11 +1,12 @@
 
-import supra, pickle, random, normalisedImage, normalisedImageOpt
+import supra, pickle, random, normalisedImage, normalisedImageOpt, copy
 import numpy as np
 
 class TrainTracker:
 	def __init__(self, trainNormSamples):
 		self.cloudTracker = supra.SupraLayers(trainNormSamples)
 		self.masks = self.cloudTracker.GetFeatureList()
+		self.fullMasks = copy.deepcopy(self.masks)
 
 	def Train(self, trainNormSamples):
 
@@ -20,9 +21,12 @@ class TrainTracker:
 
 	def InitRandomMask(self, frac=0.1):
 		for layer in self.masks:
-			for tracker in layer:
-				print tracker
-		exit(0)
+			for trackerNum, tracker in enumerate(layer):
+				filt = []				
+				for featComp in tracker:
+					if random.random() < frac:
+						filt.append(featComp)
+				layer[trackerNum] = filt
 
 	def Test(self, testNormSamples, log):
 		testOffs = []
@@ -164,8 +168,9 @@ if __name__ == "__main__":
 			#trainNormSamples = mirImgs
 
 			#Create and train tracker
+			trainTracker.InitRandomMask()
 			cloudTracker = trainTracker.Train(trainNormSamples)
-			cloudTracker.InitRandomMask()
+			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
