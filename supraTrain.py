@@ -328,7 +328,7 @@ if __name__ == "__main__":
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(8)
+		perfs = featureSelection.EvaluateForwardSteps(16)
 		perfs2 = featureSelection.EvaluateBackwardSteps(16)
 		perfs.extend(perfs2)
 		perfs.sort()
