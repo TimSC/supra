@@ -18,6 +18,12 @@ class TrainTracker:
 		self.cloudTracker.PrepareModel()
 		self.cloudTracker.ClearTraining()
 
+	def InitRandomMask(self, frac=0.1):
+		for layer in self.masks:
+			for tracker in layer:
+				print tracker
+		exit(0)
+
 	def Test(self, testNormSamples, log):
 		testOffs = []
 		sampleInfo = []
@@ -159,6 +165,7 @@ if __name__ == "__main__":
 
 			#Create and train tracker
 			cloudTracker = trainTracker.Train(trainNormSamples)
+			cloudTracker.InitRandomMask()
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
 			pickle.dump(cloudTracker, open("tracker.dat","wb"), protocol=-1)
