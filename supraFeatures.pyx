@@ -28,7 +28,7 @@ class FeatureIntSupport:
 		return pixGrey
 
 	def GetFeatureList(self):
-		return ["int"+str(num) for num in range(self.numSupportPix)]
+		return range(self.numSupportPix)
 
 class FeatureSobel:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
@@ -50,7 +50,7 @@ class FeatureSobel:
 		return pixConvSobel
 
 	def GetFeatureList(self):
-		return ["sob"+str(num) for num in range(self.numSupportPix)]
+		return range(self.numSupportPix)
 
 class FeatureHog:
 	def __init__(self):
@@ -66,7 +66,7 @@ class FeatureHog:
 		return feat
 
 	def GetFeatureList(self):
-		return ["sob"+str(num) for num in range(81)]
+		return range(81)
 
 class FeatureDists:
 	def __init__(self, numPoints):
@@ -92,7 +92,7 @@ class FeatureDists:
 		return out
 
 	def GetFeatureList(self):
-		return ["dst"+str(i) for i in range(2*(self.numPoints-1))]
+		return range(2*(self.numPoints-1))
 
 class FeatureGen:
 	def __init__(self, numPoints, supportPixHalfWidth, numSupportPix=50):
@@ -176,10 +176,10 @@ class FeatureGen:
 		self.featureMask = mask
 
 	def GetFeatureList(self):
-		comp = self.featureIntSupport.GetFeatureList()
-		comp.extend(self.sobelGen.GetFeatureList())
-		comp.extend(self.hogGen.GetFeatureList())
-		comp.extend(self.relDistGen.GetFeatureList())
+		comp = ["int"+str(i) for i in self.featureIntSupport.GetFeatureList()]
+		comp.extend(["sob"+str(i) for i in self.sobelGen.GetFeatureList()])
+		comp.extend(["hog"+str(i) for i in self.hogGen.GetFeatureList()])
+		comp.extend(["dst"+str(i) for i in self.relDistGen.GetFeatureList()])
 		return comp
 
 class FeatureGenPrevFrame:
