@@ -240,7 +240,7 @@ cdef class KernelFilter:
 		cdef np.ndarray[np.float64_t, ndim=2] scaleOffsets = self.scaleOffsets
 	
 		cdef np.ndarray[np.float64_t, ndim=1] off = pixPosLi[num,:]
-		cdef np.ndarray[np.float64_t, ndim=2] arr = scaleOffsets + off
+		cdef np.ndarray[np.float64_t, ndim=2] arr = k * scaleOffsets + off
 		cdef np.ndarray[np.float64_t, ndim=2] pixs = self.normIm.GetPixelsImPos(arr)
 		cdef np.ndarray[np.float64_t, ndim=1] total = pixs.sum(axis=0)
 
