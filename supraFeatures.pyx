@@ -12,11 +12,11 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 
 class FeatureIntSupport:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
-		self.supportPixOff = np.random.uniform(low=-supportPixHalfWidth, \
+		self.supportPixOffInitial = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.supportPixOff = self.supportPixOffInitial.copy()
 		self.model = None
 		self.sample = None
-		self.numSupportPix = numSupportPix
 		self.pixGrey = None
 		self.mask = None
 
@@ -28,6 +28,7 @@ class FeatureIntSupport:
 
 	def SetFeatureMask(self, mask):
 		self.mask = map(int, mask)
+		self.supportPixOff = self.supportPixOffInitial[self.mask,:]
 
 	def __getitem__(self, ind):
 		if self.pixGrey is None:
@@ -37,18 +38,21 @@ class FeatureIntSupport:
 			pixGrey = col.rgb2xyz(pix)
 			self.pixGrey = pixGrey.reshape(pixGrey.size)
 
-		return self.pixGrey[self.mask[ind]]
+		return self.pixGrey[ind]
+
+	def __len__(self):
+		return len(self.mask)
 
 	def GetFeatureList(self):
-		return range(self.numSupportPix)
+		return map(str,range(self.supportPixOffInitial.shape[0]))
 
 class FeatureSobel:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50):
-		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
+		self.supportPixOffSobelInitial = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.supportPixOffSobel = self.supportPixOffSobelInitial.copy()
 		self.model = None
 		self._sample = None
-		self.numSupportPix = numSupportPix
 		self.sobelSample = None
 		self.feat = None
 		self.mask = None
@@ -65,6 +69,7 @@ class FeatureSobel:
 
 	def SetFeatureMask(self, mask):
 		self.mask = map(int, mask)
+		self.supportPixOffSobel = self.supportPixOffSobelInitial[self.mask,:]
 
 	def __getitem__(self, ind):
 		if self.sobelSample is None:
@@ -76,10 +81,13 @@ class FeatureSobel:
 			for px in pixSobel:
 				pixConvSobel.extend(px)
 			self.feat = pixConvSobel
-		return self.feat[self.mask[ind]]
+		return self.feat[ind]
+
+	def __len__(self):
+		return len(self.mask)
 
 	def GetFeatureList(self):
-		return range(self.numSupportPix)
+		return map(str,range(self.supportPixOffSobelInitial.shape[0]))
 
 class FeatureHog:
 	def __init__(self):
@@ -106,8 +114,11 @@ class FeatureHog:
 			self.feat = feature.hog(localPatchGrey)
 		return self.feat[self.mask[ind]]
 
+	def __len__(self):
+		return len(self.mask)
+
 	def GetFeatureList(self):
-		return range(81)
+		return map(str,range(81))
 
 class FeatureDists:
 	def __init__(self, numPoints):
@@ -144,8 +155,11 @@ class FeatureDists:
 				feat.append(dy)
 		return feat[self.mask[ind]]
 
+	def __len__(self):
+		return len(self.mask)
+
 	def GetFeatureList(self):
-		return range(2*(self.numPoints-1))
+		return map(str,range(2*(self.numPoints-1)))
 
 class FeatureGen:
 	def __init__(self, numPoints, supportPixHalfWidth, numSupportPix=50):
