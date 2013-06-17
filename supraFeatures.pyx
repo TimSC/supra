@@ -45,7 +45,6 @@ class FeatureIntSupport:
 			self.pixGrey = pixGrey.reshape(pixGrey.size)
 
 		out = self.pixGrey[ind]
-		assert np.isfinite(out)
 		return out
 
 	def __len__(self):
@@ -91,7 +90,6 @@ class FeatureSobel:
 			self.feat = pixConvSobel
 
 		out = self.feat[ind]
-		assert np.isfinite(out)
 		return out
 
 	def __len__(self):
@@ -130,7 +128,7 @@ class FeatureHog:
 
 	def __len__(self):
 		return len(self.mask)
-		assert np.isfinite(out)
+
 	def GetFeatureList(self):
 		return map(str,range(81))
 
@@ -169,7 +167,6 @@ class FeatureDists:
 				feat.append(dy)
 
 		out = feat[self.mask[ind]]
-		assert np.isfinite(out)
 		return out
 
 	def __len__(self):
