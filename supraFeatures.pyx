@@ -1,6 +1,12 @@
+# cython: profile=True
+# cython: cdivision=True
+# cython: boundscheck=False
+# cython: wraparound=False
+
 import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 import converge, normalisedImageOpt
+import lazyhog
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -111,7 +117,7 @@ class FeatureHog:
 			localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
 			localPatchGrey = col.rgb2grey(np.array([localPatch]))
 			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-			self.feat = feature.hog(localPatchGrey)
+			self.feat = lazyhog.hog(localPatchGrey)
 		return self.feat[self.mask[ind]]
 
 	def __len__(self):
@@ -212,8 +218,8 @@ class FeatureGen:
 		self.hogGen.Gen(self.ptNum, self.xOff, self.yOff)
 		self.relDistGen.Gen(self.ptNum, self.xOff, self.yOff)
 
-		assert self.featureMask is not None
-		return self.GetGenFeat()
+		#assert self.featureMask is not None
+		#return self.GetGenFeat()
 
 	def GetGenFeat(self):
 		out = []

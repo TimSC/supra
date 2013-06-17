@@ -117,7 +117,9 @@ class SupraAxisSet():
 		self.featureGen.SetShapeNoise(0.)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(0., 0.)
-		feat = self.featureGen.Gen()
+		self.featureGen.Gen()
+
+		feat = self.featureGen.GetGenFeat()
 		featComp = np.concatenate((feat, prevFrameFeatures))
 
 		#self.featureMultiplex.ClearFeatureSets()
