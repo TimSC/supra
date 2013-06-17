@@ -180,13 +180,13 @@ class NormalisedImage:
 
 cdef class KernelFilter:
 
-	cdef np.ndarray kernel, offsets, scaleOffsets
+	cdef np.ndarray kernel, offsets, scaleOffsets, coeffs
 	cdef double scale
 	cdef int halfw
 	cdef normIm
 	cdef int absVal, numChans
 
-	def __init__(self, normImIn, kernelIn = None, offsetsIn = None):
+	def __init__(self, normImIn, kernelIn = None, offsetsIn = None, coeffsIn = None):
 
 		cdef np.ndarray[np.int32_t, ndim=2] kernel = self.kernel
 		cdef np.ndarray[np.int32_t, ndim=2] offsets = self.offsets
@@ -199,10 +199,13 @@ cdef class KernelFilter:
 		self.kernel = kernel
 
 		if offsetsIn is not None:
+			assert coeffsIn is not None
+		if offsetsIn is not None and coeffsIn is not None:
 			self.halfw = (len(kernel) - 1) / 2
 			offsets = np.array(offsetsIn, dtype=np.int32)
+			self.coeffs = coeffsIn
 		else:
-			offsets, self.halfw = CalcKernelOffsets(kernel)
+			offsets, self.coeffs, self.halfw = CalcKernelOffsets(kernel)
 		self.offsets = offsets
 
 		scaleOffsets = offsets * self.scale
@@ -242,7 +245,9 @@ cdef class KernelFilter:
 		cdef np.ndarray[np.float64_t, ndim=1] off = pixPosLi[num,:]
 		cdef np.ndarray[np.float64_t, ndim=2] arr = scaleOffsets + off
 		cdef np.ndarray[np.float64_t, ndim=2] pixs = self.normIm.GetPixelsImPos(arr)
-		cdef np.ndarray[np.float64_t, ndim=1] total = pixs.sum(axis=0)
+		cdef np.ndarray[np.float32_t, ndim=1] coeffs = self.coeffs
+
+		cdef np.ndarray[np.float64_t, ndim=1] total = (pixs * coeffs).sum(axis=0)
 
 		if self.absVal:
 			return np.abs(total)
@@ -250,20 +255,52 @@ cdef class KernelFilter:
 
 	def GetPixelsImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi):
 
+		cdef np.ndarray[np.float64_t, ndim=2] scaleOffsets = self.scaleOffsets
+		cdef np.ndarray[np.float32_t, ndim=1] coeffs = self.coeffs
 		cdef np.ndarray[np.float64_t, ndim=2] out = np.empty((pixPosLi.shape[0], self.numChans))
-		for num in range(pixPosLi.shape[0]):
-			out[num, :] = self.GetPixelImPos(pixPosLi, num)
+		cdef np.ndarray[np.float64_t, ndim=2] pos = np.empty((pixPosLi.shape[0] * scaleOffsets.shape[0], 2))
+
+		cdef int i, j, row, ch
+		for i in range(pixPosLi.shape[0]):
+			for j in range(scaleOffsets.shape[0]):
+				row = i * scaleOffsets.shape[0] + j
+				pos[row,0] = pixPosLi[i,0] + scaleOffsets[j,0]
+				pos[row,1] = pixPosLi[i,1] + scaleOffsets[j,1]
+
+		cdef np.ndarray[np.float64_t, ndim=2] pixs = self.normIm.GetPixelsImPos(pos)
+		
+		for i in range(pixPosLi.shape[0]):
+			for ch in range(self.numChans):
+				out[i,ch] = 0.
+
+
+			for j in range(scaleOffsets.shape[0]):
+				row = i * scaleOffsets.shape[0] + j
+				assert np.isfinite(pixs[row, 0])
+				assert np.isfinite(pixs[row, 1])
+				assert np.isfinite(coeffs[j])
+
+				for ch in range(self.numChans):
+					out[i,ch] += pixs[row, ch] * coeffs[j]
+				
+		for i in range(out.shape[0]):
+			for j in range(out.shape[1]):
+				assert np.isfinite(out[i,j])
+
 		return out
 
 def CalcKernelOffsets(kernel):
 	cdef int hw = (kernel.shape[0] - 1) / 2
 
 	offsets = []
+	coeffs = []
 	for x in range(-hw, hw+1):
 		for y in range(-hw, hw+1):
 			offsets.append((x,y))
+			coeffs.append(kernel[x+hw,y+hw])
 	offsets = np.array(offsets, dtype = np.int32)
-	return offsets, hw
+	coeffs = np.array(coeffs, dtype = np.float32)
+	return offsets, coeffs, hw
 
 def GenPatchOffsetList(double ptX, \
 	double ptY, \

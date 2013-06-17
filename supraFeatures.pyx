@@ -44,7 +44,9 @@ class FeatureIntSupport:
 			pixGrey = col.rgb2xyz(pix)
 			self.pixGrey = pixGrey.reshape(pixGrey.size)
 
-		return self.pixGrey[ind]
+		out = self.pixGrey[ind]
+		assert np.isfinite(out)
+		return out
 
 	def __len__(self):
 		return len(self.mask)
@@ -87,7 +89,10 @@ class FeatureSobel:
 			for px in pixSobel:
 				pixConvSobel.extend(px)
 			self.feat = pixConvSobel
-		return self.feat[ind]
+
+		out = self.feat[ind]
+		assert np.isfinite(out)
+		return out
 
 	def __len__(self):
 		return len(self.mask)
@@ -118,11 +123,14 @@ class FeatureHog:
 			localPatchGrey = col.rgb2grey(np.array([localPatch]))
 			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 			self.feat = lazyhog.hog(localPatchGrey)
-		return self.feat[self.mask[ind]]
+
+		out = self.feat[self.mask[ind]]
+		
+		return out
 
 	def __len__(self):
 		return len(self.mask)
-
+		assert np.isfinite(out)
 	def GetFeatureList(self):
 		return map(str,range(81))
 
@@ -159,7 +167,10 @@ class FeatureDists:
 					dy += np.random.randn() * self.shapeNoise
 				feat.append(dx)
 				feat.append(dy)
-		return feat[self.mask[ind]]
+
+		out = feat[self.mask[ind]]
+		assert np.isfinite(out)
+		return out
 
 	def __len__(self):
 		return len(self.mask)
