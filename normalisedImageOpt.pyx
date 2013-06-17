@@ -273,20 +273,12 @@ cdef class KernelFilter:
 			for ch in range(self.numChans):
 				out[i,ch] = 0.
 
-
 			for j in range(scaleOffsets.shape[0]):
 				row = i * scaleOffsets.shape[0] + j
-				assert np.isfinite(pixs[row, 0])
-				assert np.isfinite(pixs[row, 1])
-				assert np.isfinite(coeffs[j])
 
 				for ch in range(self.numChans):
 					out[i,ch] += pixs[row, ch] * coeffs[j]
 				
-		for i in range(out.shape[0]):
-			for j in range(out.shape[1]):
-				assert np.isfinite(out[i,j])
-
 		return out
 
 def CalcKernelOffsets(kernel):
