@@ -18,12 +18,16 @@ class FeatureIntSupport:
 		self.sample = None
 		self.numSupportPix = numSupportPix
 		self.pixGrey = None
+		self.mask = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.pixGrey = None
 		self.ptNum = ptNum
 		self.xOff = xOff
 		self.yOff = yOff
+
+	def SetFeatureMask(self, mask):
+		self.mask = map(int, mask)
 
 	def __getitem__(self, ind):
 		if self.pixGrey is None:
@@ -33,7 +37,7 @@ class FeatureIntSupport:
 			pixGrey = col.rgb2xyz(pix)
 			self.pixGrey = pixGrey.reshape(pixGrey.size)
 
-		return self.pixGrey[ind]
+		return self.pixGrey[self.mask[ind]]
 
 	def GetFeatureList(self):
 		return range(self.numSupportPix)
@@ -47,6 +51,7 @@ class FeatureSobel:
 		self.numSupportPix = numSupportPix
 		self.sobelSample = None
 		self.feat = None
+		self.mask = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.ptNum = ptNum
@@ -58,6 +63,9 @@ class FeatureSobel:
 		self._sample = sample
 		self.sobelSample = None
 
+	def SetFeatureMask(self, mask):
+		self.mask = map(int, mask)
+
 	def __getitem__(self, ind):
 		if self.sobelSample is None:
 			self.sobelSample = normalisedImageOpt.KernelFilter(self._sample)
@@ -68,7 +76,7 @@ class FeatureSobel:
 			for px in pixSobel:
 				pixConvSobel.extend(px)
 			self.feat = pixConvSobel
-		return self.feat[ind]
+		return self.feat[self.mask[ind]]
 
 	def GetFeatureList(self):
 		return range(self.numSupportPix)
@@ -78,12 +86,16 @@ class FeatureHog:
 		self.model = None
 		self.sample = None
 		self.feat = None
+		self.mask = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
 		self.ptNum = ptNum
 		self.xOff = xOff
 		self.yOff = yOff
+
+	def SetFeatureMask(self, mask):
+		self.mask = map(int, mask)
 
 	def __getitem__(self, ind):
 		if self.feat is None:
@@ -92,7 +104,7 @@ class FeatureHog:
 			localPatchGrey = col.rgb2grey(np.array([localPatch]))
 			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 			self.feat = feature.hog(localPatchGrey)
-		return self.feat[ind]
+		return self.feat[self.mask[ind]]
 
 	def GetFeatureList(self):
 		return range(81)
@@ -105,12 +117,16 @@ class FeatureDists:
 		self.modelOffset = None
 		self.shapeNoise = 0.
 		self.feat = None
+		self.mask = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.ptNum = ptNum
 		self.xOff = xOff
 		self.yOff = yOff
 		self.feat = None
+
+	def SetFeatureMask(self, mask):
+		self.mask = map(int, mask)
 
 	def __getitem__(self, ind):
 		if self.feat is None:
@@ -126,7 +142,7 @@ class FeatureDists:
 					dy += np.random.randn() * self.shapeNoise
 				feat.append(dx)
 				feat.append(dy)
-		return feat[ind]
+		return feat[self.mask[ind]]
 
 	def GetFeatureList(self):
 		return range(2*(self.numPoints-1))
@@ -142,6 +158,7 @@ class FeatureGen:
 		self.relDistGen = FeatureDists(numPoints)
 		self.featureMask = None
 		self.numPoints = numPoints
+		self.featureMap = None
 
 	def SetImage(self, img):
 		self.sample = img
@@ -191,26 +208,41 @@ class FeatureGen:
 		return out
 
 	def __getitem__(self, ind):
-		if 	self.featureMask is not None:
-			indc = self.featureMask[ind]
-			prefix = indc[0:3]
-			cnum = int(indc[3:])
-			if prefix == "int":
-				return self.featureIntSupport[cnum]
-			if prefix == "sob":
-				return self.sobelGen[cnum]
-			if prefix == "hog":
-				return self.hogGen[cnum]
-			if prefix == "dst":
-				return self.relDistGen[cnum]
-		else:
-			return self.feat[ind]
+		indc = self.featureMap[ind]
+		module = indc[0]
+		arg = indc[1]
+		return module[arg]
 
 	def __len__(self):
-		return len(self.featureMask)
+		return len(self.featureMap)
 
 	def SetFeatureMask(self, mask):
 		self.featureMask = mask
+		compDict = {}
+		self.featureMap = []
+
+		for comp in self.featureMask:
+			prefix = comp[0:3]
+			cnum = comp[3:]
+			module = None
+			if "int" in prefix: module = self.featureIntSupport
+			if "sob" in prefix: module = self.sobelGen
+			if "hog" in prefix: module = self.hogGen
+			if "dst" in prefix: module = self.relDistGen
+			if prefix not in compDict:
+				compDict[prefix] = []
+			si = len(compDict[prefix])
+			self.featureMap.append((module, si))
+			compDict[prefix].append(cnum)
+		
+		for mod in ['int','sob','hog','dst']:
+			if mod not in compDict:
+				compDict[mod] = []
+
+		self.featureIntSupport.SetFeatureMask(compDict['int'])
+		self.sobelGen.SetFeatureMask(compDict['sob'])
+		self.hogGen.SetFeatureMask(compDict['hog'])
+		self.relDistGen.SetFeatureMask(compDict['dst'])
 
 	def GetFeatureList(self):
 		comp = ["int"+str(i) for i in self.featureIntSupport.GetFeatureList()]
