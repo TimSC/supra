@@ -43,19 +43,32 @@ class FeatureSobel:
 		self.supportPixOffSobel = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.model = None
-		self.sample = None
+		self._sample = None
 		self.numSupportPix = numSupportPix
 		self.sobelSample = None
+		self.feat = None
 
 	def Gen(self, ptNum, xOff, yOff):
+		self.ptNum = ptNum
+		self.xOff = xOff
+		self.yOff = yOff
+		self.feat = None
+
+	def SetSample(self, sample):
+		self._sample = sample
+		self.sobelSample = None
+
+	def __getitem__(self, ind):
 		if self.sobelSample is None:
-			self.sobelSample = normalisedImageOpt.KernelFilter(self.sample)
-		pixSobel = ExtractSupportIntensity(self.sobelSample, self.supportPixOffSobel, \
-			self.model[ptNum][0], self.model[ptNum][1], xOff, yOff)
-		pixConvSobel = []
-		for px in pixSobel:
-			pixConvSobel.extend(px)
-		return pixConvSobel
+			self.sobelSample = normalisedImageOpt.KernelFilter(self._sample)
+		if self.feat is None:
+			pixSobel = ExtractSupportIntensity(self.sobelSample, self.supportPixOffSobel, \
+				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
+			pixConvSobel = []
+			for px in pixSobel:
+				pixConvSobel.extend(px)
+			self.feat = pixConvSobel
+		return self.feat[ind]
 
 	def GetFeatureList(self):
 		return range(self.numSupportPix)
@@ -64,14 +77,22 @@ class FeatureHog:
 	def __init__(self):
 		self.model = None
 		self.sample = None
+		self.feat = None
 
 	def Gen(self, ptNum, xOff, yOff):
-		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+xOff, self.model[ptNum][1]+yOff)
-		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
-		localPatchGrey = col.rgb2grey(np.array([localPatch]))
-		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-		feat = feature.hog(localPatchGrey)
-		return feat
+		self.feat = None
+		self.ptNum = ptNum
+		self.xOff = xOff
+		self.yOff = yOff
+
+	def __getitem__(self, ind):
+		if self.feat is None:
+			imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[self.ptNum][0]+self.xOff, self.model[self.ptNum][1]+self.yOff)
+			localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
+			localPatchGrey = col.rgb2grey(np.array([localPatch]))
+			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
+			self.feat = feature.hog(localPatchGrey)
+		return self.feat[ind]
 
 	def GetFeatureList(self):
 		return range(81)
@@ -83,21 +104,29 @@ class FeatureDists:
 		self.numPoints = numPoints
 		self.modelOffset = None
 		self.shapeNoise = 0.
+		self.feat = None
 
 	def Gen(self, ptNum, xOff, yOff):
-		out = []
-		modifiedPos = np.array(self.model) + np.array(self.modelOffset)
+		self.ptNum = ptNum
+		self.xOff = xOff
+		self.yOff = yOff
+		self.feat = None
 
-		for i in range(len(self.modelOffset)):
-			if i == ptNum: continue	
-			dx = (modifiedPos[i,0] - modifiedPos[ptNum,0])
-			dy = (modifiedPos[i,1] - modifiedPos[ptNum,1])
-			if self.shapeNoise > 0.:
-				dx += np.random.randn() * self.shapeNoise
-				dy += np.random.randn() * self.shapeNoise
-			out.append(dx)
-			out.append(dy)
-		return out
+	def __getitem__(self, ind):
+		if self.feat is None:
+			feat = []
+			modifiedPos = np.array(self.model) + np.array(self.modelOffset)
+
+			for i in range(len(self.modelOffset)):
+				if i == self.ptNum: continue	
+				dx = (modifiedPos[i,0] - modifiedPos[self.ptNum,0])
+				dy = (modifiedPos[i,1] - modifiedPos[self.ptNum,1])
+				if self.shapeNoise > 0.:
+					dx += np.random.randn() * self.shapeNoise
+					dy += np.random.randn() * self.shapeNoise
+				feat.append(dx)
+				feat.append(dy)
+		return feat[ind]
 
 	def GetFeatureList(self):
 		return range(2*(self.numPoints-1))
@@ -117,7 +146,7 @@ class FeatureGen:
 	def SetImage(self, img):
 		self.sample = img
 		self.featureIntSupport.sample = img
-		self.sobelGen.sample = img
+		self.sobelGen.SetSample(img)
 		self.hogGen.sample = img
 		self.relDistGen.sample = img
 
@@ -148,9 +177,9 @@ class FeatureGen:
 
 	def Gen(self):
 		self.featureIntSupport.Gen(self.ptNum, self.xOff, self.yOff)
-		self.pixNormSobel = self.sobelGen.Gen(self.ptNum, self.xOff, self.yOff)
-		self.hog = self.hogGen.Gen(self.ptNum, self.xOff, self.yOff)
-		self.relDist = self.relDistGen.Gen(self.ptNum, self.xOff, self.yOff)
+		self.sobelGen.Gen(self.ptNum, self.xOff, self.yOff)
+		self.hogGen.Gen(self.ptNum, self.xOff, self.yOff)
+		self.relDistGen.Gen(self.ptNum, self.xOff, self.yOff)
 
 		assert self.featureMask is not None
 		return self.GetGenFeat()
@@ -167,13 +196,13 @@ class FeatureGen:
 			prefix = indc[0:3]
 			cnum = int(indc[3:])
 			if prefix == "int":
-				return self.pixGreyNorm[cnum]
+				return self.featureIntSupport[cnum]
 			if prefix == "sob":
-				return self.pixNormSobel[cnum]
+				return self.sobelGen[cnum]
 			if prefix == "hog":
-				return self.hog[cnum]
+				return self.hogGen[cnum]
 			if prefix == "dst":
-				return self.relDist[cnum]
+				return self.relDistGen[cnum]
 		else:
 			return self.feat[ind]
 
@@ -188,6 +217,7 @@ class FeatureGen:
 		comp.extend(["sob"+str(i) for i in self.sobelGen.GetFeatureList()])
 		comp.extend(["hog"+str(i) for i in self.hogGen.GetFeatureList()])
 		comp.extend(["dst"+str(i) for i in self.relDistGen.GetFeatureList()])
+
 		return comp
 
 class FeatureGenPrevFrame:

@@ -126,7 +126,7 @@ class SupraAxisSet():
 		totalx, totaly, weightx, weighty = 0., 0., 0., 0.
 		for axis in self.axes:
 			#pred = simpleGbrt.PredictGbrt(axis.reg, self.featureMultiplex)
-			pred = axis.reg.predict([feat])[0]
+			pred = axis.reg.predict([featComp])[0]
 			totalx += pred * axis.x
 			totaly += pred * axis.y
 			weightx += axis.x
