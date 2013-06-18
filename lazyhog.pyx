@@ -43,7 +43,16 @@ import numpy as np
 from scipy import sqrt, pi, arctan2, cos, sin
 from scipy.ndimage import uniform_filter
 
-cdef HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, visualise, orientations, orientation_histogram, hog_image):
+cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
+	np.ndarray[np.float64_t, ndim=2] gy, 
+	int cx, int cy, 
+	int bx, int by, 
+	int sx, int sy, 
+	int n_cellsx, int n_cellsy, 
+	int visualise, int orientations, 
+	np.ndarray[np.float64_t, ndim=3] orientation_histogram, 
+	np.ndarray[np.float64_t, ndim=2] hog_image):
+
 	"""
 	The third stage aims to produce an encoding that is sensitive to
 	local image content while remaining resistant to small changes in
@@ -59,8 +68,10 @@ cdef HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, visualise
 	cell are used to vote into the orientation histogram.
 	"""
 
-	magnitude = sqrt(gx**2 + gy**2)
-	orientation = arctan2(gy, gx) * (180 / pi) % 180
+	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
+	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
+	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_ori
+	cdef int i, x, y, o
 
 	# compute orientations integral images
 	subsample = np.index_exp[cy / 2:cy * n_cellsy:cy, cx / 2:cx * n_cellsx:cx]
@@ -95,6 +106,8 @@ cdef HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, visualise
 									   int(centre[0] + dx),
 									   int(centre[1] + dy))
 					hog_image[rr, cc] += orientation_histogram[y, x, o]
+
+	i=0 #For profiling purposes
 
 
 def hog(image, orientations=9, pixels_per_cell=(8, 8),
@@ -174,19 +187,19 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 		# to avoid problems with subtracting unsigned numbers in np.diff()
 		image = image.astype('float')
 
-	gx = np.zeros(image.shape)
-	gy = np.zeros(image.shape)
+	cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros(image.shape)
+	cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros(image.shape)
 	gx[:, :-1] = np.diff(image, n=1, axis=1)
 	gy[:-1, :] = np.diff(image, n=1, axis=0)
 
 	sy, sx = image.shape
 	cx, cy = pixels_per_cell
 	bx, by = cells_per_block
-	hog_image = np.zeros((sy, sx), dtype=float)
-	n_cellsx = int(np.floor(sx // cx))  # number of cells in x
-	n_cellsy = int(np.floor(sy // cy))  # number of cells in y
+	cdef np.ndarray[np.float64_t, ndim=2] hog_image = np.zeros((sy, sx), dtype=float)
+	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
+	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
 
-	orientation_histogram = np.zeros((n_cellsy, n_cellsx, orientations))
+	cdef np.ndarray[np.float64_t, ndim=3] orientation_histogram = np.zeros((n_cellsy, n_cellsx, orientations))
 	HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, visualise, orientations, orientation_histogram, hog_image)
 
 	"""
