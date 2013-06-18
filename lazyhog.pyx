@@ -43,6 +43,22 @@ import numpy as np
 from scipy import sqrt, pi, arctan2, cos, sin
 from scipy.ndimage import uniform_filter
 
+cdef float CellHog(np.ndarray[np.float64_t, ndim=2] temp_mag, 
+	int cx, int cy, int xi, int yi, int sx, int sy):
+	cdef int cx1, cy1
+
+	cdef float total = 0.
+	for cy1 in range(-cy/2, cy/2):
+		for cx1 in range(-cx/2, cx/2):
+			if yi + cy1 < 0: continue
+			if yi + cy1 >= sy: continue
+			if xi + cx1 < 0: continue
+			if xi + cx1 >= sx: continue
+
+			total += temp_mag[yi + cy1, xi + cx1]
+
+	return total
+
 cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	np.ndarray[np.float64_t, ndim=2] gy, 
 	int cx, int cy, #Pixels per cell
@@ -69,7 +85,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_mag
+	cdef np.ndarray[np.float64_t, ndim=2] temp_mag
 	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2
 	cdef float ori1, ori2
 
@@ -95,17 +111,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 		temp_filt = np.empty((temp_mag.shape[0], temp_mag.shape[1]))
 		for yi in range(temp_mag.shape[0]):
 			for xi in range(temp_mag.shape[1]):
-				temp_filt[yi, xi] = 0.
-				for cy1 in range(-cy/2, cy/2):
-					for cx1 in range(-cx/2, cx/2):
-						if yi + cy1 < 0: continue
-						if yi + cy1 >= sy: continue
-						if xi + cx1 < 0: continue
-						if xi + cx1 >= sx: continue
-
-						temp_filt[yi, xi] += temp_mag[yi + cy1, xi + cx1]
-
-		#temp_filt = uniform_filter(temp_mag, size=(cy, cx))
+				temp_filt[yi, xi] = CellHog(temp_mag, cx, cy, xi, yi, sx, sy)
 
 		y = cy / 2
 		cy2 = cy * n_cellsy
