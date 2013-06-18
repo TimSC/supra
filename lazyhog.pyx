@@ -50,8 +50,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	int sx, int sy, 
 	int n_cellsx, int n_cellsy, 
 	int visualise, int orientations, 
-	np.ndarray[np.float64_t, ndim=3] orientation_histogram, 
-	np.ndarray[np.float64_t, ndim=2] hog_image):
+	np.ndarray[np.float64_t, ndim=3] orientation_histogram):
 
 	"""
 	The third stage aims to produce an encoding that is sensitive to
@@ -90,24 +89,29 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 		temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 		orientation_histogram[:, :, i] = temp_filt[subsample]
 
+
+cdef VisualiseHistograms(int cx, int cy, 
+	int n_cellsx, int n_cellsy, 
+	int orientations, 
+	np.ndarray[np.float64_t, ndim=3] orientation_histogram, 
+	np.ndarray[np.float64_t, ndim=2] hog_image):
+
 	# now for each cell, compute the histogram
-	if visualise:
-		from skimage import draw
+	from skimage import draw
 
-		radius = min(cx, cy) // 2 - 1
-		for x in range(n_cellsx):
-			for y in range(n_cellsy):
-				for o in range(orientations):
-					centre = tuple([y * cy + cy // 2, x * cx + cx // 2])
-					dx = radius * cos(float(o) / orientations * np.pi)
-					dy = radius * sin(float(o) / orientations * np.pi)
-					rr, cc = draw.line(int(centre[0] - dx),
-									   int(centre[1] - dy),
-									   int(centre[0] + dx),
-									   int(centre[1] + dy))
-					hog_image[rr, cc] += orientation_histogram[y, x, o]
+	radius = min(cx, cy) // 2 - 1
+	for x in range(n_cellsx):
+		for y in range(n_cellsy):
+			for o in range(orientations):
+				centre = tuple([y * cy + cy // 2, x * cx + cx // 2])
+				dx = radius * cos(float(o) / orientations * np.pi)
+				dy = radius * sin(float(o) / orientations * np.pi)
+				rr, cc = draw.line(int(centre[0] - dx),
+								   int(centre[1] - dy),
+								   int(centre[0] + dx),
+								   int(centre[1] + dy))
+				hog_image[rr, cc] += orientation_histogram[y, x, o]
 
-	i=0 #For profiling purposes
 
 
 def hog(image, orientations=9, pixels_per_cell=(8, 8),
@@ -195,12 +199,18 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	sy, sx = image.shape
 	cx, cy = pixels_per_cell
 	bx, by = cells_per_block
-	cdef np.ndarray[np.float64_t, ndim=2] hog_image = np.zeros((sy, sx), dtype=float)
+	
 	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
 	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
 
 	cdef np.ndarray[np.float64_t, ndim=3] orientation_histogram = np.zeros((n_cellsy, n_cellsx, orientations))
-	HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, visualise, orientations, orientation_histogram, hog_image)
+	HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, 
+		visualise, orientations, orientation_histogram)
+
+	cdef np.ndarray[np.float64_t, ndim=2] hog_image
+	if visualise:
+		hog_image = np.zeros((sy, sx), dtype=float)
+		VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, orientations, orientation_histogram, hog_image)
 
 	"""
 	The fourth stage computes normalisation, which takes local groups of
