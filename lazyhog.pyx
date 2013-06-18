@@ -110,13 +110,13 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 						temp_ori[yi, xi] = -1
 
 			# select magnitudes for those orientations
-			#temp_mag = magnitude.copy()
-			#for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
-			#	for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
-			#		if temp_ori[yi, xi] == -1:
-			#			temp_mag[yi, xi] = 0
-			cond2 = temp_ori > -1
-			temp_mag = np.where(cond2, magnitude, 0)
+			temp_mag = magnitude.copy()
+			for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
+				for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
+					if temp_ori[yi, xi] == -1:
+						temp_mag[yi, xi] = 0
+			#cond2 = temp_ori > -1
+			#temp_mag = np.where(cond2, magnitude, 0)
 
 			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 			for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
