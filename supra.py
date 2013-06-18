@@ -190,6 +190,8 @@ class SupraCloud():
 		return currentModel
 
 	def SetFeatureMasks(self, masks):
+		if len(self.trackers) != len(masks):
+			raise Exception("Number of trackers is incorrect")
 		for tracker, mask in zip(self.trackers, masks):
 			tracker.SetFeatureMask(mask)
 
@@ -251,6 +253,8 @@ class SupraLayers:
 		return currentModel
 
 	def SetFeatureMasks(self, masks):
+		if len(self.layers) != len(masks):
+			raise Exception("Number of layers is incorrect")
 		for layer, masksIt in zip(self.layers, masks):
 			layer.SetFeatureMasks(masksIt)
 

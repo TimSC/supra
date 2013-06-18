@@ -282,6 +282,12 @@ class FeatureGen:
 		indc = self.featureMap[ind]
 		module = indc[0]
 		arg = indc[1]
+
+		#if module is None:
+		#	print self.featureMask
+		#	for i, m in enumerate(self.featureMap):
+		#		print i, m	
+
 		return module[arg]
 
 	def __len__(self):
@@ -300,6 +306,8 @@ class FeatureGen:
 			if "sob" in prefix: module = self.sobelGen
 			if "hog" in prefix: module = self.hogGen
 			if "dst" in prefix: module = self.relDistGen
+			if module is None:
+				raise Exception ("Unknown module "+prefix)
 			if prefix not in compDict:
 				compDict[prefix] = []
 			si = len(compDict[prefix])

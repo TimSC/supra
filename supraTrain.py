@@ -11,7 +11,21 @@ class TrainEval:
 
 	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
-		self.cloudTracker.SetFeatureMasks(self.masks)
+		if 1:
+			filtMasks = []
+			for layer in self.masks:
+				l = []
+				for tr in layer:
+					t = []
+					for f in tr:
+						if f[:3] != "hog":
+							t.append(f)
+					l.append(t)
+				filtMasks.append(l)
+		else:
+			filtMasks = self.masks
+
+		self.cloudTracker.SetFeatureMasks(filtMasks)
 
 		for sampleCount, sample in enumerate(trainNormSamples):
 			print "train", sampleCount, len(trainNormSamples)
