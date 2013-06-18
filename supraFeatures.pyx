@@ -124,7 +124,8 @@ cdef class FeatureHog:
 		self.yOff = yOff
 
 	def SetFeatureMask(self, mask):
-		self.mask = np.array(map(int, mask), dtype=np.int32)
+		cdef np.ndarray[np.int32_t, ndim=1] masks = np.array(map(int, mask), dtype=np.int32)
+		self.mask = masks
 
 	def __getitem__(self, int ind):
 		return self.GetItem(ind)
@@ -135,8 +136,7 @@ cdef class FeatureHog:
 		cdef int ptNum
 
 		if masks is None:
-			pass
-			#raise Exception("Masks not set")
+			raise Exception("Masks not set")
 
 		if self.featIsSet is False:
 			ptNum = self.ptNum
@@ -157,6 +157,20 @@ cdef class FeatureHog:
 
 	def GetFeatureList(self):
 		return map(str,range(81))
+
+	def __getstate__(self):
+		return (self.model, self.feat, self.mask, self.sample, 
+			self.featIsSet, self.ptNum, self.xOff, self.yOff)
+	
+	def __setstate__(self, state):
+		self.model = state[0]
+		self.feat = state[1]
+		self.mask = state[2]
+		self.sample = state[3]
+		self.featIsSet = state[4]
+		self.ptNum = state[5]
+		self.xOff = state[6]
+		self.yOff = state[7]
 
 class FeatureDists:
 	def __init__(self, numPoints):
