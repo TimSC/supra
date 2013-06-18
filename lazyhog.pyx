@@ -45,7 +45,7 @@ from scipy.ndimage import uniform_filter
 
 cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	np.ndarray[np.float64_t, ndim=2] gy, 
-	int cx, int cy, 
+	int cx, int cy, #Pixels per cell
 	int bx, int by, 
 	int sx, int sy, 
 	int n_cellsx, int n_cellsy, 
@@ -73,21 +73,26 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef int i, x, y, o
 
 	# compute orientations integral images
-	subsample = np.index_exp[cy / 2:cy * n_cellsy:cy, cx / 2:cx * n_cellsx:cx]
-	for i in range(orientations):
-		#create new integral image for this orientation
-		# isolate orientations in this range
+	if 1:
+		subsample = np.index_exp[cy / 2:cy * n_cellsy:cy, cx / 2:cx * n_cellsx:cx]
 
-		temp_ori = np.where(orientation < 180 / orientations * (i + 1),
-							orientation, -1)
-		temp_ori = np.where(orientation >= 180 / orientations * i,
-							temp_ori, -1)
-		# select magnitudes for those orientations
-		cond2 = temp_ori > -1
-		temp_mag = np.where(cond2, magnitude, 0)
+		for i in range(orientations):
+			#create new integral image for this orientation
+			# isolate orientations in this range
 
-		temp_filt = uniform_filter(temp_mag, size=(cy, cx))
-		orientation_histogram[:, :, i] = temp_filt[subsample]
+			temp_ori = np.where(orientation < 180 / orientations * (i + 1),
+								orientation, -1)
+			temp_ori = np.where(orientation >= 180 / orientations * i,
+								temp_ori, -1)
+			# select magnitudes for those orientations
+			cond2 = temp_ori > -1
+			temp_mag = np.where(cond2, magnitude, 0)
+
+			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
+			orientation_histogram[:, :, i] = temp_filt[subsample]
+
+	
+
 
 
 cdef VisualiseHistograms(int cx, int cy, 
@@ -114,8 +119,11 @@ cdef VisualiseHistograms(int cx, int cy,
 
 
 
-def hog(image, orientations=9, pixels_per_cell=(8, 8),
-		cells_per_block=(3, 3), visualise=False, normalise=False):
+def hog(np.ndarray[np.float64_t, ndim=2] image, 
+		int orientations=9, 
+		pixels_per_cell=(8, 8),
+		cells_per_block=(3, 3), 
+		int visualise=0, int normalise=0):
 	"""Extract Histogram of Oriented Gradients (HOG) for a given image.
 
 	Compute a Histogram of Oriented Gradients (HOG) by
@@ -158,7 +166,6 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	  Vision and Pattern Recognition 2005 San Diego, CA, USA
 
 	"""
-	image = np.atleast_2d(image)
 
 	"""
 	The first stage applies an optional global image normalisation
@@ -169,9 +176,6 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	illumination so this compression helps to reduce the effects of local
 	shadowing and illumination variations.
 	"""
-
-	if image.ndim > 2:
-		raise ValueError("Currently only supports grey-level images")
 
 	if normalise:
 		image = sqrt(image)
@@ -186,19 +190,17 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	e.g. bar like structures in bicycles and limbs in humans.
 	"""
 
-	if image.dtype.kind == 'u':
-		# convert uint image to float
-		# to avoid problems with subtracting unsigned numbers in np.diff()
-		image = image.astype('float')
-
-	cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros(image.shape)
-	cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros(image.shape)
+	cdef int sy = image.shape[0]
+	cdef int sx = image.shape[1]
+	cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros((sy,sx))
+	cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros((sy,sx))
 	gx[:, :-1] = np.diff(image, n=1, axis=1)
 	gy[:-1, :] = np.diff(image, n=1, axis=0)
 
-	sy, sx = image.shape
-	cx, cy = pixels_per_cell
-	bx, by = cells_per_block
+	cdef int cx = pixels_per_cell[0]
+	cdef int cy = pixels_per_cell[1]
+	cdef int bx = cells_per_block[0]
+	cdef int by = cells_per_block[1]
 	
 	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
 	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
@@ -210,7 +212,8 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	cdef np.ndarray[np.float64_t, ndim=2] hog_image
 	if visualise:
 		hog_image = np.zeros((sy, sx), dtype=float)
-		VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, orientations, orientation_histogram, hog_image)
+		VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, 
+			orientations, orientation_histogram, hog_image)
 
 	"""
 	The fourth stage computes normalisation, which takes local groups of
@@ -227,8 +230,8 @@ def hog(image, orientations=9, pixels_per_cell=(8, 8),
 	Gradient (HOG) descriptors.
 	"""
 
-	n_blocksx = (n_cellsx - bx) + 1
-	n_blocksy = (n_cellsy - by) + 1
+	cdef int n_blocksx = (n_cellsx - bx) + 1
+	cdef int n_blocksy = (n_cellsy - by) + 1
 	normalised_blocks = np.zeros((n_blocksy, n_blocksx,
 								  by, bx, orientations))
 
