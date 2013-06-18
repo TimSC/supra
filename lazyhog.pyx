@@ -95,17 +95,10 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	# compute orientations integral images
 
 	for i in range(orientations):
-		#create new integral image for this orientation
 		# isolate orientations in this range
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
-
-		#Smoothing: get average magnitude of cell area patch
-		temp_filt = np.empty((magnitude.shape[0], magnitude.shape[1]))
-		for yi in range(magnitude.shape[0]):
-			for xi in range(magnitude.shape[1]):
-				temp_filt[yi, xi] = CellHog(magnitude, orientation, ori1, ori2, cx, cy, xi, yi, sx, sy)
 
 		y = cy / 2
 		cy2 = cy * n_cellsy
@@ -119,7 +112,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 			x = cx / 2
 
 			while x < cx2:
-				orientation_histogram[yi, xi, i] = temp_filt[y, x]
+				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, cx, cy, x, y, sx, sy)
 				xi += 1
 				x += cx
 
