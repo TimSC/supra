@@ -116,7 +116,9 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 					if temp_ori[yi, xi] == -1:
 						temp_mag[yi, xi] = 0
 
+			#Smoothing: get average magnitude of cell area patch
 			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
+
 			for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
 				for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
 					orientation_histogram[yi, xi, i] = temp_filt[y, x]
