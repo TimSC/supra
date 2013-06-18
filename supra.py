@@ -65,7 +65,7 @@ class SupraAxisSet():
 		self.featureGen.SetImage(sample)
 		self.featureGen.SetModel(np.array(sample.procShape))
 		self.featureGen.SetModelOffset(trainOffset)
-		self.featureGen.SetShapeNoise(0.3)
+		self.featureGen.SetShapeNoise(0.6)
 		self.featureGen.SetPointNum(self.ptNum)
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
