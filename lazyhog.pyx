@@ -69,8 +69,8 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_ori
-	cdef int i, x, y, o, yi, xi
+	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_ori, temp_mag
+	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2
 	cdef float ori1, ori2
 
 	# compute orientations integral images
@@ -101,28 +101,33 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 			ori1 = 180. / orientations * (i + 1)
 			ori2 = 180. / orientations * i
 
-			temp_ori = orientation.copy()
+			temp_mag = magnitude.copy()
+
 			for yi in range(orientation.shape[0]):
 				for xi in range(orientation.shape[1]):
 					if orientation[yi, xi] >= ori1:
-						temp_ori[yi, xi] = -1
+						temp_mag[yi, xi] = 0
 					if orientation[yi, xi] < ori2:
-						temp_ori[yi, xi] = -1
-
-			# select magnitudes for those orientations
-			temp_mag = magnitude.copy()
-			for yi in range(orientation.shape[0]):
-				for xi in range(orientation.shape[1]):
-					if temp_ori[yi, xi] == -1:
 						temp_mag[yi, xi] = 0
 
 			#Smoothing: get average magnitude of cell area patch
 			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 
-			for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
-				for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
-					orientation_histogram[yi, xi, i] = temp_filt[y, x]
+			y = cy / 2
+			cy2 = cy * n_cellsy
+			x = cx / 2
+			cx2 = cx * n_cellsx
+			yi = 0
+			xi = 0
 
+			while y < cy2:
+				xi = 0
+				while x < cx2:
+					orientation_histogram[yi, xi, i] = temp_filt[y, x]
+					xi += 1
+					x += cx
+				yi += 1
+				y += cy
 
 cdef VisualiseHistograms(int cx, int cy, 
 	int n_cellsx, int n_cellsy, 
