@@ -63,7 +63,7 @@ class SupraAxisSet():
 			self.trainIntDb = sqlitedict.SqliteDict(self.trainIntDbFina, autocommit=True)
 
 		self.featureGen.SetImage(sample)
-		self.featureGen.SetModel(sample.procShape)
+		self.featureGen.SetModel(np.array(sample.procShape))
 		self.featureGen.SetModelOffset(trainOffset)
 		self.featureGen.SetShapeNoise(0.3)
 		self.featureGen.SetPointNum(self.ptNum)
@@ -112,7 +112,7 @@ class SupraAxisSet():
 
 	def Predict(self, sample, model, prevFrameFeatures):
 		self.featureGen.SetImage(sample)
-		self.featureGen.SetModel(model)
+		self.featureGen.SetModel(np.array(model))
 		self.featureGen.ClearModelOffset()
 		self.featureGen.SetShapeNoise(0.)
 		self.featureGen.SetPointNum(self.ptNum)
@@ -120,8 +120,8 @@ class SupraAxisSet():
 		self.featureGen.Gen()
 
 		feat = self.featureGen.GetGenFeat()
+		print "done"
 		featComp = np.concatenate((feat, prevFrameFeatures))
-
 		#self.featureMultiplex.ClearFeatureSets()
 		#self.featureMultiplex.AddFeatureSet(self.featureGen.GetGenFeat())
 

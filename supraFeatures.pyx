@@ -3,6 +3,8 @@
 # cython: boundscheck=False
 # cython: wraparound=False
 
+import cmath, math
+cimport numpy as np
 import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 import converge, normalisedImageOpt
@@ -36,7 +38,7 @@ class FeatureIntSupport:
 		self.mask = map(int, mask)
 		self.supportPixOff = self.supportPixOffInitial[self.mask,:]
 
-	def __getitem__(self, ind):
+	def __getitem__(self, int ind):
 		if self.pixGrey is None:
 			pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
 				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
@@ -78,7 +80,7 @@ class FeatureSobel:
 		self.mask = map(int, mask)
 		self.supportPixOffSobel = self.supportPixOffSobelInitial[self.mask,:]
 
-	def __getitem__(self, ind):
+	def __getitem__(self, int ind):
 		if self.sobelSample is None:
 			self.sobelSample = normalisedImageOpt.KernelFilter(self._sample)
 		if self.feat is None:
@@ -98,32 +100,56 @@ class FeatureSobel:
 	def GetFeatureList(self):
 		return map(str,range(self.supportPixOffSobelInitial.shape[0]))
 
-class FeatureHog:
+cdef class FeatureHog:
+	cdef public np.ndarray model, feat, mask
+	cdef public object sample, featIsSet
+	cdef public int ptNum
+	cdef public float xOff, yOff
+
 	def __init__(self):
 		self.model = None
 		self.sample = None
 		self.feat = None
+		self.featIsSet = False
 		self.mask = None
+		self.ptNum = -1
+		self.xOff = 0.
+		self.yOff = 0.
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
+		self.featIsSet = False
 		self.ptNum = ptNum
 		self.xOff = xOff
 		self.yOff = yOff
 
 	def SetFeatureMask(self, mask):
-		self.mask = map(int, mask)
+		self.mask = np.array(map(int, mask), dtype=np.int32)
 
-	def __getitem__(self, ind):
-		if self.feat is None:
-			imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[self.ptNum][0]+self.xOff, self.model[self.ptNum][1]+self.yOff)
+	def __getitem__(self, int ind):
+		return self.GetItem(ind)
+
+	cdef float GetItem(self, int ind):
+		cdef np.ndarray[np.float64_t, ndim=2] imLocs
+		cdef np.ndarray[np.int32_t, ndim=1] masks = self.mask
+		cdef int ptNum
+
+		if masks is None:
+			pass
+			#raise Exception("Masks not set")
+
+		if self.featIsSet is False:
+			ptNum = self.ptNum
+			imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+self.xOff, self.model[ptNum][1]+self.yOff)
 			localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
 			localPatchGrey = col.rgb2grey(np.array([localPatch]))
 			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 			self.feat = lazyhog.hog(localPatchGrey)
+			self.featIsSet = True
 
-		out = self.feat[self.mask[ind]]
-		
+		cdef np.ndarray[np.float64_t, ndim=1] feat = self.feat
+		cdef int comp = masks[ind] 
+		cdef float out = feat[comp]
 		return out
 
 	def __len__(self):
@@ -149,9 +175,10 @@ class FeatureDists:
 		self.feat = None
 
 	def SetFeatureMask(self, mask):
-		self.mask = map(int, mask)
+		self.mask = np.array(map(int, mask), dtype=np.int32)
 
 	def __getitem__(self, ind):
+
 		if self.feat is None:
 			feat = []
 			modifiedPos = np.array(self.model) + np.array(self.modelOffset)
@@ -166,7 +193,9 @@ class FeatureDists:
 				feat.append(dx)
 				feat.append(dy)
 
-		out = feat[self.mask[ind]]
+			self.feat = feat
+			
+		out = self.feat[self.mask[ind]]
 		return out
 
 	def __len__(self):
@@ -186,7 +215,7 @@ class FeatureGen:
 		self.relDistGen = FeatureDists(numPoints)
 		self.featureMask = None
 		self.numPoints = numPoints
-		self.featureMap = None
+		self.SetFeatureMask(self.GetFeatureList())
 
 	def SetImage(self, img):
 		self.sample = img
@@ -195,7 +224,7 @@ class FeatureGen:
 		self.hogGen.sample = img
 		self.relDistGen.sample = img
 
-	def SetModel(self, model):
+	def SetModel(self, np.ndarray[np.float64_t, ndim=2] model):
 		self.model = model
 		self.featureIntSupport.model = model
 		self.sobelGen.model = model
@@ -235,7 +264,7 @@ class FeatureGen:
 			out.append(self[i])
 		return out
 
-	def __getitem__(self, ind):
+	def __getitem__(self, int ind):
 		indc = self.featureMap[ind]
 		module = indc[0]
 		arg = indc[1]
@@ -262,7 +291,7 @@ class FeatureGen:
 			si = len(compDict[prefix])
 			self.featureMap.append((module, si))
 			compDict[prefix].append(cnum)
-		
+
 		for mod in ['int','sob','hog','dst']:
 			if mod not in compDict:
 				compDict[mod] = []
