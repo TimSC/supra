@@ -1,4 +1,11 @@
+# cython: profile=True
+# cython: cdivision=True
+# cython: boundscheck=False
+# cython: wraparound=False
 
+import cmath, math
+cimport numpy as np
+import numpy as np
 '''
 Based on _hog.py from https://github.com/scikit-image/scikit-image
 

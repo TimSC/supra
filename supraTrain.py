@@ -11,7 +11,7 @@ class TrainEval:
 
 	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
-		if 1:
+		if 0:
 			filtMasks = []
 			for layer in self.masks:
 				l = []
@@ -309,7 +309,7 @@ def EvalSingleConfig(filteredSamples):
 
 			#Create and train tracker
 			#trainTracker.InitRandomMask()
-			cloudTracker = trainTracker.Train(trainNormSamples, 200)
+			cloudTracker = trainTracker.Train(trainNormSamples, 2)
 			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
