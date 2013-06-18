@@ -43,7 +43,9 @@ import numpy as np
 from scipy import sqrt, pi, arctan2, cos, sin
 from scipy.ndimage import uniform_filter
 
-cdef float CellHog(np.ndarray[np.float64_t, ndim=2] temp_mag, 
+cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
+	np.ndarray[np.float64_t, ndim=2] orientation,
+	float ori1, float ori2,
 	int cx, int cy, int xi, int yi, int sx, int sy):
 	cdef int cx1, cy1
 
@@ -54,8 +56,10 @@ cdef float CellHog(np.ndarray[np.float64_t, ndim=2] temp_mag,
 			if yi + cy1 >= sy: continue
 			if xi + cx1 < 0: continue
 			if xi + cx1 >= sx: continue
+			if orientation[yi + cy1, xi + cx1] >= ori1: continue
+			if orientation[yi + cy1, xi + cx1] < ori2: continue
 
-			total += temp_mag[yi + cy1, xi + cx1]
+			total += magnitude[yi + cy1, xi + cx1]
 
 	return total
 
@@ -85,7 +89,6 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef np.ndarray[np.float64_t, ndim=2] temp_mag
 	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2
 	cdef float ori1, ori2
 
@@ -98,20 +101,11 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
 
-		temp_mag = magnitude.copy()
-
-		for yi in range(orientation.shape[0]):
-			for xi in range(orientation.shape[1]):
-				if orientation[yi, xi] >= ori1:
-					temp_mag[yi, xi] = 0
-				if orientation[yi, xi] < ori2:
-					temp_mag[yi, xi] = 0
-
 		#Smoothing: get average magnitude of cell area patch
-		temp_filt = np.empty((temp_mag.shape[0], temp_mag.shape[1]))
-		for yi in range(temp_mag.shape[0]):
-			for xi in range(temp_mag.shape[1]):
-				temp_filt[yi, xi] = CellHog(temp_mag, cx, cy, xi, yi, sx, sy)
+		temp_filt = np.empty((magnitude.shape[0], magnitude.shape[1]))
+		for yi in range(magnitude.shape[0]):
+			for xi in range(magnitude.shape[1]):
+				temp_filt[yi, xi] = CellHog(magnitude, orientation, ori1, ori2, cx, cy, xi, yi, sx, sy)
 
 		y = cy / 2
 		cy2 = cy * n_cellsy
