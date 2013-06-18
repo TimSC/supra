@@ -70,10 +70,10 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
 	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_ori
-	cdef int i, x, y, o
+	cdef int i, x, y, o, yi, xi
 
 	# compute orientations integral images
-	if 1:
+	if 0:
 		subsample = np.index_exp[cy / 2:cy * n_cellsy:cy, cx / 2:cx * n_cellsx:cx]
 
 		for i in range(orientations):
@@ -90,9 +90,25 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 			orientation_histogram[:, :, i] = temp_filt[subsample]
+			#print "a", orientation_histogram
+	if 1:
 
-	
+		for i in range(orientations):
+			#create new integral image for this orientation
+			# isolate orientations in this range
 
+			temp_ori = np.where(orientation < 180 / orientations * (i + 1),
+								orientation, -1)
+			temp_ori = np.where(orientation >= 180 / orientations * i,
+								temp_ori, -1)
+			# select magnitudes for those orientations
+			cond2 = temp_ori > -1
+			temp_mag = np.where(cond2, magnitude, 0)
+
+			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
+			for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
+				for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
+					orientation_histogram[yi, xi, i] = temp_filt[y, x]
 
 
 cdef VisualiseHistograms(int cx, int cy, 
