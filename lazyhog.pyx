@@ -92,20 +92,20 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 					temp_mag[yi, xi] = 0
 
 		#Smoothing: get average magnitude of cell area patch
-		#temp_filt = np.empty((temp_mag.shape[0], temp_mag.shape[1]))
-		#for yi in range(temp_mag.shape[0]):
-			#for xi in range(temp_mag.shape[1]):
-				#temp_filt[yi, xi] = 0.
-				#for cy1 in range(-cy/2, cy/2):
-					#for cx1 in range(-cx/2, cx/2):
-						#if yi + cy1 < 0: continue
-						#if yi + cy1 >= sy: continue
-						#if xi + cx1 < 0: continue
-						#if xi + cx1 >= sx: continue
+		temp_filt = np.empty((temp_mag.shape[0], temp_mag.shape[1]))
+		for yi in range(temp_mag.shape[0]):
+			for xi in range(temp_mag.shape[1]):
+				temp_filt[yi, xi] = 0.
+				for cy1 in range(-cy/2, cy/2):
+					for cx1 in range(-cx/2, cx/2):
+						if yi + cy1 < 0: continue
+						if yi + cy1 >= sy: continue
+						if xi + cx1 < 0: continue
+						if xi + cx1 >= sx: continue
 
-				#		temp_filt[yi, xi] += temp_mag[yi + cy1, xi + cx1]
+						temp_filt[yi, xi] += temp_mag[yi + cy1, xi + cx1]
 
-		temp_filt = uniform_filter(temp_mag, size=(cy, cx))
+		#temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 
 		y = cy / 2
 		cy2 = cy * n_cellsy
