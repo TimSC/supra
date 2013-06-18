@@ -74,60 +74,41 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef float ori1, ori2
 
 	# compute orientations integral images
-	if 0:
-		subsample = np.index_exp[cy / 2:cy * n_cellsy:cy, cx / 2:cx * n_cellsx:cx]
 
-		for i in range(orientations):
-			#create new integral image for this orientation
-			# isolate orientations in this range
+	for i in range(orientations):
+		#create new integral image for this orientation
+		# isolate orientations in this range
 
-			temp_ori = np.where(orientation < 180 / orientations * (i + 1),
-								orientation, -1)
-			temp_ori = np.where(orientation >= 180 / orientations * i,
-								temp_ori, -1)
-			# select magnitudes for those orientations
-			cond2 = temp_ori > -1
-			temp_mag = np.where(cond2, magnitude, 0)
+		ori1 = 180. / orientations * (i + 1)
+		ori2 = 180. / orientations * i
 
-			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
-			orientation_histogram[:, :, i] = temp_filt[subsample]
-			#print "a", orientation_histogram
-	if 1:
+		temp_mag = magnitude.copy()
 
-		for i in range(orientations):
-			#create new integral image for this orientation
-			# isolate orientations in this range
+		for yi in range(orientation.shape[0]):
+			for xi in range(orientation.shape[1]):
+				if orientation[yi, xi] >= ori1:
+					temp_mag[yi, xi] = 0
+				if orientation[yi, xi] < ori2:
+					temp_mag[yi, xi] = 0
 
-			ori1 = 180. / orientations * (i + 1)
-			ori2 = 180. / orientations * i
+		#Smoothing: get average magnitude of cell area patch
+		temp_filt = uniform_filter(temp_mag, size=(cy, cx))
 
-			temp_mag = magnitude.copy()
+		y = cy / 2
+		cy2 = cy * n_cellsy
+		x = cx / 2
+		cx2 = cx * n_cellsx
+		yi = 0
+		xi = 0
 
-			for yi in range(orientation.shape[0]):
-				for xi in range(orientation.shape[1]):
-					if orientation[yi, xi] >= ori1:
-						temp_mag[yi, xi] = 0
-					if orientation[yi, xi] < ori2:
-						temp_mag[yi, xi] = 0
-
-			#Smoothing: get average magnitude of cell area patch
-			temp_filt = uniform_filter(temp_mag, size=(cy, cx))
-
-			y = cy / 2
-			cy2 = cy * n_cellsy
-			x = cx / 2
-			cx2 = cx * n_cellsx
-			yi = 0
+		while y < cy2:
 			xi = 0
-
-			while y < cy2:
-				xi = 0
-				while x < cx2:
-					orientation_histogram[yi, xi, i] = temp_filt[y, x]
-					xi += 1
-					x += cx
-				yi += 1
-				y += cy
+			while x < cx2:
+				orientation_histogram[yi, xi, i] = temp_filt[y, x]
+				xi += 1
+				x += cx
+			yi += 1
+			y += cy
 
 cdef VisualiseHistograms(int cx, int cy, 
 	int n_cellsx, int n_cellsy, 
