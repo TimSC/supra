@@ -71,6 +71,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
 	cdef np.ndarray[np.float64_t, ndim=2] temp_filt, temp_ori
 	cdef int i, x, y, o, yi, xi
+	cdef float ori1, ori2
 
 	# compute orientations integral images
 	if 0:
@@ -97,11 +98,23 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 			#create new integral image for this orientation
 			# isolate orientations in this range
 
-			temp_ori = np.where(orientation < 180 / orientations * (i + 1),
-								orientation, -1)
-			temp_ori = np.where(orientation >= 180 / orientations * i,
-								temp_ori, -1)
+			ori1 = 180. / orientations * (i + 1)
+			ori2 = 180. / orientations * i
+
+			temp_ori = orientation.copy()
+			for yi in range(orientation.shape[0]):
+				for xi in range(orientation.shape[1]):
+					if orientation[yi, xi] >= ori1:
+						temp_ori[yi, xi] = -1
+					if orientation[yi, xi] < ori2:
+						temp_ori[yi, xi] = -1
+
 			# select magnitudes for those orientations
+			#temp_mag = magnitude.copy()
+			#for yi, y in enumerate(range(cy / 2,cy * n_cellsy,cy)):
+			#	for xi, x in enumerate(range(cx / 2,cx * n_cellsx,cx)):
+			#		if temp_ori[yi, xi] == -1:
+			#			temp_mag[yi, xi] = 0
 			cond2 = temp_ori > -1
 			temp_mag = np.where(cond2, magnitude, 0)
 
