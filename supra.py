@@ -120,7 +120,6 @@ class SupraAxisSet():
 		self.featureGen.Gen()
 
 		feat = self.featureGen.GetGenFeat()
-		print "done"
 		featComp = np.concatenate((feat, prevFrameFeatures))
 		#self.featureMultiplex.ClearFeatureSets()
 		#self.featureMultiplex.AddFeatureSet(self.featureGen.GetGenFeat())
