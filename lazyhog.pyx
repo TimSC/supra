@@ -152,7 +152,7 @@ cdef VisualiseHistograms(int cx, int cy,
 								   int(centre[1] - dy),
 								   int(centre[0] + dx),
 								   int(centre[1] + dy))
-				hog_image[rr, cc] += orientation_histogram[y+x*x, o] #TODO Need to fix this
+				hog_image[rr, cc] += orientation_histogram[y+x*n_cellsx, o]
 
 
 
