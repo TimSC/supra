@@ -1,5 +1,5 @@
 
-import supra, pickle, random, normalisedImage, normalisedImageOpt, copy
+import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
@@ -344,6 +344,8 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.ClearCurrentModel()
 			count += 1
 
+			pickle.dump(masks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(featureSelection, open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump(perfs, open("iter"+str(count)+".dat", "wt"), protocol = 0)
 		else:
 			running = False
@@ -365,5 +367,8 @@ if __name__ == "__main__":
 	print "Filtered to",len(filteredSamples),"of",len(normalisedSamples),"samples"
 
 	#DumpNormalisedImages(filteredSamples)
-	EvalSingleConfig(filteredSamples)
-	
+	if len(sys.argv) >= 2 and sys.argv[1] == "fs":
+		FeatureSelectRunScript(filteredSamples)
+	else:
+		EvalSingleConfig(filteredSamples)
+
