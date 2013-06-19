@@ -60,11 +60,7 @@ cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude,
 
 	return total
 
-cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
-	np.ndarray[np.float64_t, ndim=2] gy, 
-	int cx, int cy, #Pixels per cell
-	int sx, int sy, #Image size
-	np.ndarray[np.int32_t, ndim=3] cellOffsets,
+cdef HogThirdStage(magPatch, oriPatch,
 	int visualise, int orientations, 
 	np.ndarray[np.float64_t, ndim=2] orientation_histogram):
 
@@ -83,28 +79,8 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cell are used to vote into the orientation histogram.
 	"""
 
-	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
-	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
 	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum, centX, centY
 	cdef float ori1, ori2
-
-	numCells = cellOffsets.shape[0] * cellOffsets.shape[1]
-	magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
-	oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
-	count = 0
-
-	for yi in range(cellOffsets.shape[0]):
-		for xi in range(cellOffsets.shape[1]):
-				
-			centX = cellOffsets[yi, xi, 0]
-			centY = cellOffsets[yi, xi, 1]
-
-			for y in range(cy):
-				for x in range(cx):
-					magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
-					oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
-
-			count += 1
 
 	# compute orientations integral images
 	for i in range(orientations):
@@ -112,38 +88,11 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
-		count = 0
 
-		for yi in range(cellOffsets.shape[0]):
-			for xi in range(cellOffsets.shape[1]):
+		for patchNum in range(magPatch.shape[0]):
 				
-				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = \
-					CellHog(magPatch[count, :, :], oriPatch[count, :, :], ori1, ori2)
-
-				count += 1
-
-
-cdef VisualiseHistograms(int cx, int cy, 
-	int n_cellsx, int n_cellsy, 
-	int orientations, 
-	np.ndarray[np.float64_t, ndim=2] orientation_histogram, 
-	np.ndarray[np.float64_t, ndim=2] hog_image):
-
-	# now for each cell, compute the histogram
-	from skimage import draw
-
-	radius = min(cx, cy) // 2 - 1
-	for x in range(n_cellsx):
-		for y in range(n_cellsy):
-			for o in range(orientations):
-				centre = tuple([y * cy + cy // 2, x * cx + cx // 2])
-				dx = radius * cos(float(o) / orientations * np.pi)
-				dy = radius * sin(float(o) / orientations * np.pi)
-				rr, cc = draw.line(int(centre[0] - dx),
-								   int(centre[1] - dy),
-								   int(centre[0] + dx),
-								   int(centre[1] + dy))
-				hog_image[rr, cc] += orientation_histogram[y+x*n_cellsx, o]
+			orientation_histogram[patchNum, i] = \
+				CellHog(magPatch[patchNum, :, :], oriPatch[patchNum, :, :], ori1, ori2)
 
 
 
@@ -228,10 +177,30 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	cdef int cx = pixels_per_cell[0]
 	cdef int cy = pixels_per_cell[1]
 
+	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
+	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
+	numCells = cellOffsets.shape[0] * cellOffsets.shape[1]
+	magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+	oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+	count = 0
+
+	for yi in range(cellOffsets.shape[0]):
+		for xi in range(cellOffsets.shape[1]):
+				
+			centX = cellOffsets[yi, xi, 0]
+			centY = cellOffsets[yi, xi, 1]
+
+			for y in range(cy):
+				for x in range(cx):
+					magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
+					oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+
+			count += 1
+
 	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0]*cellOffsets.shape[1], orientations))
-	HogThirdStage(gx, gy, cx, cy, sx, sy, cellOffsets, 
+
+	HogThirdStage(magPatch, oriPatch,
 		visualise, orientations, orientation_histogram)
-	
 	
 	#cdef np.ndarray[np.float64_t, ndim=2] hog_image
 	#if visualise:
