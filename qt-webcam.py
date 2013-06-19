@@ -178,6 +178,9 @@ class MainWindow(QtGui.QMainWindow):
 		self.trackingPending = False
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 		self.tracking = []
+		self.trackingPipe = None
+		self.detectorPipe = None
+		self.cameraPipe = None
 
 		self.scene = QtGui.QGraphicsScene(self)
 		self.view  = QtGui.QGraphicsView(self.scene)
@@ -243,14 +246,15 @@ class MainWindow(QtGui.QMainWindow):
 			if not self.detectionPending:
 				self.detectorPipe.send(ev)
 				self.detectionPending = True
-			if not self.trackingPending:
+			if not self.trackingPending and self.trackingPipe is not None:
 				self.trackingPipe.send(ev)
 				self.trackingPending = True
 
 		if ev[0] == "faces":
 			self.ProcessFaces(ev[1])
 			self.detectionPending = False
-			self.trackingPipe.send(ev)
+			if self.trackingPipe is not None:
+				self.trackingPipe.send(ev)
 	
 		if ev[0] == "tracking":
 			self.trackingPending = False
@@ -267,14 +271,15 @@ class MainWindow(QtGui.QMainWindow):
 				else:
 					self.trackingErrorScore += len(self.tracking) - validCount
 			#print "score", self.trackingErrorScore
-			if self.trackingErrorScore > 20:
+			if self.trackingErrorScore > 20 and self.trackingPipe is not None:
 				self.trackingPipe.send(("reinit",))
 				self.trackingErrorScore = 0
 
 	def CheckForEvents(self):
 		self.CheckPipeForEvents(self.cameraPipe)
 		self.CheckPipeForEvents(self.detectorPipe)
-		self.CheckPipeForEvents(self.trackingPipe)
+		if self.trackingPipe is not None:
+			self.CheckPipeForEvents(self.trackingPipe)
 
 	def ProcessFrame(self, im):
 		#print "Frame update", im.shape
@@ -302,7 +307,8 @@ class MainWindow(QtGui.QMainWindow):
 	def closeEvent(self, event):
 		self.detectorPipe.send(["quit",1])
 		self.cameraPipe.send(["quit",1])
-		self.trackingPipe.send(["quit",1])
+		if self.trackingPipe is not None:
+			self.trackingPipe.send(["quit",1])
 		try:
 			self.detectorPipe.recv()
 		except:
@@ -312,7 +318,8 @@ class MainWindow(QtGui.QMainWindow):
 		except:
 			pass
 		try:
-			self.trackingPipe.recv()
+			if self.trackingPipe is not None:
+				self.trackingPipe.recv()
 		except:
 			pass
 
@@ -332,10 +339,10 @@ if __name__ == '__main__':
 	mainWindow.detectorPipe = parentConn
 	detectorWorker.start()
 
-	parentConn, childConn = multiprocessing.Pipe()
-	trackingWorker = TrackingWorker(childConn)
-	mainWindow.trackingPipe = parentConn
-	trackingWorker.start()
+	#parentConn, childConn = multiprocessing.Pipe()
+	#trackingWorker = TrackingWorker(childConn)
+	#mainWindow.trackingPipe = parentConn
+	#trackingWorker.start()
 
 	ret = app.exec_()
 
