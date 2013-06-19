@@ -107,7 +107,7 @@ class FeatureSobel:
 		return map(str,range(self.supportPixOffSobelInitial.shape[0]))
 
 cdef class FeatureHog:
-	cdef public np.ndarray model, feat, mask
+	cdef public np.ndarray model, feat, mask, cellOffsets
 	cdef public object sample, featIsSet
 	cdef public int ptNum
 	cdef public float xOff, yOff
@@ -121,6 +121,25 @@ cdef class FeatureHog:
 		self.ptNum = -1
 		self.xOff = 0.
 		self.yOff = 0.
+
+		#Calculate cell centre positions
+		cy = 8
+		cx = 8
+		y = cy / 2
+		x = cx / 2
+		cy2 = cy * 3
+		cx2 = cx * 3
+		cellOffsetsLi = []
+
+		while y < cy2:
+			cellRow = []
+			x = cx / 2
+			while x < cx2:
+				cellRow.append((x, y))
+				x += cx
+			y += cy
+			cellOffsetsLi.append(cellRow)
+		self.cellOffsets = np.array(cellOffsetsLi)
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
@@ -138,7 +157,8 @@ cdef class FeatureHog:
 		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
 		localPatchGrey = col.rgb2grey(np.array([localPatch]))
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-		self.feat = lazyhog.hog(localPatchGrey)
+		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets)
+		print self.feat.shape[0]
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):

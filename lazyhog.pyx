@@ -46,22 +46,22 @@ from scipy import sqrt, pi, arctan2, cos, sin
 cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
 	np.ndarray[np.float64_t, ndim=2] orientation,
 	float ori1, float ori2,
-	np.ndarray[np.int32_t, ndim=2] cellOffsets, 
+	np.ndarray[np.int32_t, ndim=2] pixOffsets, 
 	int x, int y,
 	int sx, int sy):
 	cdef int cx1, cy1
 
 	cdef float total = 0.
 	cdef int i
-	for i in range(cellOffsets.shape[0]):
-		if cellOffsets[i, 1] + y < 0: continue
-		if cellOffsets[i, 1] + y >= sy: continue
-		if cellOffsets[i, 0] + x < 0: continue
-		if cellOffsets[i, 0] + x >= sx: continue
-		if orientation[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x] >= ori1: continue
-		if orientation[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x] < ori2: continue
+	for i in range(pixOffsets.shape[0]):
+		if pixOffsets[i, 1] + y < 0: continue
+		if pixOffsets[i, 1] + y >= sy: continue
+		if pixOffsets[i, 0] + x < 0: continue
+		if pixOffsets[i, 0] + x >= sx: continue
+		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] >= ori1: continue
+		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] < ori2: continue
 
-		total += magnitude[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x]
+		total += magnitude[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x]
 
 	return total
 
@@ -69,7 +69,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	np.ndarray[np.float64_t, ndim=2] gy, 
 	int cx, int cy, #Pixels per cell
 	int sx, int sy, #Image size
-	int n_cellsx, int n_cellsy, 
+	cellOffsets,
 	int visualise, int orientations, 
 	np.ndarray[np.float64_t, ndim=2] orientation_histogram):
 
@@ -93,23 +93,6 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum
 	cdef float ori1, ori2
 
-	#Calculate cell centre positions
-	y = cy / 2
-	x = cx / 2
-	cy2 = cy * n_cellsy
-	cx2 = cx * n_cellsx
-	cellOffsetsLi = []
-
-	while y < cy2:
-		cellRow = []
-		x = cx / 2
-		while x < cx2:
-			cellRow.append((x, y))
-			x += cx
-		y += cy
-		cellOffsetsLi.append(cellRow)
-	cellOffsets = np.array(cellOffsetsLi)
-
 	#Calculate pixel offsets from cell 
 	pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
 	count = 0
@@ -118,19 +101,19 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 			pixOffsets[count, 0] = -cx / 2 + cx1
 			pixOffsets[count, 1] = -cy / 2 + cy1
 			count += 1
-
+	print "1"
 	# compute orientations integral images
 	for i in range(orientations):
 		# isolate orientations in this range
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
-
+		print "2"
 		for yi in range(cellOffsets.shape[0]):
 			for xi in range(cellOffsets.shape[1]):
 				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
 					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
-
+		print "3"
 
 cdef VisualiseHistograms(int cx, int cy, 
 	int n_cellsx, int n_cellsy, 
@@ -157,6 +140,7 @@ cdef VisualiseHistograms(int cx, int cy,
 
 
 def hog(np.ndarray[np.float64_t, ndim=2] image, 
+		cellOffsets,
 		int orientations=9, 
 		pixels_per_cell=(8, 8),
 		int visualise=0, int normalise=0):
@@ -174,6 +158,8 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	----------
 	image : (M, N) ndarray
 		Input image (greyscale).
+	cellOffsets:
+
 	orientations : int
 		Number of orientation bins.
 	pixels_per_cell : 2 tuple (int, int)
@@ -233,19 +219,16 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 
 	cdef int cx = pixels_per_cell[0]
 	cdef int cy = pixels_per_cell[1]
-	
-	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
-	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
-
-	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((n_cellsy*n_cellsx, orientations))
-	HogThirdStage(gx, gy, cx, cy, sx, sy, n_cellsx, n_cellsy, 
+	print "x"
+	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0], orientations))
+	HogThirdStage(gx, gy, cx, cy, sx, sy, cellOffsets, 
 		visualise, orientations, orientation_histogram)
-
-	cdef np.ndarray[np.float64_t, ndim=2] hog_image
-	if visualise:
-		hog_image = np.zeros((sy, sx), dtype=float)
-		VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, 
-			orientations, orientation_histogram, hog_image)
+	print "y"
+	#cdef np.ndarray[np.float64_t, ndim=2] hog_image
+	#if visualise:
+	#	hog_image = np.zeros((sy, sx), dtype=float)
+	#	VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, 
+	#		orientations, orientation_histogram, hog_image)
 
 	"""
 	The fourth stage computes normalisation, which takes local groups of
@@ -271,7 +254,7 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	feature vector for use in the window classifier.
 	"""
 
-	if visualise:
-		return normalised_block.ravel(), hog_image
-	else:
-		return normalised_block.ravel()
+	#if visualise:
+	#	return normalised_block.ravel(), hog_image
+	#else:
+	return normalised_block.ravel()
