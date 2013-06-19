@@ -4,6 +4,10 @@ from PyQt4 import QtGui, QtCore
 import numpy as np
 from PIL import Image
 import skimage.io as io
+import ctypes
+_decref = ctypes.pythonapi.Py_DecRef
+_decref.argtypes = [ctypes.py_object]
+_decref.restype = None 
 
 def detect(img, cascade):
 	rects = cascade.detectMultiScale(img, scaleFactor=1.1, minNeighbors=3, minSize=(10, 10), flags = cv.CV_HAAR_SCALE_IMAGE)
@@ -16,6 +20,23 @@ def DrawPoint(scene,x,y):
 	pen = QtGui.QPen(QtGui.QColor(255,0,0))
 	scene.addLine(x-10,y,x+10,y,pen)
 	scene.addLine(x,y-10,x,y+10,pen)
+
+class QImageAutoDel(QtGui.QImage):
+	def __init__(self, data, width, height, stride, format):
+		import ctypes
+		self._decref = ctypes.pythonapi.Py_DecRef
+		self._decref.argtypes = [ctypes.py_object]
+		self._decref.restype = None 
+
+		self.refCountBuff = sys.getrefcount(data)
+		super(QtGui.QImage, self).__init__(data, width, height, stride, format)
+		self.rawbuff = data
+
+	def __del__(self):
+		#Work around for Qt weirdness
+		if sys.getrefcount(self.rawbuff) == self.refCountBuff:
+			self._decref(self.rawbuff)
+
 
 class CamWorker(multiprocessing.Process): 
 
@@ -179,9 +200,8 @@ class MainWindow(QtGui.QMainWindow):
 		self.detectPtsPos = [(0.32, 0.38), (1.-0.32,0.38), (0.5,0.6), (0.35, 0.77), (1.-0.35, 0.77)]
 		self.tracking = []
 		self.trackingPipe = None
-		self.detectorPipe = None
-		self.cameraPipe = None
-
+		self.pix = None
+		
 		self.scene = QtGui.QGraphicsScene(self)
 		self.view  = QtGui.QGraphicsView(self.scene)
 
@@ -243,7 +263,7 @@ class MainWindow(QtGui.QMainWindow):
 	def HandleEvent(self,ev):
 		if ev[0] == "frame" and ev[1] is not None:
 			self.ProcessFrame(ev[1])
-			if not self.detectionPending:
+			if not self.detectionPending and self.detectorPipe is not None:
 				self.detectorPipe.send(ev)
 				self.detectionPending = True
 			if not self.trackingPending and self.trackingPipe is not None:
@@ -277,14 +297,23 @@ class MainWindow(QtGui.QMainWindow):
 
 	def CheckForEvents(self):
 		self.CheckPipeForEvents(self.cameraPipe)
-		self.CheckPipeForEvents(self.detectorPipe)
+		if self.detectorPipe is not None:
+			self.CheckPipeForEvents(self.detectorPipe)
 		if self.trackingPipe is not None:
 			self.CheckPipeForEvents(self.trackingPipe)
 
 	def ProcessFrame(self, im):
 		#print "Frame update", im.shape
-		im = QtGui.QImage(im.tostring(), im.shape[1], im.shape[0], im.strides[0], QtGui.QImage.Format_RGB888)
-		self.pix = QtGui.QPixmap(im)
+		buff = im.tostring()
+		refCount = sys.getrefcount(buff)
+		im = QtGui.QImage(buff, im.shape[1], im.shape[0], im.strides[0], QtGui.QImage.Format_RGB888)
+		self.pix = QtGui.QPixmap(im) #Unsure if this needs a deep copy here
+
+		#Work around for QT holding on to a reference in QImage
+		if sys.getrefcount(buff) == refCount + 2:
+			_decref(buff)
+		del buff
+
 		self.RefreshDisplay()
 
 	def ProcessFaces(self, faces):
@@ -292,7 +321,8 @@ class MainWindow(QtGui.QMainWindow):
 
 	def RefreshDisplay(self):
 		self.scene.clear()
-		self.scene.addPixmap(self.pix)
+		if self.pix is not None:
+			self.scene.addPixmap(self.pix)
 		for fnum in range(self.faces.shape[0]):
 			face = self.faces[fnum,:]
 			w = face[2]-face[0]
@@ -305,12 +335,14 @@ class MainWindow(QtGui.QMainWindow):
 				DrawPoint(self.scene,pt[0], pt[1])
 
 	def closeEvent(self, event):
-		self.detectorPipe.send(["quit",1])
+		if self.detectorPipe is not None:
+			self.detectorPipe.send(["quit",1])
 		self.cameraPipe.send(["quit",1])
 		if self.trackingPipe is not None:
 			self.trackingPipe.send(["quit",1])
 		try:
-			self.detectorPipe.recv()
+			if self.detectorPipe is not None:
+				self.detectorPipe.recv()
 		except:
 			pass
 		try:
@@ -339,10 +371,10 @@ if __name__ == '__main__':
 	mainWindow.detectorPipe = parentConn
 	detectorWorker.start()
 
-	#parentConn, childConn = multiprocessing.Pipe()
-	#trackingWorker = TrackingWorker(childConn)
-	#mainWindow.trackingPipe = parentConn
-	#trackingWorker.start()
+	parentConn, childConn = multiprocessing.Pipe()
+	trackingWorker = TrackingWorker(childConn)
+	mainWindow.trackingPipe = parentConn
+	trackingWorker.start()
 
 	ret = app.exec_()
 
