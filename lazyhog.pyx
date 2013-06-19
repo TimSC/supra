@@ -88,29 +88,39 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum, centX, centY
 	cdef float ori1, ori2
 
+	numCells = cellOffsets.shape[0] * cellOffsets.shape[1]
+	magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+	oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+	count = 0
+
+	for yi in range(cellOffsets.shape[0]):
+		for xi in range(cellOffsets.shape[1]):
+				
+			centX = cellOffsets[yi, xi, 0]
+			centY = cellOffsets[yi, xi, 1]
+
+			for y in range(cy):
+				for x in range(cx):
+					magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
+					oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+
+			count += 1
+
 	# compute orientations integral images
 	for i in range(orientations):
 		# isolate orientations in this range
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
+		count = 0
 
 		for yi in range(cellOffsets.shape[0]):
 			for xi in range(cellOffsets.shape[1]):
 				
-				centX = cellOffsets[yi, xi, 0]
-				centY = cellOffsets[yi, xi, 1]
-
-				magPatch = np.empty((cy, cx), dtype=np.float64)
-				oriPatch = np.empty((cy, cx), dtype=np.float64)
-
-				for y in range(cy):
-					for x in range(cx):
-						magPatch[y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
-						oriPatch[y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
-
 				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = \
-					CellHog(magPatch, oriPatch, ori1, ori2)
+					CellHog(magPatch[count, :, :], oriPatch[count, :, :], ori1, ori2)
+
+				count += 1
 
 
 cdef VisualiseHistograms(int cx, int cy, 
