@@ -101,18 +101,16 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 				centX = cellOffsets[yi, xi, 0]
 				centY = cellOffsets[yi, xi, 1]
 
-				#Calculate pixel offsets from cell 
-				#cdef np.ndarray[np.int32_t, ndim=2] pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
-				#count = 0
-				#for cy1 in range(cy):
-				#	for cx1 in range(cx):
-				#		x = cx1 + centX
-				#		y = cy1 + centY
-				#		print x, y
-				magPatch = magnitude[centY-cy/2:centY+cy/2, centX-cx/2:centX+cx/2]
-				oriPatch = orientation[centY-cy/2:centY+cy/2, centX-cx/2:centX+cx/2]
+				magPatch = np.empty((cy, cx), dtype=np.float64)
+				oriPatch = np.empty((cy, cx), dtype=np.float64)
 
-				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magPatch, oriPatch, ori1, ori2)
+				for y in range(cy):
+					for x in range(cx):
+						magPatch[y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
+						oriPatch[y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+
+				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = \
+					CellHog(magPatch, oriPatch, ori1, ori2)
 
 
 cdef VisualiseHistograms(int cx, int cy, 
