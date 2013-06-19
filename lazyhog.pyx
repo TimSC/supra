@@ -10,6 +10,7 @@ import numpy as np
 Based on _hog.py from https://github.com/scikit-image/scikit-image
 
 Copyright (C) 2011, the scikit-image team
+(C) 2013 Tim Sheerman-Chase
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -41,7 +42,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 import numpy as np
 from scipy import sqrt, pi, arctan2, cos, sin
-from scipy.ndimage import uniform_filter
 
 cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
 	np.ndarray[np.float64_t, ndim=2] orientation,

@@ -123,6 +123,18 @@ cdef class FeatureHog:
 		self.xOff = xOff
 		self.yOff = yOff
 
+	cdef InitFeature(self):
+		cdef np.ndarray[np.float64_t, ndim=2] imLocs
+		cdef int ptNum
+
+		ptNum = self.ptNum
+		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+self.xOff, self.model[ptNum][1]+self.yOff)
+		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
+		localPatchGrey = col.rgb2grey(np.array([localPatch]))
+		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
+		self.feat = lazyhog.hog(localPatchGrey)
+		self.featIsSet = True
+
 	def SetFeatureMask(self, mask):
 		cdef np.ndarray[np.int32_t, ndim=1] masks = np.array(map(int, mask), dtype=np.int32)
 		self.mask = masks
@@ -131,21 +143,13 @@ cdef class FeatureHog:
 		return self.GetItem(ind)
 
 	cdef float GetItem(self, int ind):
-		cdef np.ndarray[np.float64_t, ndim=2] imLocs
 		cdef np.ndarray[np.int32_t, ndim=1] masks = self.mask
-		cdef int ptNum
 
 		if masks is None:
 			raise Exception("Masks not set")
 
 		if self.featIsSet is False:
-			ptNum = self.ptNum
-			imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+self.xOff, self.model[ptNum][1]+self.yOff)
-			localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
-			localPatchGrey = col.rgb2grey(np.array([localPatch]))
-			localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-			self.feat = lazyhog.hog(localPatchGrey)
-			self.featIsSet = True
+			self.InitFeature()
 
 		cdef np.ndarray[np.float64_t, ndim=1] feat = self.feat
 		cdef int comp = masks[ind] 
@@ -273,21 +277,15 @@ class FeatureGen:
 		#return self.GetGenFeat()
 
 	def GetGenFeat(self):
-		out = []
-		for i in range(len(self)):
-			out.append(self[i])
+		cdef np.ndarray[np.float64_t, ndim=1] out = np.empty(len(self))
+		for i in range(out.shape[0]):
+			out[i] = self[i]
 		return out
 
 	def __getitem__(self, int ind):
 		indc = self.featureMap[ind]
 		module = indc[0]
-		arg = indc[1]
-
-		#if module is None:
-		#	print self.featureMask
-		#	for i, m in enumerate(self.featureMap):
-		#		print i, m	
-
+		cdef int arg = indc[1]
 		return module[arg]
 
 	def __len__(self):
