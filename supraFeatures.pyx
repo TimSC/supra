@@ -9,6 +9,7 @@ import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 import converge, normalisedImageOpt
 import lazyhog
+from scipy import pi, arctan2
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -157,7 +158,38 @@ cdef class FeatureHog:
 		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
 		localPatchGrey = col.rgb2grey(np.array([localPatch]))
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets)
+
+		cdef int sy = localPatchGrey.shape[0]
+		cdef int sx = localPatchGrey.shape[1]
+		cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros((sy,sx))
+		cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros((sy,sx))
+		gx[:, :-1] = np.diff(localPatchGrey, n=1, axis=1)
+		gy[:-1, :] = np.diff(localPatchGrey, n=1, axis=0)
+
+		cdef int cx = 8
+		cdef int cy = 8
+
+		cdef np.ndarray[np.float64_t, ndim=2] magnitude = (gx**2 + gy**2) ** 0.5
+		cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / 3.14159265359) % 180
+		numCells = self.cellOffsets.shape[0] * self.cellOffsets.shape[1]
+		magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+		oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
+		count = 0
+
+		for yi in range(self.cellOffsets.shape[0]):
+			for xi in range(self.cellOffsets.shape[1]):
+				
+				centX = self.cellOffsets[yi, xi, 0]
+				centY = self.cellOffsets[yi, xi, 1]
+
+				for y in range(cy):
+					for x in range(cx):
+						magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
+						oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+
+				count += 1
+
+		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets, magPatch, oriPatch)
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):

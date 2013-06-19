@@ -98,6 +98,8 @@ cdef HogThirdStage(magPatch, oriPatch,
 
 def hog(np.ndarray[np.float64_t, ndim=2] image, 
 		np.ndarray[np.int32_t, ndim=3] cellOffsets,
+		magPatch, 
+		oriPatch,
 		int orientations=9, 
 		pixels_per_cell=(8, 8),
 		int visualise=0, int normalise=0):
@@ -166,36 +168,6 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	which act as primitive bar detectors - a useful feature for capturing,
 	e.g. bar like structures in bicycles and limbs in humans.
 	"""
-
-	cdef int sy = image.shape[0]
-	cdef int sx = image.shape[1]
-	cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros((sy,sx))
-	cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros((sy,sx))
-	gx[:, :-1] = np.diff(image, n=1, axis=1)
-	gy[:-1, :] = np.diff(image, n=1, axis=0)
-
-	cdef int cx = pixels_per_cell[0]
-	cdef int cy = pixels_per_cell[1]
-
-	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
-	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	numCells = cellOffsets.shape[0] * cellOffsets.shape[1]
-	magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
-	oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
-	count = 0
-
-	for yi in range(cellOffsets.shape[0]):
-		for xi in range(cellOffsets.shape[1]):
-				
-			centX = cellOffsets[yi, xi, 0]
-			centY = cellOffsets[yi, xi, 1]
-
-			for y in range(cy):
-				for x in range(cx):
-					magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
-					oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
-
-			count += 1
 
 	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0]*cellOffsets.shape[1], orientations))
 
