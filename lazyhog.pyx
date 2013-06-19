@@ -46,20 +46,20 @@ from scipy import sqrt, pi, arctan2, cos, sin
 cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
 	np.ndarray[np.float64_t, ndim=2] orientation,
 	float ori1, float ori2,
-	int cx, int cy, int xi, int yi, int sx, int sy):
+	np.ndarray[np.int32_t, ndim=2] cellOffsets, int sx, int sy):
 	cdef int cx1, cy1
 
 	cdef float total = 0.
-	for cy1 in range(-cy/2, cy/2):
-		for cx1 in range(-cx/2, cx/2):
-			if yi + cy1 < 0: continue
-			if yi + cy1 >= sy: continue
-			if xi + cx1 < 0: continue
-			if xi + cx1 >= sx: continue
-			if orientation[yi + cy1, xi + cx1] >= ori1: continue
-			if orientation[yi + cy1, xi + cx1] < ori2: continue
+	cdef int i
+	for i in range(cellOffsets.shape[0]):
+		if cellOffsets[i, 1] < 0: continue
+		if cellOffsets[i, 1] >= sy: continue
+		if cellOffsets[i, 0] < 0: continue
+		if cellOffsets[i, 0] >= sx: continue
+		if orientation[cellOffsets[i, 1], cellOffsets[i, 0]] >= ori1: continue
+		if orientation[cellOffsets[i, 1], cellOffsets[i, 0]] < ori2: continue
 
-			total += magnitude[yi + cy1, xi + cx1]
+		total += magnitude[cellOffsets[i, 1], cellOffsets[i, 0]]
 
 	return total
 
@@ -89,7 +89,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2
+	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count
 	cdef float ori1, ori2
 
 	# compute orientations integral images
@@ -107,12 +107,24 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 		yi = 0
 		xi = 0
 
+		cellOffsets = np.empty((cx*cy, 2), dtype=np.int32)
+		count = 0
+		for cy1 in range(0, cy):
+			for cx1 in range(0, cx):
+				cellOffsets[count, 0] = -cx / 2 + cx1
+				cellOffsets[count, 1] = -cy / 2 + cy1
+				count += 1
+
 		while y < cy2:
 			xi = 0
 			x = cx / 2
 
 			while x < cx2:
-				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, cx, cy, x, y, sx, sy)
+
+				cellOffsets2 = cellOffsets.copy()
+				cellOffsets2 = cellOffsets2 + np.array((x, y), dtype=np.int32)
+
+				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, cellOffsets2, sx, sy)
 				xi += 1
 				x += cx
 
