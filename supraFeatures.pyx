@@ -38,13 +38,16 @@ class FeatureIntSupport:
 		self.mask = map(int, mask)
 		self.supportPixOff = self.supportPixOffInitial[self.mask,:]
 
+	def InitFeature(self):
+		pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
+			self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
+		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
+		pixGrey = col.rgb2xyz(pix)
+		self.pixGrey = pixGrey.reshape(pixGrey.size)
+
 	def __getitem__(self, int ind):
 		if self.pixGrey is None:
-			pix = ExtractSupportIntensity(self.sample, self.supportPixOff, \
-				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
-			pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
-			pixGrey = col.rgb2xyz(pix)
-			self.pixGrey = pixGrey.reshape(pixGrey.size)
+			self.InitFeature()
 
 		out = self.pixGrey[ind]
 		return out
@@ -80,16 +83,19 @@ class FeatureSobel:
 		self.mask = map(int, mask)
 		self.supportPixOffSobel = self.supportPixOffSobelInitial[self.mask,:]
 
+	def InitFeature(self):
+		pixSobel = ExtractSupportIntensity(self.sobelSample, self.supportPixOffSobel, \
+			self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
+		pixConvSobel = []
+		for px in pixSobel:
+			pixConvSobel.extend(px)
+		self.feat = pixConvSobel
+
 	def __getitem__(self, int ind):
 		if self.sobelSample is None:
 			self.sobelSample = normalisedImageOpt.KernelFilter(self._sample)
 		if self.feat is None:
-			pixSobel = ExtractSupportIntensity(self.sobelSample, self.supportPixOffSobel, \
-				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
-			pixConvSobel = []
-			for px in pixSobel:
-				pixConvSobel.extend(px)
-			self.feat = pixConvSobel
+			self.InitFeature()
 
 		out = self.feat[ind]
 		return out
@@ -195,23 +201,26 @@ class FeatureDists:
 	def SetFeatureMask(self, mask):
 		self.mask = np.array(map(int, mask), dtype=np.int32)
 
+	def InitFeature(self):
+		feat = []
+		modifiedPos = np.array(self.model) + np.array(self.modelOffset)
+
+		for i in range(len(self.modelOffset)):
+			if i == self.ptNum: continue	
+			dx = (modifiedPos[i,0] - modifiedPos[self.ptNum,0])
+			dy = (modifiedPos[i,1] - modifiedPos[self.ptNum,1])
+			if self.shapeNoise > 0.:
+				dx += np.random.randn() * self.shapeNoise
+				dy += np.random.randn() * self.shapeNoise
+			feat.append(dx)
+			feat.append(dy)
+
+		self.feat = feat
+
 	def __getitem__(self, ind):
 
 		if self.feat is None:
-			feat = []
-			modifiedPos = np.array(self.model) + np.array(self.modelOffset)
-
-			for i in range(len(self.modelOffset)):
-				if i == self.ptNum: continue	
-				dx = (modifiedPos[i,0] - modifiedPos[self.ptNum,0])
-				dy = (modifiedPos[i,1] - modifiedPos[self.ptNum,1])
-				if self.shapeNoise > 0.:
-					dx += np.random.randn() * self.shapeNoise
-					dy += np.random.randn() * self.shapeNoise
-				feat.append(dx)
-				feat.append(dy)
-
-			self.feat = feat
+			self.InitFeature()
 			
 		out = self.feat[self.mask[ind]]
 		return out
