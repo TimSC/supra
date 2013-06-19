@@ -69,7 +69,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	np.ndarray[np.float64_t, ndim=2] gy, 
 	int cx, int cy, #Pixels per cell
 	int sx, int sy, #Image size
-	cellOffsets,
+	np.ndarray[np.int32_t, ndim=3] cellOffsets,
 	int visualise, int orientations, 
 	np.ndarray[np.float64_t, ndim=2] orientation_histogram):
 
@@ -94,26 +94,27 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cdef float ori1, ori2
 
 	#Calculate pixel offsets from cell 
-	pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
+	cdef np.ndarray[np.int32_t, ndim=2] pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
 	count = 0
 	for cy1 in range(cy):
 		for cx1 in range(cx):
 			pixOffsets[count, 0] = -cx / 2 + cx1
 			pixOffsets[count, 1] = -cy / 2 + cy1
 			count += 1
-	print "1"
+
 	# compute orientations integral images
 	for i in range(orientations):
 		# isolate orientations in this range
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
-		print "2"
+
 		for yi in range(cellOffsets.shape[0]):
 			for xi in range(cellOffsets.shape[1]):
+
 				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
 					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
-		print "3"
+
 
 cdef VisualiseHistograms(int cx, int cy, 
 	int n_cellsx, int n_cellsy, 
@@ -140,7 +141,7 @@ cdef VisualiseHistograms(int cx, int cy,
 
 
 def hog(np.ndarray[np.float64_t, ndim=2] image, 
-		cellOffsets,
+		np.ndarray[np.int32_t, ndim=3] cellOffsets,
 		int orientations=9, 
 		pixels_per_cell=(8, 8),
 		int visualise=0, int normalise=0):
@@ -219,11 +220,12 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 
 	cdef int cx = pixels_per_cell[0]
 	cdef int cy = pixels_per_cell[1]
-	print "x"
-	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0], orientations))
+
+	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0]*cellOffsets.shape[1], orientations))
 	HogThirdStage(gx, gy, cx, cy, sx, sy, cellOffsets, 
 		visualise, orientations, orientation_histogram)
-	print "y"
+	
+	
 	#cdef np.ndarray[np.float64_t, ndim=2] hog_image
 	#if visualise:
 	#	hog_image = np.zeros((sy, sx), dtype=float)

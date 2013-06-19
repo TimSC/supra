@@ -139,7 +139,7 @@ cdef class FeatureHog:
 				x += cx
 			y += cy
 			cellOffsetsLi.append(cellRow)
-		self.cellOffsets = np.array(cellOffsetsLi)
+		self.cellOffsets = np.array(cellOffsetsLi, dtype=np.int32)
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
@@ -158,7 +158,6 @@ cdef class FeatureHog:
 		localPatchGrey = col.rgb2grey(np.array([localPatch]))
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets)
-		print self.feat.shape[0]
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):
@@ -190,7 +189,7 @@ cdef class FeatureHog:
 
 	def __getstate__(self):
 		return (self.model, self.feat, self.mask, self.sample, 
-			self.featIsSet, self.ptNum, self.xOff, self.yOff)
+			self.featIsSet, self.ptNum, self.xOff, self.yOff, self.cellOffsets)
 	
 	def __setstate__(self, state):
 		self.model = state[0]
@@ -201,6 +200,7 @@ cdef class FeatureHog:
 		self.ptNum = state[5]
 		self.xOff = state[6]
 		self.yOff = state[7]
+		self.cellOffsets = state[8]
 
 class FeatureDists:
 	def __init__(self, numPoints):
