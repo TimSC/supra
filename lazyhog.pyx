@@ -43,33 +43,24 @@ POSSIBILITY OF SUCH DAMAGE.
 import numpy as np
 from scipy import sqrt, pi, arctan2, cos, sin
 
-cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
-	np.ndarray[np.float64_t, ndim=2] orientation,
+cdef float CellHog(np.ndarray[np.float64_t, ndim=3] magnitude, 
+	np.ndarray[np.float64_t, ndim=3] orientation,
 	float ori1, float ori2,
-	np.ndarray[np.int32_t, ndim=2] pixOffsets, 
-	int x, int y,
-	int sx, int sy):
-	cdef int cx1, cy1
+	int patchNum):
 
 	cdef float total = 0.
-	cdef int i
-	for i in range(pixOffsets.shape[0]):
-		if pixOffsets[i, 1] + y < 0: continue
-		if pixOffsets[i, 1] + y >= sy: continue
-		if pixOffsets[i, 0] + x < 0: continue
-		if pixOffsets[i, 0] + x >= sx: continue
-		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] >= ori1: continue
-		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] < ori2: continue
+	cdef int x=0, y=0
+	for y in range(orientation.shape[1]):
+		for x in range(orientation.shape[2]):
+			if orientation[patchNum, y, x] >= ori1: continue
+			if orientation[patchNum, y, x] < ori2: continue
 
-		total += magnitude[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x]
+		total += magnitude[patchNum, y, x]
 
 	return total
 
-cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
-	np.ndarray[np.float64_t, ndim=2] gy, 
-	int cx, int cy, #Pixels per cell
-	int sx, int sy, #Image size
-	np.ndarray[np.int32_t, ndim=3] cellOffsets,
+cdef HogThirdStage(np.ndarray[np.float64_t, ndim=3] gx, \
+	np.ndarray[np.float64_t, ndim=3] gy, 
 	int visualise, int orientations, 
 	np.ndarray[np.float64_t, ndim=2] orientation_histogram):
 
@@ -88,63 +79,27 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	cell are used to vote into the orientation histogram.
 	"""
 
-	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
-	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum
+	cdef np.ndarray[np.float64_t, ndim=3] magnitude = sqrt(gx**2 + gy**2)
+	cdef np.ndarray[np.float64_t, ndim=3] orientation = arctan2(gy, gx) * (180 / pi) % 180
+	cdef int patchNum
 	cdef float ori1, ori2
 
-	#Calculate pixel offsets from cell 
-	cdef np.ndarray[np.int32_t, ndim=2] pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
-	count = 0
-	for cy1 in range(cy):
-		for cx1 in range(cx):
-			pixOffsets[count, 0] = -cx / 2 + cx1
-			pixOffsets[count, 1] = -cy / 2 + cy1
-			count += 1
-
 	# compute orientations integral images
-	for i in range(orientations):
+	for oriNum in range(orientations):
 		# isolate orientations in this range
 
-		ori1 = 180. / orientations * (i + 1)
-		ori2 = 180. / orientations * i
+		ori1 = 180. / orientations * (oriNum + 1)
+		ori2 = 180. / orientations * oriNum
 
-		for yi in range(cellOffsets.shape[0]):
-			for xi in range(cellOffsets.shape[1]):
-
-				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
-					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
+		for patchNum in range(gx.shape[0]):
+			orientation_histogram[patchNum, oriNum] = \
+				CellHog(magnitude, orientation, ori1, ori2, patchNum)
 
 
-cdef VisualiseHistograms(int cx, int cy, 
-	int n_cellsx, int n_cellsy, 
-	int orientations, 
-	np.ndarray[np.float64_t, ndim=2] orientation_histogram, 
-	np.ndarray[np.float64_t, ndim=2] hog_image):
-
-	# now for each cell, compute the histogram
-	from skimage import draw
-
-	radius = min(cx, cy) // 2 - 1
-	for x in range(n_cellsx):
-		for y in range(n_cellsy):
-			for o in range(orientations):
-				centre = tuple([y * cy + cy // 2, x * cx + cx // 2])
-				dx = radius * cos(float(o) / orientations * np.pi)
-				dy = radius * sin(float(o) / orientations * np.pi)
-				rr, cc = draw.line(int(centre[0] - dx),
-								   int(centre[1] - dy),
-								   int(centre[0] + dx),
-								   int(centre[1] + dy))
-				hog_image[rr, cc] += orientation_histogram[y+x*n_cellsx, o]
-
-
-
-def hog(np.ndarray[np.float64_t, ndim=2] image, 
-		np.ndarray[np.int32_t, ndim=3] cellOffsets,
+def hog(np.ndarray[np.float32_t, ndim=3] patches,
 		int orientations=9, 
-		pixels_per_cell=(8, 8),
 		int visualise=0, int normalise=0):
+
 	"""Extract Histogram of Oriented Gradients (HOG) for a given image.
 
 	Compute a Histogram of Oriented Gradients (HOG) by
@@ -199,7 +154,7 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	"""
 
 	if normalise:
-		image = sqrt(image)
+		patches = sqrt(patches)
 
 	"""
 	The second stage computes first order image gradients. These capture
@@ -211,26 +166,19 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	e.g. bar like structures in bicycles and limbs in humans.
 	"""
 
-	cdef int sy = image.shape[0]
-	cdef int sx = image.shape[1]
-	cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros((sy,sx))
-	cdef np.ndarray[np.float64_t, ndim=2] gy = np.zeros((sy,sx))
-	gx[:, :-1] = np.diff(image, n=1, axis=1)
-	gy[:-1, :] = np.diff(image, n=1, axis=0)
+	cdef int sy = patches.shape[1]
+	cdef int sx = patches.shape[2]
+	cdef int numPatches = patches.shape[0]
+	cdef np.ndarray[np.float64_t, ndim=3] gx = np.zeros((numPatches,sy,sx))
+	cdef np.ndarray[np.float64_t, ndim=3] gy = np.zeros((numPatches,sy,sx))
 
-	cdef int cx = pixels_per_cell[0]
-	cdef int cy = pixels_per_cell[1]
+	gx[:,:, :-1] = np.diff(patches, n=1, axis=2)
+	gy[:,:-1, :] = np.diff(patches, n=1, axis=1)
+	
+	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = \
+		np.zeros((numPatches, orientations))
 
-	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0]*cellOffsets.shape[1], orientations))
-	HogThirdStage(gx, gy, cx, cy, sx, sy, cellOffsets, 
-		visualise, orientations, orientation_histogram)
-	
-	
-	#cdef np.ndarray[np.float64_t, ndim=2] hog_image
-	#if visualise:
-	#	hog_image = np.zeros((sy, sx), dtype=float)
-	#	VisualiseHistograms(cx, cy, n_cellsx, n_cellsy, 
-	#		orientations, orientation_histogram, hog_image)
+	HogThirdStage(gx, gy, visualise, orientations, orientation_histogram)
 
 	"""
 	The fourth stage computes normalisation, which takes local groups of
@@ -260,3 +208,4 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	#	return normalised_block.ravel(), hog_image
 	#else:
 	return normalised_block.ravel()
+

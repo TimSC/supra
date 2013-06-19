@@ -7,8 +7,10 @@ import cmath, math
 cimport numpy as np
 import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
+import skimage.io as io
 import converge, normalisedImageOpt
 import lazyhog
+from PIL import Image
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -150,14 +152,35 @@ cdef class FeatureHog:
 
 	cdef InitFeature(self):
 		cdef np.ndarray[np.float64_t, ndim=2] imLocs
-		cdef int ptNum
+		cdef int ptNum, patchX, patchY, centx, centy, px, py, patchCount, pxo, pyo
 
 		ptNum = self.ptNum
 		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+self.xOff, self.model[ptNum][1]+self.yOff)
-		localPatch = normalisedImageOpt.ExtractPatchAtImg(self.sample, imLocs)
-		localPatchGrey = col.rgb2grey(np.array([localPatch]))
-		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
-		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets)
+		localPatch = normalisedImageOpt.ExtractPatchAtImgGrey(self.sample, imLocs)
+		#localPatchGrey = col.rgb2grey(np.array([localPatch]))
+		localPatch = localPatch.reshape((24,24)).transpose()
+		print io.plugins()
+		im = Image.frombuffer("L", (localPatch.shape[0], localPatch.shape[1]), localPatch)
+		im.save("test.png")	
+
+		patches = np.zeros((9,8,8), dtype=np.float32)
+
+		patchCount = 0
+		for patchY in range(self.cellOffsets.shape[0]):
+			for patchX in range(self.cellOffsets.shape[1]):
+
+				centx = self.cellOffsets[patchY, patchX, 0]
+				centy = self.cellOffsets[patchY, patchX, 1]
+				for py in range(8):
+					for px in range(8):
+						pxo = px + centx
+						pyo = py + centy
+
+						patches[patchCount, py, px] = localPatch[pyo-4, pxo-4]
+
+			patchCount += 1
+
+		self.feat = lazyhog.hog(patches)
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):

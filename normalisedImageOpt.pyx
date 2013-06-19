@@ -317,7 +317,19 @@ def GenPatchOffsetList(double ptX, \
 
 def ExtractPatchAtImg(normImage, imLocs):
 
-	cdef np.ndarray[np.uint8_t, ndim=1] tmp = np.empty(normImage.NumChannels(), dtype=np.uint8)
 	pix = normImage.GetPixelsImPos(imLocs)
 	return pix
+
+def ExtractPatchAtImgGrey(normImage, imLocs):
+
+	cdef np.ndarray[np.float32_t, ndim=1] out = np.empty(len(imLocs), dtype=np.float32)
+	cdef np.ndarray[np.uint8_t, ndim=2] tmp = np.empty((len(imLocs),3), dtype=np.uint8)
+	cdef np.ndarray[np.float32_t, ndim=2] tmp2 = tmp.astype(np.float32)
+
+	for i in range(tmp.shape[0]):
+		out[i] = 0.299*tmp2[i,0] + 0.587*tmp2[i,1] + 0.114*tmp2[i,2]
+
+	#for a, b in zip(tmp, out):
+	#	print a, b
+	return out
 
