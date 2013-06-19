@@ -45,23 +45,18 @@ from scipy import sqrt, pi, arctan2, cos, sin
 
 cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
 	np.ndarray[np.float64_t, ndim=2] orientation,
-	float ori1, float ori2,
-	np.ndarray[np.int32_t, ndim=2] pixOffsets, 
-	int x, int y,
-	int sx, int sy):
+	float ori1, float ori2):
+
 	cdef int cx1, cy1
 
 	cdef float total = 0.
 	cdef int i
-	for i in range(pixOffsets.shape[0]):
-		if pixOffsets[i, 1] + y < 0: continue
-		if pixOffsets[i, 1] + y >= sy: continue
-		if pixOffsets[i, 0] + x < 0: continue
-		if pixOffsets[i, 0] + x >= sx: continue
-		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] >= ori1: continue
-		if orientation[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x] < ori2: continue
-
-		total += magnitude[pixOffsets[i, 1] + y, pixOffsets[i, 0] + x]
+	for y in range(magnitude.shape[0]):
+		for x in range(magnitude.shape[1]):
+			if orientation[y, x] >= ori1: continue
+			if orientation[y, x] < ori2: continue
+	
+			total += magnitude[y, x]
 
 	return total
 
@@ -90,17 +85,8 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum
+	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum, centX, centY
 	cdef float ori1, ori2
-
-	#Calculate pixel offsets from cell 
-	cdef np.ndarray[np.int32_t, ndim=2] pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
-	count = 0
-	for cy1 in range(cy):
-		for cx1 in range(cx):
-			pixOffsets[count, 0] = -cx / 2 + cx1
-			pixOffsets[count, 1] = -cy / 2 + cy1
-			count += 1
 
 	# compute orientations integral images
 	for i in range(orientations):
@@ -111,9 +97,22 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 		for yi in range(cellOffsets.shape[0]):
 			for xi in range(cellOffsets.shape[1]):
+				
+				centX = cellOffsets[yi, xi, 0]
+				centY = cellOffsets[yi, xi, 1]
 
-				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
-					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
+				#Calculate pixel offsets from cell 
+				#cdef np.ndarray[np.int32_t, ndim=2] pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
+				#count = 0
+				#for cy1 in range(cy):
+				#	for cx1 in range(cx):
+				#		x = cx1 + centX
+				#		y = cy1 + centY
+				#		print x, y
+				magPatch = magnitude[centY-cy/2:centY+cy/2, centX-cx/2:centX+cx/2]
+				oriPatch = orientation[centY-cy/2:centY+cy/2, centX-cx/2:centX+cx/2]
+
+				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magPatch, oriPatch, ori1, ori2)
 
 
 cdef VisualiseHistograms(int cx, int cy, 
