@@ -39,7 +39,7 @@ class CamWorker(multiprocessing.Process):
 			self.childConn.send(["frame", frame, self.count])
 			self.count += 1
 
-			if self.childConn.poll(0):
+			while self.childConn.poll(0):
 				ev = self.childConn.recv()
 				if ev[0] == "quit":
 					running = False
@@ -60,7 +60,7 @@ class DetectorWorker(multiprocessing.Process):
 		while running:
 			time.sleep(0.01)
 
-			if self.childConn.poll(0):
+			while self.childConn.poll(0):
 				ev = self.childConn.recv()
 				if ev[0] == "quit":
 					running = False
@@ -132,7 +132,7 @@ class TrackingWorker(multiprocessing.Process):
 
 				#Convert coordinates to normalised space
 				normPosModel = [self.normIm.GetNormPos(*pt) for pt in self.currentModel]
-				print "normPosModel",normPosModel
+				#print "normPosModel",normPosModel
 
 				#Initialise prev features if necessary
 				if self.prevFrameFeatures is None:
@@ -144,7 +144,7 @@ class TrackingWorker(multiprocessing.Process):
 				#Convert prediction back to image space
 				self.currentModel = [self.normIm.GetPixelPosImPos(*pt) for pt in pred]
 
-				print self.currentFrameNum, self.currentModel
+				#print self.currentFrameNum, self.currentModel
 				#io.imsave("currentFrame.jpg", self.currentFrame)
 				self.childConn.send(["tracking", self.currentModel])
 				self.trackingPending = False
@@ -199,16 +199,20 @@ class MainWindow(QtGui.QMainWindow):
 		pass
 
 	def CheckPipeForEvents(self, pipe):
-		try:
-			eventWaiting = pipe.poll(0)
-		except IOError:
-			eventWaiting = 0
-		if eventWaiting:
+		polling = True
+		while polling:
 			try:
-				ev = pipe.recv()
+				eventWaiting = pipe.poll(0)
 			except IOError:
-				ev = [None, None]
-			self.HandleEvent(ev)
+				eventWaiting = 0
+			if eventWaiting:
+				try:
+					ev = pipe.recv()
+				except IOError:
+					ev = [None, None]
+				self.HandleEvent(ev)
+			else:
+				polling = False
 
 	def GetLargestFace(self):
 		if len(self.faces)==0: return None
@@ -262,7 +266,7 @@ class MainWindow(QtGui.QMainWindow):
 					self.trackingErrorScore = 0
 				else:
 					self.trackingErrorScore += len(self.tracking) - validCount
-			print "score", self.trackingErrorScore
+			#print "score", self.trackingErrorScore
 			if self.trackingErrorScore > 20:
 				self.trackingPipe.send(("reinit",))
 				self.trackingErrorScore = 0
