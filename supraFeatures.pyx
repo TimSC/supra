@@ -9,7 +9,7 @@ import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 import converge, normalisedImageOpt
 import lazyhog
-from scipy import pi, arctan2
+from scipy import sqrt, pi, arctan2
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 	supportPixOff = supportPixOff.copy()
@@ -159,6 +159,10 @@ cdef class FeatureHog:
 		localPatchGrey = col.rgb2grey(np.array([localPatch]))
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 
+		normalise = 0
+		if normalise:
+			localPatchGrey = sqrt(localPatchGrey)
+
 		cdef int sy = localPatchGrey.shape[0]
 		cdef int sx = localPatchGrey.shape[1]
 		cdef np.ndarray[np.float64_t, ndim=2] gx = np.zeros((sy,sx))
@@ -189,7 +193,7 @@ cdef class FeatureHog:
 
 				count += 1
 
-		self.feat = lazyhog.hog(localPatchGrey, self.cellOffsets, magPatch, oriPatch)
+		self.feat = lazyhog.hog(magPatch, oriPatch)
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):

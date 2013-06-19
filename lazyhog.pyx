@@ -95,14 +95,10 @@ cdef HogThirdStage(magPatch, oriPatch,
 				CellHog(magPatch[patchNum, :, :], oriPatch[patchNum, :, :], ori1, ori2)
 
 
-
-def hog(np.ndarray[np.float64_t, ndim=2] image, 
-		np.ndarray[np.int32_t, ndim=3] cellOffsets,
-		magPatch, 
+def hog(magPatch, 
 		oriPatch,
 		int orientations=9, 
-		pixels_per_cell=(8, 8),
-		int visualise=0, int normalise=0):
+		int visualise=0):
 	"""Extract Histogram of Oriented Gradients (HOG) for a given image.
 
 	Compute a Histogram of Oriented Gradients (HOG) by
@@ -156,8 +152,8 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	shadowing and illumination variations.
 	"""
 
-	if normalise:
-		image = sqrt(image)
+	#if normalise:
+	#	image = sqrt(image)
 
 	"""
 	The second stage computes first order image gradients. These capture
@@ -169,7 +165,7 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	e.g. bar like structures in bicycles and limbs in humans.
 	"""
 
-	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((cellOffsets.shape[0]*cellOffsets.shape[1], orientations))
+	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((magPatch.shape[0], orientations))
 
 	HogThirdStage(magPatch, oriPatch,
 		visualise, orientations, orientation_histogram)
@@ -208,3 +204,4 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	#	return normalised_block.ravel(), hog_image
 	#else:
 	return normalised_block.ravel()
+
