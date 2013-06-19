@@ -46,27 +46,28 @@ from scipy import sqrt, pi, arctan2, cos, sin
 cdef float CellHog(np.ndarray[np.float64_t, ndim=2] magnitude, 
 	np.ndarray[np.float64_t, ndim=2] orientation,
 	float ori1, float ori2,
-	np.ndarray[np.int32_t, ndim=2] cellOffsets, int sx, int sy):
+	np.ndarray[np.int32_t, ndim=2] cellOffsets, 
+	int x, int y,
+	int sx, int sy):
 	cdef int cx1, cy1
 
 	cdef float total = 0.
 	cdef int i
 	for i in range(cellOffsets.shape[0]):
-		if cellOffsets[i, 1] < 0: continue
-		if cellOffsets[i, 1] >= sy: continue
-		if cellOffsets[i, 0] < 0: continue
-		if cellOffsets[i, 0] >= sx: continue
-		if orientation[cellOffsets[i, 1], cellOffsets[i, 0]] >= ori1: continue
-		if orientation[cellOffsets[i, 1], cellOffsets[i, 0]] < ori2: continue
+		if cellOffsets[i, 1] + y < 0: continue
+		if cellOffsets[i, 1] + y >= sy: continue
+		if cellOffsets[i, 0] + x < 0: continue
+		if cellOffsets[i, 0] + x >= sx: continue
+		if orientation[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x] >= ori1: continue
+		if orientation[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x] < ori2: continue
 
-		total += magnitude[cellOffsets[i, 1], cellOffsets[i, 0]]
+		total += magnitude[cellOffsets[i, 1] + y, cellOffsets[i, 0] + x]
 
 	return total
 
 cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	np.ndarray[np.float64_t, ndim=2] gy, 
 	int cx, int cy, #Pixels per cell
-	int bx, int by, 
 	int sx, int sy, #Image size
 	int n_cellsx, int n_cellsy, 
 	int visualise, int orientations, 
@@ -89,47 +90,46 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = sqrt(gx**2 + gy**2)
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / pi) % 180
-	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count
+	cdef int i, x, y, o, yi, xi, cy1, cy2, cx1, cx2, count, cellNum
 	cdef float ori1, ori2
 
-	# compute orientations integral images
+	#Calculate cell centre positions
+	y = cy / 2
+	x = cx / 2
+	cy2 = cy * n_cellsy
+	cx2 = cx * n_cellsx
+	cellOffsetsLi = []
 
+	while y < cy2:
+		cellRow = []
+		x = cx / 2
+		while x < cx2:
+			cellRow.append((x, y))
+			x += cx
+		y += cy
+		cellOffsetsLi.append(cellRow)
+	cellOffsets = np.array(cellOffsetsLi)
+
+	#Calculate pixel offsets from cell 
+	pixOffsets = np.empty((cx*cy, 2), dtype=np.int32)
+	count = 0
+	for cy1 in range(cy):
+		for cx1 in range(cx):
+			pixOffsets[count, 0] = -cx / 2 + cx1
+			pixOffsets[count, 1] = -cy / 2 + cy1
+			count += 1
+
+	# compute orientations integral images
 	for i in range(orientations):
 		# isolate orientations in this range
 
 		ori1 = 180. / orientations * (i + 1)
 		ori2 = 180. / orientations * i
 
-		y = cy / 2
-		cy2 = cy * n_cellsy
-		x = cx / 2
-		cx2 = cx * n_cellsx
-		yi = 0
-		xi = 0
-
-		cellOffsets = np.empty((cx*cy, 2), dtype=np.int32)
-		count = 0
-		for cy1 in range(0, cy):
-			for cx1 in range(0, cx):
-				cellOffsets[count, 0] = -cx / 2 + cx1
-				cellOffsets[count, 1] = -cy / 2 + cy1
-				count += 1
-
-		while y < cy2:
-			xi = 0
-			x = cx / 2
-
-			while x < cx2:
-
-				cellOffsets2 = cellOffsets.copy()
-				cellOffsets2 = cellOffsets2 + np.array((x, y), dtype=np.int32)
-
-				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, cellOffsets2, sx, sy)
-				xi += 1
-				x += cx
-
-			yi += 1
-			y += cy
+		for yi in range(cellOffsets.shape[0]):
+			for xi in range(cellOffsets.shape[1]):
+				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
+					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
 
 
 cdef VisualiseHistograms(int cx, int cy, 
@@ -159,7 +159,6 @@ cdef VisualiseHistograms(int cx, int cy,
 def hog(np.ndarray[np.float64_t, ndim=2] image, 
 		int orientations=9, 
 		pixels_per_cell=(8, 8),
-		cells_per_block=(3, 3), 
 		int visualise=0, int normalise=0):
 	"""Extract Histogram of Oriented Gradients (HOG) for a given image.
 
@@ -168,7 +167,7 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 		1. (optional) global image normalisation
 		2. computing the gradient image in x and y
 		3. computing gradient histograms
-		4. normalising across blocks
+		4. normalising block
 		5. flattening into a feature vector
 
 	Parameters
@@ -179,8 +178,6 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 		Number of orientation bins.
 	pixels_per_cell : 2 tuple (int, int)
 		Size (in pixels) of a cell.
-	cells_per_block  : 2 tuple (int,int)
-		Number of cells in each block.
 	visualise : bool, optional
 		Also return an image of the HOG.
 	normalise : bool, optional
@@ -236,14 +233,12 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 
 	cdef int cx = pixels_per_cell[0]
 	cdef int cy = pixels_per_cell[1]
-	cdef int bx = cells_per_block[0]
-	cdef int by = cells_per_block[1]
 	
 	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
 	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
 
 	cdef np.ndarray[np.float64_t, ndim=3] orientation_histogram = np.zeros((n_cellsy, n_cellsx, orientations))
-	HogThirdStage(gx, gy, cx, cy, bx, by, sx, sy, n_cellsx, n_cellsy, 
+	HogThirdStage(gx, gy, cx, cy, sx, sy, n_cellsx, n_cellsy, 
 		visualise, orientations, orientation_histogram)
 
 	cdef np.ndarray[np.float64_t, ndim=2] hog_image
@@ -267,16 +262,8 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	Gradient (HOG) descriptors.
 	"""
 
-	cdef int n_blocksx = (n_cellsx - bx) + 1
-	cdef int n_blocksy = (n_cellsy - by) + 1
-	normalised_blocks = np.zeros((n_blocksy, n_blocksx,
-								  by, bx, orientations))
-
-	for x in range(n_blocksx):
-		for y in range(n_blocksy):
-			block = orientation_histogram[y:y + by, x:x + bx, :]
-			eps = 1e-5
-			normalised_blocks[y, x, :] = block / sqrt(block.sum()**2 + eps)
+	eps = 1e-5
+	normalised_block = orientation_histogram / sqrt(orientation_histogram.sum()**2 + eps)
 
 	"""
 	The final step collects the HOG descriptors from all blocks of a dense
@@ -285,6 +272,6 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	"""
 
 	if visualise:
-		return normalised_blocks.ravel(), hog_image
+		return normalised_block.ravel(), hog_image
 	else:
-		return normalised_blocks.ravel()
+		return normalised_block.ravel()
