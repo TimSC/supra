@@ -71,7 +71,7 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 	int sx, int sy, #Image size
 	int n_cellsx, int n_cellsy, 
 	int visualise, int orientations, 
-	np.ndarray[np.float64_t, ndim=3] orientation_histogram):
+	np.ndarray[np.float64_t, ndim=2] orientation_histogram):
 
 	"""
 	The third stage aims to produce an encoding that is sensitive to
@@ -128,14 +128,14 @@ cdef HogThirdStage(np.ndarray[np.float64_t, ndim=2] gx, \
 
 		for yi in range(cellOffsets.shape[0]):
 			for xi in range(cellOffsets.shape[1]):
-				orientation_histogram[yi, xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
+				orientation_histogram[yi*cellOffsets.shape[0]+xi, i] = CellHog(magnitude, orientation, ori1, ori2, 
 					pixOffsets, cellOffsets[yi, xi, 0], cellOffsets[yi, xi, 1], sx, sy)
 
 
 cdef VisualiseHistograms(int cx, int cy, 
 	int n_cellsx, int n_cellsy, 
 	int orientations, 
-	np.ndarray[np.float64_t, ndim=3] orientation_histogram, 
+	np.ndarray[np.float64_t, ndim=2] orientation_histogram, 
 	np.ndarray[np.float64_t, ndim=2] hog_image):
 
 	# now for each cell, compute the histogram
@@ -152,7 +152,7 @@ cdef VisualiseHistograms(int cx, int cy,
 								   int(centre[1] - dy),
 								   int(centre[0] + dx),
 								   int(centre[1] + dy))
-				hog_image[rr, cc] += orientation_histogram[y, x, o]
+				hog_image[rr, cc] += orientation_histogram[y+x*x, o] #TODO Need to fix this
 
 
 
@@ -237,7 +237,7 @@ def hog(np.ndarray[np.float64_t, ndim=2] image,
 	cdef int n_cellsx = int(np.floor(sx // cx))  # number of cells in x
 	cdef int n_cellsy = int(np.floor(sy // cy))  # number of cells in y
 
-	cdef np.ndarray[np.float64_t, ndim=3] orientation_histogram = np.zeros((n_cellsy, n_cellsx, orientations))
+	cdef np.ndarray[np.float64_t, ndim=2] orientation_histogram = np.zeros((n_cellsy*n_cellsx, orientations))
 	HogThirdStage(gx, gy, cx, cy, sx, sy, n_cellsx, n_cellsy, 
 		visualise, orientations, orientation_histogram)
 
