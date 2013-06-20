@@ -309,7 +309,7 @@ def EvalSingleConfig(filteredSamples):
 
 			#Create and train tracker
 			#trainTracker.InitRandomMask()
-			cloudTracker = trainTracker.Train(trainNormSamples, 2)
+			cloudTracker = trainTracker.Train(trainNormSamples, 10)
 			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker

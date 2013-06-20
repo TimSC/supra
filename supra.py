@@ -42,7 +42,7 @@ class SupraAxisSet():
 		#self.sobelOffsets, self.sobelCoeffs, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 		self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
-		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix)
+		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix, 1)
 		self.numPoints = numPoints
 
 	def __del__(self):

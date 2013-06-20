@@ -20,7 +20,7 @@ def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
 ############# Feature Generation #####################
 
 class FeatureIntSupport:
-	def __init__(self, supportPixHalfWidth, numSupportPix=50):
+	def __init__(self, supportPixHalfWidth, numSupportPix=50, normalise=True):
 		self.supportPixOffInitial = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.supportPixOff = self.supportPixOffInitial.copy()
@@ -28,7 +28,8 @@ class FeatureIntSupport:
 		self.sample = None
 		self.pixGrey = None
 		self.mask = None
-
+		self.normalise = normalise
+	
 	def Gen(self, ptNum, xOff, yOff):
 		self.pixGrey = None
 		self.ptNum = ptNum
@@ -44,7 +45,12 @@ class FeatureIntSupport:
 			self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
 		pix = pix.reshape((pix.shape[0],1,pix.shape[1]))
 		pixGrey = col.rgb2xyz(pix)
-		self.pixGrey = pixGrey.reshape(pixGrey.size)
+		feat = pixGrey.reshape(pixGrey.size)
+
+		if self.normalise:
+			av = feat.mean()
+			feat = feat - av
+		self.pixGrey =feat
 
 	def __getitem__(self, int ind):
 		if self.pixGrey is None:
@@ -60,7 +66,7 @@ class FeatureIntSupport:
 		return map(str,range(self.supportPixOffInitial.shape[0]))
 
 class FeatureSobel:
-	def __init__(self, supportPixHalfWidth, numSupportPix=50):
+	def __init__(self, supportPixHalfWidth, numSupportPix=50, normalise=1):
 		self.supportPixOffSobelInitial = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
 		self.supportPixOffSobel = self.supportPixOffSobelInitial.copy()
@@ -69,6 +75,7 @@ class FeatureSobel:
 		self.sobelSample = None
 		self.feat = None
 		self.mask = None
+		self.normalise = normalise
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.ptNum = ptNum
@@ -92,7 +99,7 @@ class FeatureSobel:
 			pixConvSobel.extend(px)
 
 		feat = np.array(pixConvSobel)
-		if 1:
+		if self.normalise:
 			av = feat.mean()
 			feat = feat - av
 		self.feat = feat
@@ -258,11 +265,6 @@ class FeatureDists:
 			feat.append(dx)
 			feat.append(dy)
 
-		feat = np.array(feat)
-		if 1:
-			av = feat.mean()
-			feat = feat - av
-
 		self.feat = feat
 
 	def __getitem__(self, ind):
@@ -280,17 +282,18 @@ class FeatureDists:
 		return map(str,range(2*(self.numPoints-1)))
 
 class FeatureGen:
-	def __init__(self, numPoints, supportPixHalfWidth, numSupportPix=50):
+	def __init__(self, numPoints, supportPixHalfWidth, numSupportPix=50, normaliseSparse=True):
 		self.sample = None
 		self.feat = None
 		self.model = None
-		self.featureIntSupport = FeatureIntSupport(supportPixHalfWidth, numSupportPix)
-		self.sobelGen = FeatureSobel(supportPixHalfWidth, numSupportPix)
+		self.featureIntSupport = FeatureIntSupport(supportPixHalfWidth, numSupportPix, normaliseSparse)
+		self.sobelGen = FeatureSobel(supportPixHalfWidth, numSupportPix, normaliseSparse)
 		self.hogGen = FeatureHog()
 		self.relDistGen = FeatureDists(numPoints)
 		self.featureMask = None
 		self.numPoints = numPoints
 		self.SetFeatureMask(self.GetFeatureList())
+		self.normaliseSparse = normaliseSparse
 
 	def SetImage(self, img):
 		self.sample = img
