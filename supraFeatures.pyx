@@ -93,7 +93,7 @@ class FeatureSobel:
 
 		feat = np.array(pixConvSobel)
 		if 1:
-			av = self.feat.mean(axis=1)
+			av = feat.mean(axis=1)
 			feat = feat - av
 		self.feat = feat
 
@@ -260,7 +260,7 @@ class FeatureDists:
 
 		feat = np.array(feat)
 		if 1:
-			av = self.feat.mean(axis=1)
+			av = feat.mean(axis=1)
 			feat = feat - av
 
 		self.feat = feat
