@@ -153,15 +153,18 @@ class TrainEval:
 		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError}
 
 def EvalTrackerConfig(args):
-	currentConfig = args[0]
-	trainNormSamples = args[1]
-	testNormSamples = args[2]
-	testMasks = args[3]
+	try:
+		currentConfig = args[0]
+		trainNormSamples = args[1]
+		testNormSamples = args[2]
+		testMasks = args[3]
 
-	currentConfig.SetFeatureMasks(testMasks)
-	currentConfig.Train(trainNormSamples, 10)
-	perf = currentConfig.Test(testNormSamples, 10)
-	del currentConfig
+		currentConfig.SetFeatureMasks(testMasks)
+		currentConfig.Train(trainNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 10)
+		del currentConfig
+	except Exception as err:
+		print err
 	return perf
 
 class FeatureSelection:
