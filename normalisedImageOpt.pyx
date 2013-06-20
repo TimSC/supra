@@ -208,10 +208,10 @@ cdef class KernelFilter:
 			offsets, self.coeffs, self.halfw = CalcKernelOffsets(kernel)
 		self.offsets = offsets
 
+		self.scale = 0.05
 		scaleOffsets = offsets * self.scale
 		self.scaleOffsets = scaleOffsets
 
-		self.scale = 0.05
 		self.normIm = normImIn
 		self.absVal = True
 		self.numChans = self.normIm.NumChannels()
@@ -241,16 +241,15 @@ cdef class KernelFilter:
 
 		cdef np.ndarray[np.int32_t, ndim=2] k = self.kernel
 		cdef np.ndarray[np.float64_t, ndim=2] scaleOffsets = self.scaleOffsets
-	
+
 		cdef np.ndarray[np.float64_t, ndim=1] off = pixPosLi[num,:]
 		cdef np.ndarray[np.float64_t, ndim=2] arr = scaleOffsets + off
 		cdef np.ndarray[np.float64_t, ndim=2] pixs = self.normIm.GetPixelsImPos(arr)
 		cdef np.ndarray[np.float32_t, ndim=1] coeffs = self.coeffs
+		cdef float total = (pixs.transpose() * coeffs).sum()
 
-		cdef np.ndarray[np.float64_t, ndim=1] total = (pixs * coeffs).sum(axis=0)
-
-		if self.absVal:
-			return np.abs(total)
+		if self.absVal and total < 0.:
+			return -total
 		return total
 
 	def GetPixelsImPos(self, np.ndarray[np.float64_t, ndim=2] pixPosLi):

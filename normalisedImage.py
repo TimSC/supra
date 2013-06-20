@@ -25,7 +25,7 @@ def SaveNormalisedImageToFile(sample, fina):
 			pos.append((nx,ny))
 			posIm.append((x,y))
 		
-	posInts = sample.GetPixelsImPos(pos)
+	posInts = sample.GetPixelsImPos(np.array(pos))
 	for p, px in zip(posIm, posInts):
 		#print posIm, px
 		iml[p[0], p[1]] = tuple(map(int,map(round,px)))
