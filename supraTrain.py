@@ -344,7 +344,7 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.ClearCurrentModel()
 			count += 1
 
-			pickle.dump(masks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(bestMasks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(featureSelection, open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump(perfs, open("iter"+str(count)+".dat", "wt"), protocol = 0)
 		else:
