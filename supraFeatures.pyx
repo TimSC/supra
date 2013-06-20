@@ -123,6 +123,7 @@ cdef class FeatureHog:
 		self.xOff = 0.
 		self.yOff = 0.
 		self.cellOffsets = lazyhog.GenerateCellPatchCentres()
+		self.hogOrientations = 9
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
@@ -143,7 +144,7 @@ cdef class FeatureHog:
 
 		magPatch, oriPatch = lazyhog.ExtractPatches(localPatchGrey, self.cellOffsets, 8, 8)
 
-		self.feat = lazyhog.hog(magPatch, oriPatch)
+		self.feat = lazyhog.hog(magPatch, oriPatch, self.hogOrientations)
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):
@@ -171,7 +172,7 @@ cdef class FeatureHog:
 		return len(self.mask)
 
 	def GetFeatureList(self):
-		return map(str,range(81))
+		return map(str,range(self.cellOffsets.shape[0] * self.hogOrientations))
 
 	def __getstate__(self):
 		return (self.model, self.feat, self.mask, self.sample, 
