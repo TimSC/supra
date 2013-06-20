@@ -24,6 +24,10 @@ class SupraAxis():
 	def PrepareModel(self, features, offsets):
 		offsets = np.array(offsets)
 		labels = offsets[:,0] * self.x + offsets[:,1] * self.y
+
+		if not np.all(np.isfinite(labels)):
+			raise Exception("Training labels contains non-finate value(s), either NaN or infinite")
+
 		self.reg.fit(features, labels)
 
 	def GetFeatureImportance(self):
@@ -89,6 +93,10 @@ class SupraAxisSet():
 		self.trainInt = np.empty((len(keys), len(self.trainIntDb[0])), dtype=np.float32, order='C')
 		for k in keys:
 			self.trainInt[k, :] = self.trainIntDb[str(k)]
+
+		if not np.all(np.isfinite(self.trainInt)):
+			raise Exception("Training data contains non-finate value(s), either NaN or infinite")
+			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
 
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)

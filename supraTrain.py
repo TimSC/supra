@@ -165,6 +165,7 @@ def EvalTrackerConfig(args):
 		del currentConfig
 	except Exception as err:
 		print err
+		return None
 	return perf
 
 class FeatureSelection:
