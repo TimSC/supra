@@ -50,6 +50,9 @@ class FeatureIntSupport:
 		if self.normalise:
 			av = feat.mean()
 			feat = feat - av
+
+		if not np.all(np.isfinite(feat)):
+			raise Exception("Training data (pix int) contains non-finate value(s), either NaN or infinite")
 		self.pixGrey =feat
 
 	def __getitem__(self, int ind):
@@ -102,6 +105,8 @@ class FeatureSobel:
 		if self.normalise:
 			av = feat.mean()
 			feat = feat - av
+		if not np.all(np.isfinite(feat)):
+			raise Exception("Training data (sobel) contains non-finate value(s), either NaN or infinite")
 		self.feat = feat
 
 	def __getitem__(self, int ind):
@@ -163,7 +168,8 @@ cdef class FeatureHog:
 		self.feat = np.zeros((self.mask.shape[0]))
 		for comp in range(self.compMapping.shape[0]):
 			self.feat[comp] = enabledPatchFeat[self.compMapping[comp,1] * self.hogOrientations + self.compMapping[comp,2]]
-
+		if not np.all(np.isfinite(self.feat)):
+			raise Exception("Training data (hog) contains non-finate value(s), either NaN or infinite")
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):
@@ -265,6 +271,9 @@ class FeatureDists:
 			feat.append(dx)
 			feat.append(dy)
 
+		feat = np.array(feat)
+		if not np.all(np.isfinite(feat)):
+			raise Exception("Training data (distpair) contains non-finate value(s), either NaN or infinite")
 		self.feat = feat
 
 	def __getitem__(self, ind):

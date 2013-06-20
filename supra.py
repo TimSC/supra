@@ -95,8 +95,8 @@ class SupraAxisSet():
 			self.trainInt[k, :] = self.trainIntDb[str(k)]
 
 		if not np.all(np.isfinite(self.trainInt)):
+			#pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
 			raise Exception("Training data contains non-finate value(s), either NaN or infinite")
-			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
 
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
