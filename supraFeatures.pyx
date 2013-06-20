@@ -150,7 +150,6 @@ cdef class FeatureHog:
 
 		self.feat = np.zeros((self.mask.shape[0]))
 		for comp in range(self.compMapping.shape[0]):
-			print comp, self.compMapping[comp,1], self.compMapping[comp,2]
 			self.feat[comp] = enabledPatchFeat[self.compMapping[comp,1] * self.hogOrientations + self.compMapping[comp,2]]
 
 		self.featIsSet = True
