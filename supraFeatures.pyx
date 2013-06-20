@@ -108,9 +108,9 @@ class FeatureSobel:
 		return map(str,range(self.supportPixOffSobelInitial.shape[0]))
 
 cdef class FeatureHog:
-	cdef public np.ndarray model, feat, mask, cellOffsets
+	cdef public np.ndarray model, feat, mask, cellOffsets, enabledPatches, compMapping, enabledCellOffsets
 	cdef public object sample, featIsSet
-	cdef public int ptNum
+	cdef public int ptNum, hogOrientations
 	cdef public float xOff, yOff
 
 	def __init__(self):
@@ -123,7 +123,9 @@ cdef class FeatureHog:
 		self.xOff = 0.
 		self.yOff = 0.
 		self.cellOffsets = lazyhog.GenerateCellPatchCentres()
+		self.cellOffsets = self.cellOffsets[2:,:]
 		self.hogOrientations = 9
+		self.compMapping = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
@@ -135,6 +137,7 @@ cdef class FeatureHog:
 	cdef InitFeature(self):
 		cdef np.ndarray[np.float64_t, ndim=2] imLocs
 		cdef int ptNum
+		#print self.enabledPatches
 
 		ptNum = self.ptNum
 		imLocs = normalisedImageOpt.GenPatchOffsetList(self.model[ptNum][0]+self.xOff, self.model[ptNum][1]+self.yOff)
@@ -144,12 +147,36 @@ cdef class FeatureHog:
 
 		magPatch, oriPatch = lazyhog.ExtractPatches(localPatchGrey, self.cellOffsets, 8, 8)
 
-		self.feat = lazyhog.hog(magPatch, oriPatch, self.hogOrientations)
+		enabledPatchFeat = lazyhog.hog(magPatch, oriPatch, self.hogOrientations)
+
+		self.feat = np.zeros((self.mask.shape[0]))
+		for comp in range(self.compMapping.shape[0]):
+			print comp, self.compMapping[comp,1], self.compMapping[comp,2]
+			self.feat[comp] = enabledPatchFeat[self.compMapping[comp,1] * self.hogOrientations + self.compMapping[comp,2]]
+
 		self.featIsSet = True
 
 	def SetFeatureMask(self, mask):
 		cdef np.ndarray[np.int32_t, ndim=1] masks = np.array(map(int, mask), dtype=np.int32)
 		self.mask = masks
+
+		enabledPatchesSet = set()
+		for m in masks:
+			patchComp = m % self.hogOrientations
+			patchNum = m / self.hogOrientations
+			enabledPatchesSet.add(patchNum)
+		self.enabledPatches = np.array(list(enabledPatchesSet), dtype=np.int32)
+		self.enabledCellOffsets = self.cellOffsets[self.enabledPatches,:]
+
+		cm = []
+		for m in masks:
+			patchComp = m % self.hogOrientations
+			patchNum = m / self.hogOrientations
+			patchInd = np.where(self.enabledPatches == patchNum)[0][0]
+			cm.append((patchNum, patchInd, patchComp))
+
+		self.compMapping = np.array(cm, dtype=np.int32)
+
 
 	def __getitem__(self, int ind):
 		return self.GetItem(ind)
@@ -176,7 +203,9 @@ cdef class FeatureHog:
 
 	def __getstate__(self):
 		return (self.model, self.feat, self.mask, self.sample, 
-			self.featIsSet, self.ptNum, self.xOff, self.yOff, self.cellOffsets)
+			self.featIsSet, self.ptNum, self.xOff, self.yOff, 
+			self.cellOffsets, self.hogOrientations, self.enabledPatches,
+			self.compMapping, self.enabledCellOffsets)
 	
 	def __setstate__(self, state):
 		self.model = state[0]
@@ -188,6 +217,10 @@ cdef class FeatureHog:
 		self.xOff = state[6]
 		self.yOff = state[7]
 		self.cellOffsets = state[8]
+		self.hogOrientations = state[9]
+		self.enabledPatches = state[10]
+		self.compMapping = state[11]
+		self.enabledCellOffsets = state[12]
 
 class FeatureDists:
 	def __init__(self, numPoints):
