@@ -123,7 +123,6 @@ cdef class FeatureHog:
 		self.xOff = 0.
 		self.yOff = 0.
 		self.cellOffsets = lazyhog.GenerateCellPatchCentres()
-		self.cellOffsets = self.cellOffsets[2:,:]
 		self.hogOrientations = 9
 		self.compMapping = None
 
