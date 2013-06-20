@@ -90,7 +90,12 @@ class FeatureSobel:
 		pixConvSobel = []
 		for px in pixSobel:
 			pixConvSobel.extend(px)
-		self.feat = pixConvSobel
+
+		feat = np.array(pixConvSobel)
+		if 1:
+			av = self.feat.mean(axis=1)
+			feat = feat - av
+		self.feat = feat
 
 	def __getitem__(self, int ind):
 		if self.sobelSample is None:
@@ -252,6 +257,11 @@ class FeatureDists:
 				dy += np.random.randn() * self.shapeNoise
 			feat.append(dx)
 			feat.append(dy)
+
+		feat = np.array(feat)
+		if 1:
+			av = self.feat.mean(axis=1)
+			feat = feat - av
 
 		self.feat = feat
 
