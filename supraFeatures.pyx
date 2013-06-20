@@ -122,6 +122,7 @@ cdef class FeatureHog:
 		self.ptNum = -1
 		self.xOff = 0.
 		self.yOff = 0.
+		self.cellOffsets = lazyhog.GenerateCellPatchCentres()
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.feat = None
@@ -140,7 +141,7 @@ cdef class FeatureHog:
 		localPatchGrey = col.rgb2grey(np.array([localPatch]))
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 
-		magPatch, oriPatch = lazyhog.ExtractPatches(localPatchGrey)
+		magPatch, oriPatch = lazyhog.ExtractPatches(localPatchGrey, self.cellOffsets, 8, 8)
 
 		self.feat = lazyhog.hog(magPatch, oriPatch)
 		self.featIsSet = True

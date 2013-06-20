@@ -159,8 +159,8 @@ def EvalTrackerConfig(args):
 	testMasks = args[3]
 
 	currentConfig.SetFeatureMasks(testMasks)
-	currentConfig.Train(trainNormSamples, 2)
-	perf = currentConfig.Test(testNormSamples, 2)
+	currentConfig.Train(trainNormSamples, 10)
+	perf = currentConfig.Test(testNormSamples, 10)
 	del currentConfig
 	return perf
 

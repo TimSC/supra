@@ -205,9 +205,7 @@ def hog(magPatch,
 	#else:
 	return normalised_block.ravel()
 
-
-def ExtractPatches(img):
-
+def GenerateCellPatchCentres():
 	#Calculate cell centre positions
 	cdef int cx = 8
 	cdef int cy = 8
@@ -218,14 +216,16 @@ def ExtractPatches(img):
 	cellOffsetsLi = []
 
 	while y < cy2:
-		cellRow = []
 		x = cx / 2
 		while x < cx2:
-			cellRow.append((x, y))
+			cellOffsetsLi.append((x, y))
 			x += cx
 		y += cy
-		cellOffsetsLi.append(cellRow)
+		
 	cellOffsets = np.array(cellOffsetsLi, dtype=np.int32)
+	return cellOffsets
+
+def ExtractPatches(img, cellCentres, cx, cy):
 
 	normalise = 0
 	if normalise:
@@ -240,23 +240,22 @@ def ExtractPatches(img):
 
 	cdef np.ndarray[np.float64_t, ndim=2] magnitude = (gx**2 + gy**2) ** 0.5
 	cdef np.ndarray[np.float64_t, ndim=2] orientation = arctan2(gy, gx) * (180 / 3.14159265359) % 180
-	numCells = cellOffsets.shape[0] * cellOffsets.shape[1]
+	numCells = cellCentres.shape[0]
 	magPatch = np.empty((numCells, cy, cx), dtype=np.float64)
 	oriPatch = np.empty((numCells, cy, cx), dtype=np.float64)
 	count = 0
 
-	for yi in range(cellOffsets.shape[0]):
-		for xi in range(cellOffsets.shape[1]):
-				
-			centX = cellOffsets[yi, xi, 0]
-			centY = cellOffsets[yi, xi, 1]
+	for cellNum in range(cellCentres.shape[0]):
 
-			for y in range(cy):
-				for x in range(cx):
-					magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
-					oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+		centX = cellCentres[cellNum, 0]
+		centY = cellCentres[cellNum, 1]
 
-			count += 1
+		for y in range(cy):
+			for x in range(cx):
+				magPatch[count, y, x] = magnitude[y + centY - cy/2, x + centX - cx/2]
+				oriPatch[count, y, x] = orientation[y + centY - cy/2, x + centX - cx/2]
+
+		count += 1
 
 	return magPatch, oriPatch
 
