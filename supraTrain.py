@@ -349,7 +349,8 @@ def FeatureSelectRunScript(filteredSamples):
 			count += 1
 
 			pickle.dump(bestMasks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
-			pickle.dump(featureSelection, open("model"+str(count)+".dat", "wb"), protocol = -1)
+			featureSelection.currentConfig.ClearTraining()
+			pickle.dump(featureSelection.currentConfig, open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump(perfs, open("iter"+str(count)+".dat", "wt"), protocol = 0)
 		else:
 			running = False
