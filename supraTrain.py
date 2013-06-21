@@ -4,8 +4,11 @@ import numpy as np
 from multiprocessing import Pool, cpu_count
 
 class TrainEval:
-	def __init__(self, trainNormSamples):
-		self.cloudTracker = supra.SupraLayers(trainNormSamples)
+	def __init__(self, trainNormSamples, tracker = None):
+		if tracker is None:
+			self.cloudTracker = supra.SupraLayers(trainNormSamples)
+		else:
+			self.cloudTracker = tracker
 		self.masks = self.cloudTracker.GetFeatureList()
 		self.fullMasks = copy.deepcopy(self.masks)
 
@@ -169,10 +172,12 @@ def EvalTrackerConfig(args):
 	return perf
 
 class FeatureSelection:
-	def __init__(self):
+	def __init__(self, normalisedSamples):
 		self.currentConfig = None
 		self.log = open("log.txt","wt")
 		self.metric = 'medPredError'
+		self.SplitSamples(normalisedSamples)
+		self.tracker = supra.SupraLayers(self.trainNormSamples)
 
 	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
@@ -185,7 +190,7 @@ class FeatureSelection:
 
 	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
-			self.currentConfig = TrainEval(self.trainNormSamples)
+			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
 		
@@ -237,7 +242,7 @@ class FeatureSelection:
 	def EvaluateBackwardSteps(self, numTests=None):
 
 		if self.currentConfig == None:
-			self.currentConfig = TrainEval(self.trainNormSamples)
+			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
 		
@@ -330,7 +335,8 @@ def EvalSingleConfig(filteredSamples):
 
 def FeatureSelectRunScript(filteredSamples):
 
-	featureSelection = FeatureSelection()
+	featureSelection = FeatureSelection(filteredSamples)
+	pickle.dump(featureSelection.tracker, open("fsmodel.dat", "wb"), protocol = -1)
 
 	running = True
 	count = 0
@@ -345,12 +351,9 @@ def FeatureSelectRunScript(filteredSamples):
 		if len(perfs) > 0:
 			bestMasks = perfs[0]
 			featureSelection.SetFeatureMasks(bestMasks[2])
-			featureSelection.ClearCurrentModel()
 			count += 1
 
 			pickle.dump(bestMasks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
-			featureSelection.currentConfig.ClearTraining()
-			pickle.dump(featureSelection.currentConfig, open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump(perfs, open("iter"+str(count)+".dat", "wt"), protocol = 0)
 		else:
 			running = False
