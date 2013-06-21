@@ -26,7 +26,7 @@ class SupraAxis():
 		labels = offsets[:,0] * self.x + offsets[:,1] * self.y
 
 		if not np.all(np.isfinite(labels)):
-			raise Exception("Training labels contains non-finate value(s), either NaN or infinite")
+			raise Exception("Training labels contains non-finite value(s), either NaN or infinite")
 
 		self.reg.fit(features, labels)
 
@@ -48,6 +48,7 @@ class SupraAxisSet():
 		self.trainIntDb = None
 		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix, 1)
 		self.numPoints = numPoints
+		self.featureMask = None
 
 	def __del__(self):
 		del self.trainIntDb
@@ -76,6 +77,15 @@ class SupraAxisSet():
 		feat = self.featureGen.GetGenFeat()
 		featComp = np.concatenate((feat, extraFeatures))
 
+		if featComp.shape[0] != len(self.featureMask):
+			print "Warning: Generated features have incorrect number of components, got "+\
+				str(featComp.shape[0])+", received "+str(len(self.featureMask))
+
+		if not np.all(np.isfinite(featComp)):
+			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
+			print self.trainInt
+			raise Exception("Training data contains non-finite value(s), either NaN or infinite (1)")
+
 		#self.trainInt.append(features)
 		self.trainIntDb[str(len(self.trainOffX))] = featComp
 		self.trainOffX.append(xOff)
@@ -95,8 +105,8 @@ class SupraAxisSet():
 			self.trainInt[k, :] = self.trainIntDb[str(k)]
 
 		if not np.all(np.isfinite(self.trainInt)):
-			#pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
-			raise Exception("Training data contains non-finate value(s), either NaN or infinite")
+			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
+			raise Exception("Training data contains non-finite value(s), either NaN or infinite (2)")
 
 		for axis in self.axes:
 			axis.PrepareModel(self.trainInt, trainOff)
@@ -144,6 +154,7 @@ class SupraAxisSet():
 		return totalx / weightx, totaly / weighty
 
 	def SetFeatureMask(self, mask):
+		self.featureMask = mask
 		self.featureGen.SetFeatureMask(mask)
 
 	def GetFeatureList(self):

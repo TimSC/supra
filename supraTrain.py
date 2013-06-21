@@ -160,8 +160,8 @@ def EvalTrackerConfig(args):
 		testMasks = args[3]
 
 		currentConfig.SetFeatureMasks(testMasks)
-		currentConfig.Train(trainNormSamples, 10)
-		perf = currentConfig.Test(testNormSamples, 10)
+		currentConfig.Train(trainNormSamples, 1)
+		perf = currentConfig.Test(testNormSamples, 1)
 		del currentConfig
 	except Exception as err:
 		print err
