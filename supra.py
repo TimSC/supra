@@ -75,15 +75,21 @@ class SupraAxisSet():
 		self.featureGen.SetOffset(xOff, yOff)
 		self.featureGen.Gen()
 		feat = self.featureGen.GetGenFeat()
+
+		if feat.shape[0] != len(self.featureMask):
+			print "Warning: Generated features have incorrect number of components, got "+\
+				str(feat.shape[0])+", received "+str(len(self.featureMask))
+
 		featComp = np.concatenate((feat, extraFeatures))
 
-		if featComp.shape[0] != len(self.featureMask):
-			print "Warning: Generated features have incorrect number of components, got "+\
-				str(featComp.shape[0])+", received "+str(len(self.featureMask))
-
 		if not np.all(np.isfinite(featComp)):
-			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
-			print self.trainInt
+			for i, comp in enumerate(featComp):
+				print comp, math.isinf(comp), math.isnan(comp),
+				if i < len(self.featureMask):
+					print self.featureMask[i]
+				else:
+					print ""
+
 			raise Exception("Training data contains non-finite value(s), either NaN or infinite (1)")
 
 		#self.trainInt.append(features)
@@ -105,7 +111,6 @@ class SupraAxisSet():
 			self.trainInt[k, :] = self.trainIntDb[str(k)]
 
 		if not np.all(np.isfinite(self.trainInt)):
-			pickle.dump(self.trainInt, open("dataerr.dat","wb"), protocol=-1)
 			raise Exception("Training data contains non-finite value(s), either NaN or infinite (2)")
 
 		for axis in self.axes:
