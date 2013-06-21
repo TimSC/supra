@@ -219,7 +219,7 @@ class FeatureSelection:
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
-		pool = Pool(processes=cpu_count())
+		pool = Pool(processes=1)#cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()

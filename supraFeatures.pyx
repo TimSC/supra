@@ -162,12 +162,12 @@ cdef class FeatureHog:
 		localPatchGrey = localPatchGrey.reshape((24,24)).transpose()
 
 		magPatch, oriPatch = lazyhog.ExtractPatches(localPatchGrey, self.cellOffsets, 8, 8)
-
 		enabledPatchFeat = lazyhog.hog(magPatch, oriPatch, self.hogOrientations)
 
 		self.feat = np.zeros((self.mask.shape[0]))
 		for comp in range(self.compMapping.shape[0]):
 			self.feat[comp] = enabledPatchFeat[self.compMapping[comp,1] * self.hogOrientations + self.compMapping[comp,2]]
+
 		if not np.all(np.isfinite(self.feat)):
 			raise Exception("Training data (hog) contains non-finite value(s), either NaN or infinite")
 		self.featIsSet = True
@@ -193,23 +193,16 @@ cdef class FeatureHog:
 
 		self.compMapping = np.array(cm, dtype=np.int32)
 
-
 	def __getitem__(self, int ind):
 		return self.GetItem(ind)
 
 	cdef float GetItem(self, int ind):
-		cdef np.ndarray[np.int32_t, ndim=1] masks = self.mask
-
-		if masks is None:
-			raise Exception("Masks not set")
 
 		if self.featIsSet is False:
 			self.InitFeature()
 
 		cdef np.ndarray[np.float64_t, ndim=1] feat = self.feat
-		cdef int comp = masks[ind] 
-		cdef float out = feat[comp]
-		return out
+		return feat[ind]
 
 	def __len__(self):
 		return len(self.mask)
