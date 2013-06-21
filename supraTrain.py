@@ -160,8 +160,8 @@ def EvalTrackerConfig(args):
 		testMasks = args[3]
 
 		currentConfig.SetFeatureMasks(testMasks)
-		currentConfig.Train(trainNormSamples, 1)
-		perf = currentConfig.Test(testNormSamples, 1)
+		currentConfig.Train(trainNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 10)
 		del currentConfig
 	except Exception as err:
 		print err
@@ -219,7 +219,7 @@ class FeatureSelection:
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
-		pool = Pool(processes=1)#cpu_count())
+		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()
