@@ -190,7 +190,8 @@ class FeatureSelection:
 
 	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
-			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))			
+		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
 		
@@ -243,6 +244,7 @@ class FeatureSelection:
 
 		if self.currentConfig == None:
 			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
 		
