@@ -178,6 +178,7 @@ class FeatureSelection:
 		self.metric = 'medPredError'
 		self.SplitSamples(normalisedSamples)
 		self.tracker = supra.SupraLayers(self.trainNormSamples)
+		self.currentMask = None
 
 	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
