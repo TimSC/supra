@@ -163,8 +163,8 @@ def EvalTrackerConfig(args):
 		testMasks = args[3]
 
 		currentConfig.SetFeatureMasks(testMasks)
-		currentConfig.Train(trainNormSamples, 1)#HACK
-		perf = currentConfig.Test(testNormSamples, 1)#HACK
+		currentConfig.Train(trainNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 10)
 		del currentConfig
 	except Exception as err:
 		print err
@@ -199,12 +199,9 @@ class FeatureSelection:
 			self.currentConfig.SetFeatureMasks(self.currentMask)
 		
 		#Plan which componenets to test
-		print self.currentMask
 		componentsToTest = []
 		for layerNum, (layers, fullMaskLayers) in enumerate(zip(self.currentMask,
 				self.currentConfig.fullMasks)):
-			print layers
-			print len(layers), len(fullMaskLayers)
 			for trackerNum, (mask, fullMask) in enumerate(zip(layers, fullMaskLayers)):
 				for component in fullMask:
 					if component not in mask:
@@ -348,14 +345,15 @@ def FeatureSelectRunScript(filteredSamples):
 
 	featureSelection = FeatureSelection(filteredSamples)
 	pickle.dump(featureSelection.tracker, open("fsmodel.dat", "wb"), protocol = -1)
+	fslog = open("fslog.txt","wt")
 
 	running = True
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(8)#HACK
-		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#HACK
-		#perfs.extend(perfs2)#HACK
+		perfs = featureSelection.EvaluateForwardSteps(16)
+		perfs2 = featureSelection.EvaluateBackwardSteps(16)
+		perfs.extend(perfs2)
 		perfs.sort()
 
 		#Find best feature
@@ -364,8 +362,10 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
 			count += 1
 
-			pickle.dump(bestMasks, open("masks"+str(count)+".dat", "wt"), protocol = 0)
-			pickle.dump(perfs, open("iter"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
+			fslog.write(str(bestMasks[2])+"\n")
+			fslog.flush()
 		else:
 			running = False
 
