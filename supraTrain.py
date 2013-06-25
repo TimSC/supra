@@ -248,6 +248,8 @@ class FeatureSelection:
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
+		else:
+			self.currentConfig.SetFeatureMasks(self.currentMask)
 		
 		#Plan which componenets to test
 		componentsToTest = []
