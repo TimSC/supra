@@ -8,7 +8,7 @@ cimport numpy as np
 import numpy as np
 import skimage.color as col, skimage.feature as feature, skimage.filter as filt
 import converge, normalisedImageOpt
-import lazyhog
+import lazyhog, pickle
 from scipy import sqrt, pi, arctan2
 
 def ExtractSupportIntensity(normImage, supportPixOff, ptX, ptY, offX, offY):
@@ -230,6 +230,15 @@ cdef class FeatureHog:
 		self.enabledPatches = state[10]
 		self.compMapping = state[11]
 		self.enabledCellOffsets = state[12]
+
+	def __reduce__(self):
+		state = self.__getstate__()
+		return (FeatureHogConstruct, state)
+
+def FeatureHogConstruct(*args):
+	hog = FeatureHog()
+	hog.__setstate__(args)
+	return hog
 
 class FeatureDists:
 	def __init__(self, numPoints):
