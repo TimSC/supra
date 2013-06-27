@@ -72,6 +72,7 @@ class FeatureSobel:
 	def __init__(self, supportPixHalfWidth, numSupportPix=50, normalise=1):
 		self.supportPixOffSobelInitial = np.random.uniform(low=-supportPixHalfWidth, \
 			high=supportPixHalfWidth, size=(numSupportPix, 2))
+		self.rotationInd = np.random.randint(2, size=numSupportPix)
 		self.supportPixOffSobel = self.supportPixOffSobelInitial.copy()
 		self.model = None
 		self._sample = None
@@ -79,6 +80,8 @@ class FeatureSobel:
 		self.feat = None
 		self.mask = None
 		self.normalise = normalise
+		self.supportPixOffFilt = None
+		self.kernelMapping = None
 
 	def Gen(self, ptNum, xOff, yOff):
 		self.ptNum = ptNum
@@ -95,11 +98,14 @@ class FeatureSobel:
 		self.supportPixOffSobel = self.supportPixOffSobelInitial[self.mask,:]
 
 	def InitFeature(self):
-		pixSobel = ExtractSupportIntensity(self.sobelSample, self.supportPixOffSobel, \
-			self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff)
+		pixSobel = []
+		for kernelInd, offsets in enumerate(self.supportPixOffFilt):
+			pixSobel.append(ExtractSupportIntensity(self.sobelSample[kernelInd], offsets, \
+				self.model[self.ptNum][0], self.model[self.ptNum][1], self.xOff, self.yOff))
+
 		pixConvSobel = []
-		for px in pixSobel:
-			pixConvSobel.extend(px)
+		for kernInd, kernOff in zip(self.rotationInd, self.kernelMapping):
+			pixConvSobel.extend(pixSobel[kernInd][kernOff])
 
 		feat = np.array(pixConvSobel)
 		if self.normalise:
@@ -111,7 +117,24 @@ class FeatureSobel:
 
 	def __getitem__(self, int ind):
 		if self.sobelSample is None:
-			self.sobelSample = normalisedImageOpt.KernelFilter(self._sample)
+			self.sobelSample = []
+			self.sobelSample.append(normalisedImageOpt.KernelFilter(self._sample, normalisedImageOpt.GenSobelKernel(0.)))
+			self.sobelSample.append(normalisedImageOpt.KernelFilter(self._sample, normalisedImageOpt.GenSobelKernel(90.)))
+
+			#Map between high level components and the underlying kernels
+			self.supportPixOffFilt = []
+			self.kernelMapping = []
+			for num, ind in enumerate(self.rotationInd):
+				while ind >= len(self.supportPixOffFilt):
+					self.supportPixOffFilt.append([])
+
+				self.kernelMapping.append(len(self.supportPixOffFilt[ind]))
+				self.supportPixOffFilt[ind].append(self.supportPixOffSobelInitial[num,:])
+
+			#Convert to numpy for speed and convenience
+			self.supportPixOffFilt = map(np.array, self.supportPixOffFilt)
+			self.kernelMapping = np.array(self.kernelMapping)
+
 		if self.feat is None:
 			self.InitFeature()
 

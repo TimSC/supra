@@ -178,6 +178,13 @@ class NormalisedImage:
 			self.CalcProcrustes()
 		return self.procShape
 
+def GenSobelKernel(float angle):
+	if angle == 0.:
+		return [[1,0,-1],[2,0,-2],[1,0,-1]]
+	if angle == 90.:
+		return [[-1,-2,-1],[0,0,0],[1,2,1]]
+	raise Exception("Not implemented")
+
 cdef class KernelFilter:
 
 	cdef np.ndarray kernel, offsets, scaleOffsets, coeffs
@@ -223,7 +230,8 @@ cdef class KernelFilter:
 		for x in range(-self.halfw, self.halfw+1):
 			for y in range(-self.halfw, self.halfw+1):
 				comp = kernel[y+self.halfw][x+self.halfw]
-				total += self.normIm.GetPixel(ptNum, self.scale*x+xOff, self.scale*y+yOff) * comp
+				if comp != 0.:
+					total += self.normIm.GetPixel(ptNum, self.scale*x+xOff, self.scale*y+yOff) * comp
 		#print xOff, yOff, total
 		if self.absVal:
 			return np.abs(total)
