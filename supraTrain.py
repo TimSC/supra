@@ -1,5 +1,5 @@
 
-import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys
+import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, traceback
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
@@ -168,6 +168,7 @@ def EvalTrackerConfig(args):
 		del currentConfig
 	except Exception as err:
 		print err
+		traceback.print_exc(file=sys.stdout)
 		return None
 	return perf
 
@@ -191,13 +192,19 @@ class FeatureSelection:
 
 	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
-			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))			
+			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+		else:
+			self.currentConfig.cloudTracker = self.tracker
+
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
 		else:
 			self.currentConfig.SetFeatureMasks(self.currentMask)
 		
+		print "testeval1", self.tracker.IsModelReady()
+		print "testeval2", self.currentConfig.cloudTracker.IsModelReady()
+
 		#Plan which componenets to test
 		componentsToTest = []
 		for layerNum, (layers, fullMaskLayers) in enumerate(zip(self.currentMask,
@@ -224,7 +231,7 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			testMasks[testLayer][testTracker].append(testComponent)
+			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
@@ -355,8 +362,14 @@ def FeatureSelectRunScript(filteredSamples):
 
 	running = True
 	count = 0
+	currentModel = featureSelection.tracker
+
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
+		featureSelection.tracker = currentModel
+	
+		print "IsReady1", currentModel.IsModelReady()
+
 		perfs = featureSelection.EvaluateForwardSteps(4)#Hack
 		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
 		#perfs.extend(perfs2)#Hack
@@ -366,13 +379,15 @@ def FeatureSelectRunScript(filteredSamples):
 		if len(perfs) > 0:
 			bestMasks = perfs[0]
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
-			count += 1
+			currentModel = bestMasks[4]
+			print "IsReady2", currentModel.IsModelReady()
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
-			pickle.dump(bestMasks[4], open("model"+str(count)+".dat", "wb"), protocol = -1)
+			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
 			fslog.write(str(bestMasks[:3])+"\n")
 			fslog.flush()
+			count += 1
 		else:
 			running = False
 

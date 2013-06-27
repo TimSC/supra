@@ -17,11 +17,16 @@ def SignAgreement(testOff, testPred):
 
 class SupraAxis():
 	def __init__(self, axisXIn = 1., axisYIn = 0.):
-		self.reg = GradientBoostingRegressor()
+		self.reg = None
 		self.x = axisXIn
 		self.y = axisYIn
 	
 	def PrepareModel(self, features, offsets):
+		if self.reg is not None:
+			return 0
+
+		self.reg = GradientBoostingRegressor()
+
 		offsets = np.array(offsets)
 		labels = offsets[:,0] * self.x + offsets[:,1] * self.y
 
@@ -30,8 +35,23 @@ class SupraAxis():
 
 		self.reg.fit(features, labels)
 
+	def IsModelReady(self):
+		return self.reg is not None
+
+	def ClearModel(self):
+		self.reg = None
+	
 	def GetFeatureImportance(self):
 		return self.reg.feature_importances_
+
+def ListCompare(la, lb):
+	if la is None and lb is None: return True
+	if la is None: return False
+	if lb is None: return False
+	if len(la) != len(lb): return False
+	for a, b in zip(la, lb):
+		if a != b: return False
+	return True
 
 class SupraAxisSet():
 
@@ -49,6 +69,7 @@ class SupraAxisSet():
 		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix, 1)
 		self.numPoints = numPoints
 		self.featureMask = None
+		self.axes = None
 
 	def __del__(self):
 		del self.trainIntDb
@@ -58,8 +79,21 @@ class SupraAxisSet():
 		except:
 			pass
 
+	def IsModelReady(self):
+		if self.axes is None:
+			return False
+		countUnready = 0
+		for axis in self.axes:
+			if not axis.IsModelReady():
+				countUnready += 1
+		if countUnready > 0: return False
+		return True
+
 	def AddTraining(self, sample, trainOffset, extraFeatures):
-			
+
+		#Check at least one axis requires data
+		if self.IsModelReady(): return 0
+
 		xOff = trainOffset[self.ptNum][0]
 		yOff = trainOffset[self.ptNum][1]
 
@@ -98,6 +132,10 @@ class SupraAxisSet():
 		self.trainOffY.append(yOff)
 
 	def PrepareModel(self):
+
+		#Check at least one axis requires data
+		if self.IsModelReady(): return 0
+
 		self.axes = []
 		self.axes.append(SupraAxis(1., 0.))
 		self.axes.append(SupraAxis(0., 1.))
@@ -159,8 +197,12 @@ class SupraAxisSet():
 		return totalx / weightx, totaly / weighty
 
 	def SetFeatureMask(self, mask):
-		self.featureMask = mask
-		self.featureGen.SetFeatureMask(mask)
+		if not ListCompare(mask, self.featureMask):
+			self.featureMask = mask
+			self.featureGen.SetFeatureMask(mask)
+			if self.axes is not None:
+				for axis in self.axes:
+					axis.ClearModel()
 
 	def GetFeatureList(self):
 		return self.featureGen.GetFeatureList()
@@ -197,6 +239,11 @@ class SupraCloud():
 	def ClearTraining(self):
 		for tracker in self.trackers:
 			tracker.ClearTraining()
+
+	def IsModelReady(self):
+		for tracker in self.trackers:
+			if not tracker.IsModelReady(): return False
+		return True
 
 	def GetFeatureImportance(self):
 		out = []
@@ -239,6 +286,8 @@ class SupraLayers:
 
 	def AddTraining(self, sample, numExamples):
 
+		print "IsModelReady3", self.IsModelReady()
+
 		#Add noise to shape for previous frame features
 		prevShapePerturb = copy.deepcopy(sample.procShape)
 		for ptNum in range(len(prevShapePerturb)):
@@ -259,6 +308,11 @@ class SupraLayers:
 	def ClearTraining(self):
 		for layer in self.layers:
 			layer.ClearTraining()
+
+	def IsModelReady(self):
+		for layer in self.layers:
+			if not layer.IsModelReady(): return False
+		return True
 
 	def GetFeatureImportance(self):
 		out = []
