@@ -153,10 +153,7 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
-		test = pickle.dumps(self.cloudTracker, protocol=-1)
-		test2 = pickle.loads(test)
-
-		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': test}
+		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': self.cloudTracker}
 
 def EvalTrackerConfig(args):
 	try:
