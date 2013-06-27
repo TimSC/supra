@@ -286,8 +286,6 @@ class SupraLayers:
 
 	def AddTraining(self, sample, numExamples):
 
-		print "IsModelReady3", self.IsModelReady()
-
 		#Add noise to shape for previous frame features
 		prevShapePerturb = copy.deepcopy(sample.procShape)
 		for ptNum in range(len(prevShapePerturb)):

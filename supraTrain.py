@@ -202,9 +202,6 @@ class FeatureSelection:
 		else:
 			self.currentConfig.SetFeatureMasks(self.currentMask)
 		
-		print "testeval1", self.tracker.IsModelReady()
-		print "testeval2", self.currentConfig.cloudTracker.IsModelReady()
-
 		#Plan which componenets to test
 		componentsToTest = []
 		for layerNum, (layers, fullMaskLayers) in enumerate(zip(self.currentMask,
@@ -231,7 +228,7 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			#testMasks[testLayer][testTracker].append(testComponent)#Hack
+			testMasks[testLayer][testTracker].append(testComponent)
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
@@ -368,8 +365,6 @@ def FeatureSelectRunScript(filteredSamples):
 		featureSelection.SplitSamples(filteredSamples)
 		featureSelection.tracker = currentModel
 	
-		print "IsReady1", currentModel.IsModelReady()
-
 		perfs = featureSelection.EvaluateForwardSteps(4)#Hack
 		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
 		#perfs.extend(perfs2)#Hack
@@ -380,7 +375,6 @@ def FeatureSelectRunScript(filteredSamples):
 			bestMasks = perfs[0]
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
 			currentModel = bestMasks[4]
-			print "IsReady2", currentModel.IsModelReady()
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
