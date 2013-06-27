@@ -153,7 +153,10 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
-		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': self.cloudTracker}
+		test = pickle.dumps(self.cloudTracker, protocol=-1)
+		test2 = pickle.loads(test)
+
+		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': test}
 
 def EvalTrackerConfig(args):
 	try:
@@ -357,7 +360,7 @@ def FeatureSelectRunScript(filteredSamples):
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(8)#Hack
+		perfs = featureSelection.EvaluateForwardSteps(4)#Hack
 		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
 		#perfs.extend(perfs2)#Hack
 		perfs.sort()
