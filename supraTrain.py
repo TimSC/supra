@@ -369,7 +369,7 @@ def FeatureSelectRunScript(filteredSamples):
 			count += 1
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
-			pickle.dump(bestMasks[4], open("model"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(bestMasks[4], open("model"+str(count)+".dat", "wb"), protocol = -1)
 			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
 			fslog.write(str(bestMasks[:3])+"\n")
 			fslog.flush()
