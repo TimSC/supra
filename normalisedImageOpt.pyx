@@ -280,6 +280,31 @@ cdef class KernelFilter:
 				
 		return out
 
+	def __getstate__(self):
+		return {'kernel': self.kernel, 'offsets': self.offsets, 'scaleOffsets': self.scaleOffsets, 
+			'coeffs': self.coeffs, 'scale': self.scale, 'halfw': self.halfw, 'normIm': self.normIm,
+			'absVal': self.absVal, 'numChans': self.numChans}
+	
+	def __setstate__(self, state):
+		self.kernel = state['kernel']
+		self.offsets = state['offsets']
+		self.scaleOffsets = state['scaleOffsets']
+		self.coeffs = state['coeffs']
+		self.scale = state['scale']
+		self.halfw = state['halfw']
+		self.normIm = state['normIm']
+		self.absVal = state['absVal']
+		self.numChans = state['numChans']
+
+	def __reduce__(self):
+		state = self.__getstate__()
+		return (KernelFilterConstruct, state)
+
+def KernelFilterConstruct(*args):
+	kern = KernelFilter()
+	kern.__setstate__(args)
+	return kern
+
 def CalcKernelOffsets(kernel):
 	cdef int hw = (kernel.shape[0] - 1) / 2
 

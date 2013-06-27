@@ -153,7 +153,7 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
-		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError}
+		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': self.cloudTracker}
 
 def EvalTrackerConfig(args):
 	try:
@@ -163,8 +163,8 @@ def EvalTrackerConfig(args):
 		testMasks = args[3]
 
 		currentConfig.SetFeatureMasks(testMasks)
-		currentConfig.Train(trainNormSamples, 10)
-		perf = currentConfig.Test(testNormSamples, 10)
+		currentConfig.Train(trainNormSamples, 1)#Hack
+		perf = currentConfig.Test(testNormSamples, 1)#Hack
 		del currentConfig
 	except Exception as err:
 		print err
@@ -236,7 +236,10 @@ class FeatureSelection:
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
-			testPerfs.append((perf[self.metric], perf, test, testArgs))
+			model = perf['model']
+			del perf['model']
+
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -289,7 +292,10 @@ class FeatureSelection:
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
-			testPerfs.append((perf[self.metric], perf, test, testArgs))
+			model = perf['model']
+			del perf['model']
+
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -351,9 +357,9 @@ def FeatureSelectRunScript(filteredSamples):
 	count = 0
 	while running:
 		featureSelection.SplitSamples(filteredSamples)
-		perfs = featureSelection.EvaluateForwardSteps(16)
-		perfs2 = featureSelection.EvaluateBackwardSteps(16)
-		perfs.extend(perfs2)
+		perfs = featureSelection.EvaluateForwardSteps(8)#Hack
+		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
+		#perfs.extend(perfs2)#Hack
 		perfs.sort()
 
 		#Find best feature
@@ -363,6 +369,7 @@ def FeatureSelectRunScript(filteredSamples):
 			count += 1
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(bestMasks[4], open("model"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
 			fslog.write(str(bestMasks[:3])+"\n")
 			fslog.flush()
