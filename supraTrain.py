@@ -6,6 +6,8 @@ from multiprocessing import Pool, cpu_count
 def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = None):
 	currentModel = np.array(copy.deepcopy(model))
 	trLogPoint = []
+	print currentModel
+	print trLogPointIn
 
 	for iterNum in range(trackerLayer.numIter):
 		for ptNum, tracker in enumerate(trackerLayer.trackers):
@@ -16,6 +18,9 @@ def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = 
 			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
 			currentModel[ptNum,:] -= pred
 
+	for ptNum, tracker in enumerate(trackerLayer.trackers):
+		trLogPoint[ptNum].append(currentModel[ptNum,:])
+
 	return currentModel, trLogPoint
 
 def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
@@ -25,6 +30,7 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 		trLogIn = [[] for layer in tracker.layers]
 
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
+		print "layerNum", layerNum
 		currentModel, trLogPoint = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
 		trLogOut.append(trLogPoint)
 	return currentModel, trLogOut
@@ -38,6 +44,7 @@ class TrainEval:
 		self.masks = self.cloudTracker.GetFeatureList()
 		self.fullMasks = copy.deepcopy(self.masks)
 		self.testOffStore = None
+		self.currentTrackLog = None
 
 	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
@@ -64,6 +71,15 @@ class TrainEval:
 		self.cloudTracker.PrepareModel()
 		self.cloudTracker.ClearTraining()
 
+	def ClearTestOffsets(self):
+		self.testOffStore = None
+
+	def ClearTrackLog(self):
+		self.currentTrackLog = None
+
+	def SetTrackLog(self, log):
+		self.currentTrackLog = log
+
 	def SetFeatureMasks(self, masks):
 		self.masks = masks
 
@@ -76,22 +92,24 @@ class TrainEval:
 						filt.append(featComp)
 				layer[trackerNum] = filt
 
+	def InitTestOffsets(self, testNormSamples, numTestOffsets = 10):
+		self.testOffStore = []
+		for sampleCount, sample in enumerate(testNormSamples):
+			testOff = []
+			for count in range(numTestOffsets):
+				x = np.random.normal(scale=0.3)
+				y = np.random.normal(scale=0.3)
+				testOff.append((x, y))
+			self.testOffStore.append(testOff)
+
 	def Test(self, testNormSamples, numTestOffsets = 10, log = None):
-		#testOffsCollect = []
 		sampleInfo = []
 		testPredModels = []
 		testModels = []
 		trueModels = []
 
 		if self.testOffStore is None:
-			self.testOffStore = []
-			for sampleCount, sample in enumerate(testNormSamples):
-				testOff = []
-				for count in range(numTestOffsets):
-					x = np.random.normal(scale=0.3)
-					y = np.random.normal(scale=0.3)
-					testOff.append((x, y))
-				self.testOffStore.append(testOff)
+			self.InitTestOffsets(testNormSamples, numTestOffsets)
 
 		for sampleCount, (sample, testOffs) in enumerate(zip(testNormSamples, self.testOffStore)):
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
@@ -107,10 +125,9 @@ class TrainEval:
 					testPos.append((pt[0] + testOff[0], pt[1] + testOff[1]))
 
 				#Make predicton
-				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat)
+				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, self.currentTrackLog)
 
 				#Store result
-				#testOffsCollect.append(testOff)
 				testPredModels.append(predModel)
 				testModels.append(testPos)
 				trueModels.append(sample.GetProcrustesNormedModel())
@@ -187,7 +204,8 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
-		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 'model': self.cloudTracker}
+		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 
+			'model': self.cloudTracker, 'trackLog': trackLog}
 
 def EvalTrackerConfig(args):
 	try:
@@ -214,6 +232,7 @@ class FeatureSelection:
 		self.SplitSamples(normalisedSamples)
 		self.tracker = supra.SupraLayers(self.trainNormSamples)
 		self.currentMask = None
+		self.currentTrackLog = None
 
 	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
@@ -224,11 +243,23 @@ class FeatureSelection:
 		mirImgs = [normalisedImage.HorizontalMirrorNormalisedImage(img,[1,0,2,4,3]) for img in self.trainNormSamples]
 		self.trainNormSamples.extend(mirImgs)
 
+	def ClearTestOffsets(self):
+		self.currentConfig.ClearTestOffsets()
+
+	def ClearTrackLog(self):
+		self.currentTrackLog = None
+
+	def SetTrackLog(self, log):
+		self.currentTrackLog = log
+
 	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
 			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
 		else:
 			self.currentConfig.cloudTracker = self.tracker
+
+		self.currentConfig.SetTrackLog(self.currentTrackLog)
 
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
@@ -276,8 +307,10 @@ class FeatureSelection:
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
 			model = perf['model']
 			del perf['model']
+			trackLog = perf['trackLog']
+			del perf['trackLog']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model))
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLog))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -289,6 +322,12 @@ class FeatureSelection:
 
 		if self.currentConfig == None:
 			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
+		else:
+			self.currentConfig.cloudTracker = self.tracker
+
+		self.currentConfig.SetTrackLog(self.currentTrackLog)
+
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
 			self.currentMask = self.currentConfig.masks
@@ -332,8 +371,10 @@ class FeatureSelection:
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
 			model = perf['model']
 			del perf['model']
+			trackLog = perf['trackLog']
+			del perf['trackLog']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model))
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLog))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -394,10 +435,18 @@ def FeatureSelectRunScript(filteredSamples):
 	running = True
 	count = 0
 	currentModel = featureSelection.tracker
+	featureSelection.SplitSamples(filteredSamples) #Hack to disable
+	trackLog = None
 
 	while running:
-		featureSelection.SplitSamples(filteredSamples)
+		
 		featureSelection.tracker = currentModel
+		if 1:
+			featureSelection.SetTrackLog(trackLog)
+		else:
+			featureSelection.SplitSamples(filteredSamples)
+			featureSelection.ClearTrackLog()
+			featureSelection.ClearTestOffsets()
 	
 		perfs = featureSelection.EvaluateForwardSteps(4)#Hack
 		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
@@ -409,6 +458,7 @@ def FeatureSelectRunScript(filteredSamples):
 			bestMasks = perfs[0]
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
 			currentModel = bestMasks[4]
+			trackLog = bestMasks[5]
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
