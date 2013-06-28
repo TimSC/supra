@@ -1,5 +1,5 @@
 
-import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, traceback
+import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, traceback, hashlib, binascii
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
@@ -38,6 +38,8 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 	trLogOut = []
 	if trLogIn is None:
 		trLogIn = [[] for layer in tracker.layers]
+
+	print prevFrameFeatures
 
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
 		print "layerNum", layerNum
@@ -130,6 +132,11 @@ class TrainEval:
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
 			prevFrameFeat = self.cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
+			trackLogSample = None
+			if self.currentTrackLog is not None: print "testa", len(self.currentTrackLog)
+			if self.currentTrackLog is not None and sampleCount < len(self.currentTrackLog):
+				trackLogSample = self.currentTrackLog[sampleCount]
+
 			for layer in self.cloudTracker.layers:
 				print layer.supportPixHalfWidth, layer.trainingOffset
 
@@ -146,11 +153,13 @@ class TrainEval:
 
 				print "testPos", testPos
 				trackLogIn = None
-				if self.currentTrackLog is not None and count < len(self.currentTrackLog):
-					trackLogIn = self.currentTrackLog[count]
+				if trackLogSample is not None and count < len(trackLogSample):
+					trackLogIn = copy.deepcopy(trackLogSample[count])
+				if trackLogIn is not None: print "testb", len(trackLogIn)
+				if trackLogSample is not None: print "trackLogSample", trackLogSample
 
 				#Make predicton
-				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogIn)
+				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogSample)
 
 				#Store result
 				testPredModels.append(predModel)
@@ -244,11 +253,20 @@ def EvalTrackerConfig(args):
 		trainNormSamples = args[1]
 		testNormSamples = args[2]
 		testMasks = args[3]
+		trackLogs = args[4]
+
+		print "currentConfig", binascii.hexlify(hashlib.md5(pickle.dumps(currentConfig, protocol = -1)).digest())
+		print "trainNormSamples", binascii.hexlify(hashlib.md5(pickle.dumps(trainNormSamples, protocol = -1)).digest())
+		print "testNormSamples", binascii.hexlify(hashlib.md5(pickle.dumps(testNormSamples, protocol = -1)).digest())
+		print "testMasks", binascii.hexlify(hashlib.md5(pickle.dumps(testMasks, protocol = -1)).digest())
+		print "trackLogs", binascii.hexlify(hashlib.md5(pickle.dumps(trackLogs, protocol = -1)).digest())
 
 		currentConfig.SetFeatureMasks(testMasks)
+		currentConfig.SetTrackLog(trackLogs)
 		currentConfig.Train(trainNormSamples, 1)#Hack
 		perf = currentConfig.Test(testNormSamples, 1)#Hack
 		del currentConfig
+
 	except Exception as err:
 		print err
 		traceback.print_exc(file=sys.stdout)
@@ -290,7 +308,7 @@ class FeatureSelection:
 		else:
 			self.currentConfig.cloudTracker = self.tracker
 
-		self.currentConfig.SetTrackLog(self.currentTrackLog)
+		#self.currentConfig.SetTrackLog(self.currentTrackLog)
 
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
@@ -326,7 +344,7 @@ class FeatureSelection:
 			testMasks = copy.deepcopy(self.currentMask)
 			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, self.currentTrackLog))
 
 		print "Forward step evaluate"
 		pool = Pool(processes=cpu_count())
@@ -357,7 +375,7 @@ class FeatureSelection:
 		else:
 			self.currentConfig.cloudTracker = self.tracker
 
-		self.currentConfig.SetTrackLog(self.currentTrackLog)
+		#self.currentConfig.SetTrackLog(self.currentTrackLog)
 
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
@@ -391,7 +409,7 @@ class FeatureSelection:
 			testMasks = copy.deepcopy(self.currentMask)
 			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, self.currentTrackLog))
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
