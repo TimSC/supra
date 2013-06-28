@@ -7,9 +7,6 @@ def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = 
 	currentModel = np.array(copy.deepcopy(model))
 	trLogPoint = []
 
-	print currentModel
-	print trLogPointIn
-
 	for iterNum in range(trackerLayer.numIter):
 		for ptNum, tracker in enumerate(trackerLayer.trackers):
 
@@ -24,7 +21,6 @@ def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = 
 			if ptLog is not None:
 				currentModel[ptNum,:] = ptLog[iterNum+1]
 			else:
-				print "Here"
 				pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
 				currentModel[ptNum,:] -= pred
 
@@ -39,10 +35,7 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 	if trLogIn is None:
 		trLogIn = [[] for layer in tracker.layers]
 
-	print prevFrameFeatures
-
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
-		print "layerNum", layerNum
 		currentModel, trLogPoint = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
 		trLogOut.append(trLogPoint)
 	return currentModel, trLogOut
@@ -133,7 +126,6 @@ class TrainEval:
 			prevFrameFeat = self.cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
 			trackLogSample = None
-			if self.currentTrackLog is not None: print "testa", len(self.currentTrackLog)
 			if self.currentTrackLog is not None and sampleCount < len(self.currentTrackLog):
 				trackLogSample = self.currentTrackLog[sampleCount]
 
@@ -142,21 +134,15 @@ class TrainEval:
 
 			for count, testOff in enumerate(testOffs):
 
-				print "original model", sample.GetProcrustesNormedModel()
-				print "test off", testOff
-
 				#Purturb positions for testing
 				assert len(sample.GetProcrustesNormedModel()) == len(testOff)
 				testPos = []
 				for pt, off in zip(sample.GetProcrustesNormedModel(), testOff):
 					testPos.append((pt[0] + off[0], pt[1] + off[1]))
 
-				print "testPos", testPos
 				trackLogIn = None
 				if trackLogSample is not None and count < len(trackLogSample):
 					trackLogIn = copy.deepcopy(trackLogSample[count])
-				if trackLogIn is not None: print "testb", len(trackLogIn)
-				if trackLogSample is not None: print "trackLogSample", trackLogSample
 
 				#Make predicton
 				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogSample)
@@ -189,10 +175,6 @@ class TrainEval:
 		#Calculate performance metrics
 		correls, signScores = [], []
 		for ptNum in range(testOffStoreArr.shape[2]):
-			print testOffsCollect.shape
-			print testOffsCollect[:,ptNum,0].shape
-			print testPreds[:,ptNum,0].shape
-
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)
@@ -254,12 +236,6 @@ def EvalTrackerConfig(args):
 		testNormSamples = args[2]
 		testMasks = args[3]
 		trackLogs = args[4]
-
-		print "currentConfig", binascii.hexlify(hashlib.md5(pickle.dumps(currentConfig, protocol = -1)).digest())
-		print "trainNormSamples", binascii.hexlify(hashlib.md5(pickle.dumps(trainNormSamples, protocol = -1)).digest())
-		print "testNormSamples", binascii.hexlify(hashlib.md5(pickle.dumps(testNormSamples, protocol = -1)).digest())
-		print "testMasks", binascii.hexlify(hashlib.md5(pickle.dumps(testMasks, protocol = -1)).digest())
-		print "trackLogs", binascii.hexlify(hashlib.md5(pickle.dumps(trackLogs, protocol = -1)).digest())
 
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
@@ -347,13 +323,10 @@ class FeatureSelection:
 			#Clear tracker history for modified tracker
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
 			if filteredTrackLog is not None:
-				print "x", len(filteredTrackLog)
 				for sampleLog in filteredTrackLog:
-					print testTracker, len(sampleLog)
-					print sampleLog
 					sampleLog[testLayer][testTracker] = None
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, self.currentTrackLog))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog))
 
 		print "Forward step evaluate"
 		pool = Pool(processes=cpu_count())
@@ -418,7 +391,13 @@ class FeatureSelection:
 			testMasks = copy.deepcopy(self.currentMask)
 			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, self.currentTrackLog))
+			#Clear tracker history for modified tracker
+			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
+			if filteredTrackLog is not None:
+				for sampleLog in filteredTrackLog:
+					sampleLog[testLayer][testTracker] = None
+
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog))
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
