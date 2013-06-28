@@ -3,6 +3,32 @@ import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, tr
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
+def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = None):
+	currentModel = np.array(copy.deepcopy(model))
+	trLogPoint = []
+
+	for iterNum in range(trackerLayer.numIter):
+		for ptNum, tracker in enumerate(trackerLayer.trackers):
+			while ptNum >= len(trLogPoint):
+				trLogPoint.append([])
+			trLogPoint[ptNum].append(currentModel[ptNum,:])
+
+			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
+			currentModel[ptNum,:] -= pred
+
+	return currentModel, trLogPoint
+
+def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
+	currentModel = np.array(copy.deepcopy(model))
+	trLogOut = []
+	if trLogIn is None:
+		trLogIn = [[] for layer in tracker.layers]
+
+	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
+		currentModel, trLogPoint = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
+		trLogOut.append(trLogPoint)
+	return currentModel, trLogOut
+
 class TrainEval:
 	def __init__(self, trainNormSamples, tracker = None):
 		if tracker is None:
@@ -11,6 +37,7 @@ class TrainEval:
 			self.cloudTracker = tracker
 		self.masks = self.cloudTracker.GetFeatureList()
 		self.fullMasks = copy.deepcopy(self.masks)
+		self.testOffStore = None
 
 	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
@@ -50,33 +77,40 @@ class TrainEval:
 				layer[trackerNum] = filt
 
 	def Test(self, testNormSamples, numTestOffsets = 10, log = None):
-		testOffs = []
+		#testOffsCollect = []
 		sampleInfo = []
 		testPredModels = []
 		testModels = []
 		trueModels = []
-		for sampleCount, sample in enumerate(testNormSamples):
+
+		if self.testOffStore is None:
+			self.testOffStore = []
+			for sampleCount, sample in enumerate(testNormSamples):
+				testOff = []
+				for count in range(numTestOffsets):
+					x = np.random.normal(scale=0.3)
+					y = np.random.normal(scale=0.3)
+					testOff.append((x, y))
+				self.testOffStore.append(testOff)
+
+		for sampleCount, (sample, testOffs) in enumerate(zip(testNormSamples, self.testOffStore)):
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
 			prevFrameFeat = self.cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
 			for layer in self.cloudTracker.layers:
 				print layer.supportPixHalfWidth, layer.trainingOffset
 
-			for count in range(numTestOffsets):
+			for count, testOff in enumerate(testOffs):
 				#Purturb positions for testing
 				testPos = []
-				testOff = []
 				for pt in sample.GetProcrustesNormedModel():
-					x = np.random.normal(scale=0.3)
-					y = np.random.normal(scale=0.3)
-					testOff.append((x, y))
-					testPos.append((pt[0] + x, pt[1] + y))
+					testPos.append((pt[0] + testOff[0], pt[1] + testOff[1]))
 
 				#Make predicton
-				predModel = self.cloudTracker.Predict(sample, testPos, prevFrameFeat)
+				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat)
 
 				#Store result
-				testOffs.append(testOff)
+				#testOffsCollect.append(testOff)
 				testPredModels.append(predModel)
 				testModels.append(testPos)
 				trueModels.append(sample.GetProcrustesNormedModel())
@@ -84,16 +118,16 @@ class TrainEval:
 
 
 		#Calculate performance
-		testOffs = np.array(testOffs)
+		testOffsCollect = np.array(self.testOffStore)
 		testPredModels = np.array(testPredModels)
 		testModels = np.array(testModels)
 		trueModels = np.array(trueModels)
 
 		#Calculate relative movement of tracker
 		testPreds = []
-		for sampleNum in range(testOffs.shape[0]):
+		for sampleNum in range(testOffsCollect.shape[0]):
 			diff = []
-			for ptNum in range(testOffs.shape[1]):
+			for ptNum in range(testOffsCollect.shape[1]):
 				diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
 					testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
 			testPreds.append(diff)
@@ -101,27 +135,27 @@ class TrainEval:
 
 		#Calculate performance metrics
 		correls, signScores = [], []
-		for ptNum in range(testOffs.shape[1]):
-			correlX = np.corrcoef(testOffs[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
-			correlY = np.corrcoef(testOffs[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
+		for ptNum in range(testOffsCollect.shape[1]):
+			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
+			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)
 			correls.append(correl)
-			#plt.plot(testOffs[:,ptNum,0], testPreds[:,ptNum,0],'x')
-			#plt.plot(testOffs[:,ptNum,1], testPreds[:,ptNum,1],'x')
+			#plt.plot(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0],'x')
+			#plt.plot(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1],'x')
 		#plt.savefig("correl.svg")
 	
-		for ptNum in range(testOffs.shape[1]):
-			signX = supra.SignAgreement(testOffs[:,ptNum,0], testPreds[:,ptNum,0])
-			signY = supra.SignAgreement(testOffs[:,ptNum,1], testPreds[:,ptNum,1])
+		for ptNum in range(testOffsCollect.shape[1]):
+			signX = supra.SignAgreement(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])
+			signY = supra.SignAgreement(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])
 			signScore = 0.5 * (signX + signY)
 			signScores.append(signScore)
 
 		#Calculate prediction error	
 		predErrors, offsetDist = [], []
-		for ptNum in range(testOffs.shape[1]):
+		for ptNum in range(testOffsCollect.shape[1]):
 			errX = trueModels[:,ptNum,0] - testPredModels[:,ptNum,0]
 			errY = trueModels[:,ptNum,1] - testPredModels[:,ptNum,1]
-			offset = np.power(np.power(testOffs[:,ptNum,0],2.)+np.power(testOffs[:,ptNum,1],2.),0.5)
+			offset = np.power(np.power(testOffsCollect[:,ptNum,0],2.)+np.power(testOffsCollect[:,ptNum,1],2.),0.5)
 			err = np.power(np.power(errX,2.)+np.power(errY,2.),0.5)
 			predErrors.append(err)
 			offsetDist.append(offset)
