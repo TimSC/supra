@@ -6,20 +6,30 @@ from multiprocessing import Pool, cpu_count
 def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = None):
 	currentModel = np.array(copy.deepcopy(model))
 	trLogPoint = []
+
 	print currentModel
 	print trLogPointIn
 
 	for iterNum in range(trackerLayer.numIter):
 		for ptNum, tracker in enumerate(trackerLayer.trackers):
+
+			ptLog = None
+			if trLogPointIn is not None and ptNum < len(trLogPointIn):
+				ptLog = trLogPointIn[ptNum]
+
 			while ptNum >= len(trLogPoint):
 				trLogPoint.append([])
-			trLogPoint[ptNum].append(currentModel[ptNum,:])
+			trLogPoint[ptNum].append(currentModel[ptNum,:].copy())
+
+			if ptLog is not None:
+				print "1", ptLog[iterNum+1]
 
 			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
 			currentModel[ptNum,:] -= pred
+			print "2", currentModel[ptNum,:]			
 
 	for ptNum, tracker in enumerate(trackerLayer.trackers):
-		trLogPoint[ptNum].append(currentModel[ptNum,:])
+		trLogPoint[ptNum].append(currentModel[ptNum,:].copy())
 
 	return currentModel, trLogPoint
 
@@ -92,14 +102,17 @@ class TrainEval:
 						filt.append(featComp)
 				layer[trackerNum] = filt
 
-	def InitTestOffsets(self, testNormSamples, numTestOffsets = 10):
+	def InitTestOffsets(self, testNormSamples, numTestOffsets = 10, numPoints = 5):
 		self.testOffStore = []
 		for sampleCount, sample in enumerate(testNormSamples):
 			testOff = []
 			for count in range(numTestOffsets):
-				x = np.random.normal(scale=0.3)
-				y = np.random.normal(scale=0.3)
-				testOff.append((x, y))
+				pts = []
+				for pt in range(numPoints):
+					x = np.random.normal(scale=0.3)
+					y = np.random.normal(scale=0.3)
+					pts.append((x, y))
+				testOff.append(pts)
 			self.testOffStore.append(testOff)
 
 	def Test(self, testNormSamples, numTestOffsets = 10, log = None):
@@ -107,9 +120,11 @@ class TrainEval:
 		testPredModels = []
 		testModels = []
 		trueModels = []
+		trackLogs = []
+		testOffsCollect = []
 
-		if self.testOffStore is None:
-			self.InitTestOffsets(testNormSamples, numTestOffsets)
+		#if self.testOffStore is None: #Hack to disable
+		#	self.InitTestOffsets(testNormSamples, numTestOffsets)
 
 		for sampleCount, (sample, testOffs) in enumerate(zip(testNormSamples, self.testOffStore)):
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
@@ -119,32 +134,44 @@ class TrainEval:
 				print layer.supportPixHalfWidth, layer.trainingOffset
 
 			for count, testOff in enumerate(testOffs):
+
+				print "original model", sample.GetProcrustesNormedModel()
+				print "test off", testOff
+
 				#Purturb positions for testing
+				assert len(sample.GetProcrustesNormedModel()) == len(testOff)
 				testPos = []
-				for pt in sample.GetProcrustesNormedModel():
-					testPos.append((pt[0] + testOff[0], pt[1] + testOff[1]))
+				for pt, off in zip(sample.GetProcrustesNormedModel(), testOff):
+					testPos.append((pt[0] + off[0], pt[1] + off[1]))
+
+				print "testPos", testPos
+				trackLogIn = None
+				if self.currentTrackLog is not None and count < len(self.currentTrackLog):
+					trackLogIn = self.currentTrackLog[count]
 
 				#Make predicton
-				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, self.currentTrackLog)
+				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogIn)
 
 				#Store result
 				testPredModels.append(predModel)
 				testModels.append(testPos)
 				trueModels.append(sample.GetProcrustesNormedModel())
 				sampleInfo.append(sample.info)
-
+				trackLogs.append(trackLog)
+				testOffsCollect.append(testOff)
 
 		#Calculate performance
-		testOffsCollect = np.array(self.testOffStore)
+		testOffsCollect = np.array(testOffsCollect)
+		testOffStoreArr = np.array(self.testOffStore)
 		testPredModels = np.array(testPredModels)
 		testModels = np.array(testModels)
 		trueModels = np.array(trueModels)
 
 		#Calculate relative movement of tracker
 		testPreds = []
-		for sampleNum in range(testOffsCollect.shape[0]):
+		for sampleNum in range(testOffStoreArr.shape[0]):
 			diff = []
-			for ptNum in range(testOffsCollect.shape[1]):
+			for ptNum in range(testOffStoreArr.shape[2]):
 				diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
 					testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
 			testPreds.append(diff)
@@ -152,7 +179,11 @@ class TrainEval:
 
 		#Calculate performance metrics
 		correls, signScores = [], []
-		for ptNum in range(testOffsCollect.shape[1]):
+		for ptNum in range(testOffStoreArr.shape[2]):
+			print testOffsCollect.shape
+			print testOffsCollect[:,ptNum,0].shape
+			print testPreds[:,ptNum,0].shape
+
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)
@@ -161,7 +192,7 @@ class TrainEval:
 			#plt.plot(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1],'x')
 		#plt.savefig("correl.svg")
 	
-		for ptNum in range(testOffsCollect.shape[1]):
+		for ptNum in range(testOffStoreArr.shape[2]):
 			signX = supra.SignAgreement(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])
 			signY = supra.SignAgreement(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])
 			signScore = 0.5 * (signX + signY)
@@ -169,7 +200,7 @@ class TrainEval:
 
 		#Calculate prediction error	
 		predErrors, offsetDist = [], []
-		for ptNum in range(testOffsCollect.shape[1]):
+		for ptNum in range(testOffStoreArr.shape[2]):
 			errX = trueModels[:,ptNum,0] - testPredModels[:,ptNum,0]
 			errY = trueModels[:,ptNum,1] - testPredModels[:,ptNum,1]
 			offset = np.power(np.power(testOffsCollect[:,ptNum,0],2.)+np.power(testOffsCollect[:,ptNum,1],2.),0.5)
@@ -205,7 +236,7 @@ class TrainEval:
 			log.flush()
 
 		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 
-			'model': self.cloudTracker, 'trackLog': trackLog}
+			'model': self.cloudTracker, 'trackLogs': trackLogs}
 
 def EvalTrackerConfig(args):
 	try:
@@ -293,7 +324,7 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			testMasks[testLayer][testTracker].append(testComponent)
+			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
@@ -307,10 +338,10 @@ class FeatureSelection:
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
 			model = perf['model']
 			del perf['model']
-			trackLog = perf['trackLog']
-			del perf['trackLog']
+			trackLogs = perf['trackLogs']
+			del perf['trackLogs']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLog))
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -358,7 +389,7 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			testMasks[testLayer][testTracker].append(testComponent)
+			#testMasks[testLayer][testTracker].append(testComponent)#Hack
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks))
 
@@ -371,10 +402,10 @@ class FeatureSelection:
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
 			model = perf['model']
 			del perf['model']
-			trackLog = perf['trackLog']
-			del perf['trackLog']
+			trackLogs = perf['trackLogs']
+			del perf['trackLogs']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLog))
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -411,7 +442,7 @@ def EvalSingleConfig(filteredSamples):
 
 			#Create and train tracker
 			#trainTracker.InitRandomMask()
-			cloudTracker = trainTracker.Train(trainNormSamples, 10)
+			cloudTracker = trainTracker.Train(trainNormSamples, 1)#Hack
 			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
@@ -424,7 +455,7 @@ def EvalSingleConfig(filteredSamples):
 			trainTracker.cloudTracker = cloudTracker
 
 		#Run performance test
-		trainTracker.Test(testNormSamples, 10, log)
+		trainTracker.Test(testNormSamples, 1, log)#Hack
 
 def FeatureSelectRunScript(filteredSamples):
 
@@ -436,19 +467,19 @@ def FeatureSelectRunScript(filteredSamples):
 	count = 0
 	currentModel = featureSelection.tracker
 	featureSelection.SplitSamples(filteredSamples) #Hack to disable
-	trackLog = None
+	trackLogs = None
 
 	while running:
 		
 		featureSelection.tracker = currentModel
 		if 1:
-			featureSelection.SetTrackLog(trackLog)
+			featureSelection.SetTrackLog(trackLogs)
 		else:
 			featureSelection.SplitSamples(filteredSamples)
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearTestOffsets()
 	
-		perfs = featureSelection.EvaluateForwardSteps(4)#Hack
+		perfs = featureSelection.EvaluateForwardSteps(1)#Hack
 		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
 		#perfs.extend(perfs2)#Hack
 		perfs.sort()
@@ -458,7 +489,7 @@ def FeatureSelectRunScript(filteredSamples):
 			bestMasks = perfs[0]
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
 			currentModel = bestMasks[4]
-			trackLog = bestMasks[5]
+			trackLogs = bestMasks[5]
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
