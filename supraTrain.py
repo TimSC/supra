@@ -22,11 +22,11 @@ def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = 
 			trLogPoint[ptNum].append(currentModel[ptNum,:].copy())
 
 			if ptLog is not None:
-				print "1", ptLog[iterNum+1]
-
-			pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
-			currentModel[ptNum,:] -= pred
-			print "2", currentModel[ptNum,:]			
+				currentModel[ptNum,:] = ptLog[iterNum+1]
+			else:
+				print "Here"
+				pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
+				currentModel[ptNum,:] -= pred
 
 	for ptNum, tracker in enumerate(trackerLayer.trackers):
 		trLogPoint[ptNum].append(currentModel[ptNum,:].copy())
@@ -343,6 +343,15 @@ class FeatureSelection:
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
 			#testMasks[testLayer][testTracker].append(testComponent)#Hack
+
+			#Clear tracker history for modified tracker
+			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
+			if filteredTrackLog is not None:
+				print "x", len(filteredTrackLog)
+				for sampleLog in filteredTrackLog:
+					print testTracker, len(sampleLog)
+					print sampleLog
+					sampleLog[testLayer][testTracker] = None
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, self.currentTrackLog))
 
