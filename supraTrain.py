@@ -239,8 +239,8 @@ def EvalTrackerConfig(args):
 
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
-		currentConfig.Train(trainNormSamples, 1)#Hack
-		perf = currentConfig.Test(testNormSamples, 1)#Hack
+		currentConfig.Train(trainNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 10)
 		del currentConfig
 
 	except Exception as err:
@@ -318,7 +318,7 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			#testMasks[testLayer][testTracker].append(testComponent)#Hack
+			testMasks[testLayer][testTracker].append(testComponent)
 
 			#Clear tracker history for modified tracker
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
@@ -389,7 +389,15 @@ class FeatureSelection:
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			#testMasks[testLayer][testTracker].append(testComponent)#Hack
+			testMasksFilt = []
+			for layerNum, layer in enumerate(testMasks):
+				while layerNum >= len(testMasksFilt): testMasksFilt.append([])
+				for trNum, tr in enumerate(layer):
+					while trNum >= len(testMasksFilt[layerNum]): testMasksFilt[layerNum].append([])
+					for comp in tr:
+						if layerNum==testLayer and trNum==testTracker and comp==testComponent:
+							continue
+						testMasksFilt[layerNum][trNum].append(comp)
 
 			#Clear tracker history for modified tracker
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
@@ -397,7 +405,7 @@ class FeatureSelection:
 				for sampleLog in filteredTrackLog:
 					sampleLog[testLayer][testTracker] = None
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasksFilt, filteredTrackLog))
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
@@ -478,16 +486,16 @@ def FeatureSelectRunScript(filteredSamples):
 	while running:
 		
 		featureSelection.tracker = currentModel
-		if 1:
+		if count % 10 == 0:
 			featureSelection.SetTrackLog(trackLogs)
 		else:
 			featureSelection.SplitSamples(filteredSamples)
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearTestOffsets()
 	
-		perfs = featureSelection.EvaluateForwardSteps(1)#Hack
-		#perfs2 = featureSelection.EvaluateBackwardSteps(16)#Hack
-		#perfs.extend(perfs2)#Hack
+		perfs = featureSelection.EvaluateForwardSteps(16)
+		perfs2 = featureSelection.EvaluateBackwardSteps(16)
+		perfs.extend(perfs2)
 		perfs.sort()
 
 		#Find best feature
