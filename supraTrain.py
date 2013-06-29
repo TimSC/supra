@@ -114,6 +114,7 @@ class TrainEval:
 					pts.append((x, y))
 				testOff.append(pts)
 			self.testOffStore.append(testOff)
+		self.testOffStore = np.array(self.testOffStore)
 
 	def Test(self, testNormSamples, numTestOffsets = 10, log = None):
 		sampleInfo = []
@@ -123,8 +124,11 @@ class TrainEval:
 		trackLogs = []
 		testOffsCollect = []
 
-		#if self.testOffStore is None: #Hack to disable
-		#	self.InitTestOffsets(testNormSamples, numTestOffsets)
+		if self.testOffStore is None or self.testOffStore.shape[1] != numTestOffsets:
+			self.InitTestOffsets(testNormSamples, numTestOffsets)
+		print self.testOffStore.shape
+		print numTestOffsets
+		assert self.testOffStore.shape[1] != numTestOffsets
 
 		for sampleCount, (sample, testOffs) in enumerate(zip(testNormSamples, self.testOffStore)):
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
@@ -162,7 +166,7 @@ class TrainEval:
 
 		#Calculate performance
 		testOffsCollect = np.array(testOffsCollect)
-		testOffStoreArr = np.array(self.testOffStore)
+		testOffStoreArr = self.testOffStore
 		testPredModels = np.array(testPredModels)
 		testModels = np.array(testModels)
 		trueModels = np.array(trueModels)
@@ -171,15 +175,21 @@ class TrainEval:
 		testPreds = []
 		for sampleNum in range(testOffStoreArr.shape[0]):
 			diff = []
-			for ptNum in range(testOffStoreArr.shape[2]):
-				diff.append((testModels[sampleNum,ptNum,0] - testPredModels[sampleNum,ptNum,0], \
-					testModels[sampleNum,ptNum,1] - testPredModels[sampleNum,ptNum,1]))
+			count = 0
+			for testNum in range(testOffStoreArr.shape[1]):
+				for ptNum in range(testOffStoreArr.shape[2]):
+					diff.append((testModels[sampleNum,count,0] - testPredModels[sampleNum,count,0], \
+						testModels[sampleNum,count,1] - testPredModels[sampleNum,count,1]))
+					count += 1
 			testPreds.append(diff)
 		testPreds = np.array(testPreds)
 
 		#Calculate performance metrics
 		correls, signScores = [], []
 		for ptNum in range(testOffStoreArr.shape[2]):
+			if len(testOffsCollect[:,ptNum,0]) != len(testPreds[:,ptNum,0]):
+				print testOffsCollect[:,ptNum,0].shape
+				print testPreds[:,ptNum,0].shape
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)
@@ -231,9 +241,7 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
-		config = []
-		for layer in self.cloudTracker:
-			config.append({'trainingOffset': layer.trainingOffset})
+		config = [{'trainingOffset': layer.trainingOffset} for layer in self.cloudTracker.layers]
 
 		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 
 			'model': self.cloudTracker, 'trackLogs': trackLogs, 'config': config}
@@ -250,8 +258,8 @@ def EvalTrackerConfig(args):
 		currentConfig.SetParameters(params)
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
-		currentConfig.Train(trainNormSamples, 10)
-		perf = currentConfig.Test(testNormSamples, 10)
+		currentConfig.Train(trainNormSamples, 2)#Hack
+		perf = currentConfig.Test(testNormSamples, 2)#Hack
 		del currentConfig
 
 	except Exception as err:
@@ -478,7 +486,7 @@ class FeatureSelection:
 		pool.join()
 
 		testPerfs = []
-		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
+		for perf, config, testArgs in zip(evalPerfs, configs, testArgList):
 			model = perf['model']
 			del perf['model']
 			trackLogs = perf['trackLogs']
@@ -486,9 +494,8 @@ class FeatureSelection:
 			config = perf['config']
 			del perf['config']
 
-
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
-			self.log.write(str(test)+str(perf)+"\n")
+			testPerfs.append((perf[self.metric], perf, config, testArgs, model, trackLogs, config))
+			self.log.write(str(config)+str(perf)+"\n")
 			self.log.flush()
 
 		testPerfs.sort()
@@ -596,7 +603,7 @@ def FeatureSelectRunScript(filteredSamples):
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
-			pickle.dump(config, open("config"+str(count)+".dat", "wt"), protocol = 0)
+			pickle.dump(currentConfig, open("config"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
 			fslog.write(str(bestMasks[:3])+"\n")
 			fslog.flush()
