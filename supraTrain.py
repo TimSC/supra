@@ -175,24 +175,25 @@ class TrainEval:
 
 		#Calculate relative movement of tracker
 		testPreds = []
-		for sampleNum in range(testOffStoreArr.shape[0]):
+		for num in range(testModels.shape[0]):
 			diff = []
-			count = 0
-			for testNum in range(testOffStoreArr.shape[1]):
-				for ptNum in range(testOffStoreArr.shape[2]):
-					diff.append((testModels[count,ptNum,0] - testPredModels[count,ptNum,0], \
-						testModels[count,ptNum,1] - testPredModels[count,ptNum,1]))
+			for ptNum in range(testModels.shape[1]):
+				diff.append((testModels[num,ptNum,0] - testPredModels[num,ptNum,0], \
+					testModels[num,ptNum,1] - testPredModels[num,ptNum,1]))
 				
-				testPreds.append(diff)
-				count += 1
+			testPreds.append(diff)
 		testPreds = np.array(testPreds)
 
 		#Calculate performance metrics
 		correls, signScores = [], []
 		for ptNum in range(testOffStoreArr.shape[2]):
 			
-			print testOffsCollect[:,ptNum,0].shape
-			print testPreds[:,ptNum,0].shape
+			print "a",testPreds.shape
+			#print "b",testOffsCollect[:,ptNum,0]
+			#print "c",testPreds[:,ptNum,0]
+			print "d",testOffsCollect[:,ptNum,0].shape
+			print "e",testPreds[:,ptNum,0].shape
+			assert testOffsCollect.shape[0] == testPreds.shape[0]
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)
@@ -261,8 +262,8 @@ def EvalTrackerConfig(args):
 		currentConfig.SetParameters(params)
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
-		currentConfig.Train(trainNormSamples, 2)#Hack
-		perf = currentConfig.Test(testNormSamples, 2)#Hack
+		currentConfig.Train(trainNormSamples, 1)#Hack
+		perf = currentConfig.Test(testNormSamples, 1)#Hack
 		del currentConfig
 
 	except Exception as err:

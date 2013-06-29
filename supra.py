@@ -214,7 +214,7 @@ class SupraAxisSet():
 	def ClearModels(self):
 		if self.axes is not None: 
 			for axis in self.axes:
-				axis.ClearModels()
+				axis.ClearModel()
 
 class SupraCloud():
 
@@ -367,7 +367,7 @@ class SupraLayers:
 
 	def ClearModels(self):
 		for layer in self.layers:
-			layer.ClearModel()
+			layer.ClearModels()
 
 
 if __name__ == "__main__":
