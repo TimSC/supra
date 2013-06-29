@@ -50,6 +50,7 @@ class TrainEval:
 		self.fullMasks = copy.deepcopy(self.masks)
 		self.testOffStore = None
 		self.currentTrackLog = None
+		self.currentParams = None
 
 	def Train(self, trainNormSamples, numTrainOffsets = 10):
 
@@ -67,6 +68,7 @@ class TrainEval:
 		else:
 			filtMasks = self.masks
 
+		self.cloudTracker.SetParameters(self.currentParams)
 		self.cloudTracker.SetFeatureMasks(filtMasks)
 
 		for sampleCount, sample in enumerate(trainNormSamples):
@@ -87,6 +89,9 @@ class TrainEval:
 
 	def SetFeatureMasks(self, masks):
 		self.masks = masks
+
+	def SetParameters(self, params):
+		self.currentParams = params
 
 	def InitRandomMask(self, frac=0.1):
 		for layer in self.masks:
@@ -226,8 +231,12 @@ class TrainEval:
 			log.write(str(avCorrel)+","+str(avSignScore)+","+str(medPredError)+"\n")
 			log.flush()
 
+		config = []
+		for layer in self.cloudTracker:
+			config.append({'trainingOffset': layer.trainingOffset})
+
 		return {'avCorrel':avCorrel, 'avSignScore': avSignScore, 'medPredError': medPredError, 
-			'model': self.cloudTracker, 'trackLogs': trackLogs}
+			'model': self.cloudTracker, 'trackLogs': trackLogs, 'config': config}
 
 def EvalTrackerConfig(args):
 	try:
@@ -236,7 +245,9 @@ def EvalTrackerConfig(args):
 		testNormSamples = args[2]
 		testMasks = args[3]
 		trackLogs = args[4]
+		params = args[5]
 
+		currentConfig.SetParameters(params)
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
 		currentConfig.Train(trainNormSamples, 10)
@@ -258,6 +269,7 @@ class FeatureSelection:
 		self.tracker = supra.SupraLayers(self.trainNormSamples)
 		self.currentMask = None
 		self.currentTrackLog = None
+		self.currentParams = [{'trainingOffset': 0.2}, {'trainingOffset': 0.05}]
 
 	def SplitSamples(self, normalisedSamples):
 		halfInd = len(filteredSamples)/2
@@ -284,8 +296,6 @@ class FeatureSelection:
 			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
 		else:
 			self.currentConfig.cloudTracker = self.tracker
-
-		#self.currentConfig.SetTrackLog(self.currentTrackLog)
 
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
@@ -328,7 +338,7 @@ class FeatureSelection:
 					for sampleLogLayer in sampleLog:
 						sampleLogLayer[testTracker] = None
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog, self.currentParams))
 
 		print "Forward step evaluate"
 		pool = Pool(processes=cpu_count())
@@ -342,8 +352,10 @@ class FeatureSelection:
 			del perf['model']
 			trackLogs = perf['trackLogs']
 			del perf['trackLogs']
+			config = perf['config']
+			del perf['config']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs))
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
@@ -358,8 +370,6 @@ class FeatureSelection:
 			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
 		else:
 			self.currentConfig.cloudTracker = self.tracker
-
-		#self.currentConfig.SetTrackLog(self.currentTrackLog)
 
 		if self.currentMask == None:
 			self.currentConfig.InitRandomMask()
@@ -408,7 +418,7 @@ class FeatureSelection:
 					for sampleLogLayer in sampleLog:
 						sampleLogLayer[testTracker] = None
 
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasksFilt, filteredTrackLog))
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasksFilt, filteredTrackLog, self.currentParams))
 
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
@@ -421,14 +431,70 @@ class FeatureSelection:
 			del perf['model']
 			trackLogs = perf['trackLogs']
 			del perf['trackLogs']
+			config = perf['config']
+			del perf['config']
 
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs))
+
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
 			self.log.write(str(test)+str(perf)+"\n")
 			self.log.flush()
 
 		testPerfs.sort()
 		
 		return testPerfs
+
+	def EvaluateParameters(self, numTests=None):
+		if self.currentConfig == None:
+			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
+			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
+		else:
+			self.currentConfig.cloudTracker = self.tracker
+
+		if self.currentMask == None:
+			self.currentConfig.InitRandomMask()
+			self.currentMask = self.currentConfig.masks
+		else:
+			self.currentConfig.SetFeatureMasks(self.currentMask)
+		
+		#Plan parameters to test
+		configs = []
+		for i in range(numTests):
+			config = copy.deepcopy(self.currentParams)
+			layerNum = random.randint(0, len(config)-1)
+			config[layerNum]['trainingOffset'] *= random.gauss(1., 0.1)
+			if config[layerNum]['trainingOffset'] < 0.:
+				config[layerNum]['trainingOffset'] *= -1
+			configs.append(config)
+
+		#Evaluate each config set
+		testArgList = []
+		#for test in componentsToTest:
+		for config in configs:
+			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, self.currentMask, None, config))
+
+		pool = Pool(processes=cpu_count())
+		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
+		pool.close()
+		pool.join()
+
+		testPerfs = []
+		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
+			model = perf['model']
+			del perf['model']
+			trackLogs = perf['trackLogs']
+			del perf['trackLogs']
+			config = perf['config']
+			del perf['config']
+
+
+			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
+			self.log.write(str(test)+str(perf)+"\n")
+			self.log.flush()
+
+		testPerfs.sort()
+		
+		return testPerfs
+
 
 	def SetFeatureMasks(self, masks):
 		self.currentMask = masks
@@ -485,23 +551,39 @@ def FeatureSelectRunScript(filteredSamples):
 	currentModel = featureSelection.tracker
 	featureSelection.SplitSamples(filteredSamples) #Hack to disable
 	trackLogs = None
+	currentParams = [{'trainingOffset': 0.2}, {'trainingOffset': 0.05}]
 
 	while running:
 		
-		featureSelection.tracker = currentModel
-		numModelsToTest = 8
-		if count % 10 != 0:
-			featureSelection.SetTrackLog(trackLogs)
-			numModelsToTest = 64
+		perfs = None
+		evalFeatureMask = 0
+		featureSelection.currentParams = currentParams
+
+		if evalFeatureMask:
+			featureSelection.tracker = currentModel
+			numModelsToTest = 8
+			if count % 10 != 0:
+				featureSelection.SetTrackLog(trackLogs)
+				numModelsToTest = 64
+			else:
+				featureSelection.SplitSamples(filteredSamples)
+				featureSelection.ClearTrackLog()
+				featureSelection.ClearTestOffsets()
+				numModelsToTest = 8 #Be a little lazy for full recomputation
+	
+			perfs = featureSelection.EvaluateForwardSteps(numModelsToTest)
+			perfs2 = featureSelection.EvaluateBackwardSteps(numModelsToTest)
+			perfs.extend(perfs2)
+			
 		else:
+			featureSelection.tracker = currentModel
 			featureSelection.SplitSamples(filteredSamples)
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearTestOffsets()
-			numModelsToTest = 8 #Be a little lazy for full recomputation
+			numModelsToTest = 4 #Be a little lazy for full recomputation
 	
-		perfs = featureSelection.EvaluateForwardSteps(numModelsToTest)
-		perfs2 = featureSelection.EvaluateBackwardSteps(numModelsToTest)
-		perfs.extend(perfs2)
+			perfs = featureSelection.EvaluateParameters(numModelsToTest)
+
 		perfs.sort()
 
 		#Find best feature
@@ -510,9 +592,11 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.SetFeatureMasks(bestMasks[3][3])
 			currentModel = bestMasks[4]
 			trackLogs = bestMasks[5]
+			currentConfig = bestMasks[6]
 
 			pickle.dump(bestMasks[3][3], open("masks"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump(currentModel, open("model"+str(count)+".dat", "wb"), protocol = -1)
+			pickle.dump(config, open("config"+str(count)+".dat", "wt"), protocol = 0)
 			pickle.dump([x[:3] for x in perfs], open("iter"+str(count)+".dat", "wt"), protocol = 0)
 			fslog.write(str(bestMasks[:3])+"\n")
 			fslog.flush()

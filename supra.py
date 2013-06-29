@@ -66,6 +66,7 @@ class SupraAxisSet():
 		#self.sobelOffsets, self.sobelCoeffs, halfWidth = normalisedImageOpt.CalcKernelOffsets(self.sobelKernel)
 		#self.featureMultiplex = simpleGbrt.FeatureGenTest()
 		self.trainIntDb = None
+		self.numSupportPix = numSupportPix
 		self.featureGen = supraFeatures.FeatureGen(numPoints, supportPixHalfWidthIn, numSupportPix, 1)
 		self.numPoints = numPoints
 		self.featureMask = None
@@ -78,6 +79,9 @@ class SupraAxisSet():
 				os.remove(self.trainIntDbFina)
 		except:
 			pass
+
+	def SetParameters(self, params):
+		pass
 
 	def IsModelReady(self):
 		if self.axes is None:
@@ -221,6 +225,11 @@ class SupraCloud():
 		for i in range(self.numPoints):
 			self.trackers.append(SupraAxisSet(i, self.numPoints, self.supportPixHalfWidth))
 
+	def SetParameters(self, params):
+		if 'trainingOffset' in params:
+			self.trainingOffset = params['trainingOffset']
+			print "trainingOffset=", self.trainingOffset
+
 	def AddTraining(self, sample, numExamples, extraFeatures):
 
 		for sampleCount in range(numExamples):
@@ -274,8 +283,9 @@ class SupraCloud():
 
 class SupraLayers:
 	def __init__(self, trainNormSamples):
-		self.featureGenPrevFrame = supraFeatures.FeatureGenPrevFrame(trainNormSamples, 20, 5)
+
 		self.numPoints = trainNormSamples[0].NumPoints()
+		self.featureGenPrevFrame = supraFeatures.FeatureGenPrevFrame(trainNormSamples, 20, self.numPoints)
 		if self.numPoints == 0:
 			raise ValueError("Model must have non-zero number of points")
 		for sample in trainNormSamples: 
@@ -283,6 +293,10 @@ class SupraLayers:
 				raise ValueError("Model must have consistent number of points")
 
 		self.layers = [SupraCloud(0.3,0.2,self.numPoints),SupraCloud(0.3,0.05,self.numPoints)]
+
+	def SetParameters(self, params):
+		for player, layer in zip(params, self.layers):
+			layer.SetParameters(player)
 
 	def AddTraining(self, sample, numExamples):
 
