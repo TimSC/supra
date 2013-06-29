@@ -211,6 +211,10 @@ class SupraAxisSet():
 	def GetFeatureList(self):
 		return self.featureGen.GetFeatureList()
 
+	def ClearModels(self):
+		for axis in self.axes:
+			axis.ClearModel()
+
 class SupraCloud():
 
 	def __init__(self, supportPixHalfWidthIn = 0.3, trainingOffsetIn = 0.3, numPoints = 5):
@@ -227,6 +231,8 @@ class SupraCloud():
 
 	def SetParameters(self, params):
 		if 'trainingOffset' in params:
+			if self.trainingOffset != params['trainingOffset']:
+				self.ClearModels()
 			self.trainingOffset = params['trainingOffset']
 			print "trainingOffset=", self.trainingOffset
 
@@ -280,6 +286,10 @@ class SupraCloud():
 		for tracker in self.trackers:
 			masks.append(tracker.GetFeatureList())
 		return masks
+
+	def ClearModels(self):
+		for tracker in self.trackers:
+			tracker.ClearModels()
 
 class SupraLayers:
 	def __init__(self, trainNormSamples):
@@ -353,6 +363,11 @@ class SupraLayers:
 		for layer in self.layers:
 			out.append(layer.GetFeatureList())
 		return out
+
+	def ClearModels(self):
+		for layer in self.layers:
+			layer.ClearModel()
+
 
 if __name__ == "__main__":
 	pass

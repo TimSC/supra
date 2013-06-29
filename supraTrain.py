@@ -84,6 +84,10 @@ class TrainEval:
 	def ClearTrackLog(self):
 		self.currentTrackLog = None
 
+	def ClearModels(self):
+		if self.cloudTracker is not None:
+			self.cloudTracker.ClearModels()
+
 	def SetTrackLog(self, log):
 		self.currentTrackLog = log
 
@@ -126,9 +130,7 @@ class TrainEval:
 
 		if self.testOffStore is None or self.testOffStore.shape[1] != numTestOffsets:
 			self.InitTestOffsets(testNormSamples, numTestOffsets)
-		print self.testOffStore.shape
-		print numTestOffsets
-		assert self.testOffStore.shape[1] != numTestOffsets
+		assert self.testOffStore.shape[1] == numTestOffsets
 
 		for sampleCount, (sample, testOffs) in enumerate(zip(testNormSamples, self.testOffStore)):
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
@@ -178,10 +180,11 @@ class TrainEval:
 			count = 0
 			for testNum in range(testOffStoreArr.shape[1]):
 				for ptNum in range(testOffStoreArr.shape[2]):
-					diff.append((testModels[sampleNum,count,0] - testPredModels[sampleNum,count,0], \
-						testModels[sampleNum,count,1] - testPredModels[sampleNum,count,1]))
-					count += 1
-			testPreds.append(diff)
+					diff.append((testModels[count,ptNum,0] - testPredModels[count,ptNum,0], \
+						testModels[count,ptNum,1] - testPredModels[count,ptNum,1]))
+				
+				testPreds.append(diff)
+				count += 1
 		testPreds = np.array(testPreds)
 
 		#Calculate performance metrics
@@ -297,6 +300,10 @@ class FeatureSelection:
 
 	def SetTrackLog(self, log):
 		self.currentTrackLog = log
+
+	def ClearModels(self):
+		if self.currentConfig is not None:
+			self.currentConfig.ClearModels()		
 
 	def EvaluateForwardSteps(self, numTests=None):
 		if self.currentConfig == None:
@@ -575,6 +582,7 @@ def FeatureSelectRunScript(filteredSamples):
 			else:
 				featureSelection.SplitSamples(filteredSamples)
 				featureSelection.ClearTrackLog()
+				featureSelection.ClearModels()
 				featureSelection.ClearTestOffsets()
 				numModelsToTest = 8 #Be a little lazy for full recomputation
 	
@@ -586,6 +594,7 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.tracker = currentModel
 			featureSelection.SplitSamples(filteredSamples)
 			featureSelection.ClearTrackLog()
+			featureSelection.ClearModels()
 			featureSelection.ClearTestOffsets()
 			numModelsToTest = 4 #Be a little lazy for full recomputation
 	
