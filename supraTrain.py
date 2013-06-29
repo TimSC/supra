@@ -269,7 +269,8 @@ class FeatureSelection:
 		self.trainNormSamples.extend(mirImgs)
 
 	def ClearTestOffsets(self):
-		self.currentConfig.ClearTestOffsets()
+		if self.currentConfig is not None:
+			self.currentConfig.ClearTestOffsets()
 
 	def ClearTrackLog(self):
 		self.currentTrackLog = None
@@ -324,7 +325,8 @@ class FeatureSelection:
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
 			if filteredTrackLog is not None:
 				for sampleLog in filteredTrackLog:
-					sampleLog[testLayer][testTracker] = None
+					for sampleLogLayer in sampleLog:
+						sampleLogLayer[testTracker] = None
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog))
 
@@ -403,7 +405,8 @@ class FeatureSelection:
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
 			if filteredTrackLog is not None:
 				for sampleLog in filteredTrackLog:
-					sampleLog[testLayer][testTracker] = None
+					for sampleLogLayer in sampleLog:
+						sampleLogLayer[testTracker] = None
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasksFilt, filteredTrackLog))
 
@@ -486,15 +489,18 @@ def FeatureSelectRunScript(filteredSamples):
 	while running:
 		
 		featureSelection.tracker = currentModel
-		if count % 10 == 0:
+		numModelsToTest = 8
+		if count % 10 != 0:
 			featureSelection.SetTrackLog(trackLogs)
+			numModelsToTest = 64
 		else:
 			featureSelection.SplitSamples(filteredSamples)
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearTestOffsets()
+			numModelsToTest = 8 #Be a little lazy for full recomputation
 	
-		perfs = featureSelection.EvaluateForwardSteps(16)
-		perfs2 = featureSelection.EvaluateBackwardSteps(16)
+		perfs = featureSelection.EvaluateForwardSteps(numModelsToTest)
+		perfs2 = featureSelection.EvaluateBackwardSteps(numModelsToTest)
 		perfs.extend(perfs2)
 		perfs.sort()
 
