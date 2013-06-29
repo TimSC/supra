@@ -190,9 +190,9 @@ class TrainEval:
 		#Calculate performance metrics
 		correls, signScores = [], []
 		for ptNum in range(testOffStoreArr.shape[2]):
-			if len(testOffsCollect[:,ptNum,0]) != len(testPreds[:,ptNum,0]):
-				print testOffsCollect[:,ptNum,0].shape
-				print testPreds[:,ptNum,0].shape
+			
+			print testOffsCollect[:,ptNum,0].shape
+			print testPreds[:,ptNum,0].shape
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
 			correl = 0.5*(correlX+correlY)

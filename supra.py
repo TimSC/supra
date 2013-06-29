@@ -212,8 +212,9 @@ class SupraAxisSet():
 		return self.featureGen.GetFeatureList()
 
 	def ClearModels(self):
-		for axis in self.axes:
-			axis.ClearModel()
+		if self.axes is not None: 
+			for axis in self.axes:
+				axis.ClearModels()
 
 class SupraCloud():
 
