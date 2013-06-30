@@ -1,11 +1,12 @@
 
-import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, traceback, hashlib, binascii
+import supra, pickle, random, normalisedImage, normalisedImageOpt, copy, sys, traceback, hashlib, binascii, time
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
 def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = None):
 	currentModel = np.array(copy.deepcopy(model))
 	trLogPoint = []
+	logHits, predCount = 0, 0
 
 	for iterNum in range(trackerLayer.numIter):
 		for ptNum, tracker in enumerate(trackerLayer.trackers):
@@ -20,14 +21,17 @@ def PredictPoint(trackerLayer, sample, model, prevFrameFeatures, trLogPointIn = 
 
 			if ptLog is not None:
 				currentModel[ptNum,:] = ptLog[iterNum+1]
+				logHits += 1
 			else:
 				pred = tracker.Predict(sample, currentModel, prevFrameFeatures)
 				currentModel[ptNum,:] -= pred
 
+			predCount += 1
+
 	for ptNum, tracker in enumerate(trackerLayer.trackers):
 		trLogPoint[ptNum].append(currentModel[ptNum,:].copy())
 
-	return currentModel, trLogPoint
+	return currentModel, trLogPoint, float(logHits) / predCount
 
 def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 	currentModel = np.array(copy.deepcopy(model))
@@ -36,8 +40,9 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 		trLogIn = [[] for layer in tracker.layers]
 
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
-		currentModel, trLogPoint = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
+		currentModel, trLogPoint, logHitFrac = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
 		trLogOut.append(trLogPoint)
+		print "logHitFrac", logHitFrac
 	return currentModel, trLogOut
 
 class TrainEval:
@@ -257,8 +262,16 @@ def EvalTrackerConfig(args):
 		currentConfig.SetParameters(params)
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
-		currentConfig.Train(trainNormSamples, 10)
-		perf = currentConfig.Test(testNormSamples, 10)
+		startTi = time.clock()
+		currentConfig.Train(trainNormSamples, 1) #Hack
+		trainTi = time.clock() - startTi
+
+		startTi = time.clock()
+		perf = currentConfig.Test(testNormSamples, 1) #Hack
+		testTi = time.clock()
+
+		perf['trainTime'] = trainTi
+		perf['testTime'] = testTi
 		del currentConfig
 
 	except Exception as err:
@@ -271,6 +284,7 @@ class FeatureSelection:
 	def __init__(self, normalisedSamples):
 		self.currentConfig = None
 		self.log = open("log.txt","wt")
+		self.fsdetail = open("fsdetail.txt","wt")
 		self.metric = 'medPredError'
 		self.SplitSamples(normalisedSamples)
 		self.tracker = supra.SupraLayers(self.trainNormSamples)
@@ -301,7 +315,7 @@ class FeatureSelection:
 		if self.currentConfig is not None:
 			self.currentConfig.ClearModels()		
 
-	def EvaluateForwardSteps(self, numTests=None):
+	def EvaluateRandomSteps(self, numTests=None):
 		if self.currentConfig == None:
 			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
 			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
@@ -323,6 +337,11 @@ class FeatureSelection:
 					if component not in mask:
 						componentsToTest.append((layerNum, trackerNum, component, "Forward"))
 
+		for layerNum, layers in enumerate(self.currentMask):
+			for trackerNum, mask in enumerate(layers):
+				for component in mask:
+					componentsToTest.append((layerNum, trackerNum, component, "Backward"))
+
 		print "Num components to test in forward step", len(componentsToTest)
 
 		if numTests is None:
@@ -337,10 +356,23 @@ class FeatureSelection:
 			testLayer = test[0]
 			testTracker = test[1]
 			testComponent = test[2]
+			testDirection = test[3]
 
 			#Create temporary mask
 			testMasks = copy.deepcopy(self.currentMask)
-			testMasks[testLayer][testTracker].append(testComponent)
+			if testDirection == "Forward":
+				testMasks[testLayer][testTracker].append(testComponent)
+			else:
+				testMasks = copy.deepcopy(self.currentMask)
+				testMasksFilt = []
+				for layerNum, layer in enumerate(testMasks):
+					while layerNum >= len(testMasksFilt): testMasksFilt.append([])
+					for trNum, tr in enumerate(layer):
+						while trNum >= len(testMasksFilt[layerNum]): testMasksFilt[layerNum].append([])
+						for comp in tr:
+							if layerNum==testLayer and trNum==testTracker and comp==testComponent:
+								continue
+							testMasksFilt[layerNum][trNum].append(comp)
 
 			#Clear tracker history for modified tracker
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
@@ -365,86 +397,6 @@ class FeatureSelection:
 			del perf['trackLogs']
 			config = perf['config']
 			del perf['config']
-
-			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
-			self.log.write(str(test)+str(perf)+"\n")
-			self.log.flush()
-
-		testPerfs.sort()
-		
-		return testPerfs
-
-	def EvaluateBackwardSteps(self, numTests=None):
-
-		if self.currentConfig == None:
-			self.currentConfig = TrainEval(self.trainNormSamples, copy.deepcopy(self.tracker))
-			self.currentConfig.InitTestOffsets(self.testNormSamples, 1)
-		else:
-			self.currentConfig.cloudTracker = self.tracker
-
-		if self.currentMask == None:
-			self.currentConfig.InitRandomMask()
-			self.currentMask = self.currentConfig.masks
-		else:
-			self.currentConfig.SetFeatureMasks(self.currentMask)
-		
-		#Plan which componenets to test
-		componentsToTest = []
-		for layerNum, layers in enumerate(self.currentMask):
-			for trackerNum, mask in enumerate(layers):
-				for component in mask:
-					componentsToTest.append((layerNum, trackerNum, component, "Backward"))
-
-		print "Num components to test in backward step", len(componentsToTest)
-
-		if numTests is None:
-			numTests = len(componentsToTest)
-		componentsToTest = random.sample(componentsToTest, numTests)
-
-		print "Using a sample of size", len(componentsToTest)
-
-		#Evaluate each component
-		testArgList = []
-		for test in componentsToTest:
-			testLayer = test[0]
-			testTracker = test[1]
-			testComponent = test[2]
-
-			#Create temporary mask
-			testMasks = copy.deepcopy(self.currentMask)
-			testMasksFilt = []
-			for layerNum, layer in enumerate(testMasks):
-				while layerNum >= len(testMasksFilt): testMasksFilt.append([])
-				for trNum, tr in enumerate(layer):
-					while trNum >= len(testMasksFilt[layerNum]): testMasksFilt[layerNum].append([])
-					for comp in tr:
-						if layerNum==testLayer and trNum==testTracker and comp==testComponent:
-							continue
-						testMasksFilt[layerNum][trNum].append(comp)
-
-			#Clear tracker history for modified tracker
-			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
-			if filteredTrackLog is not None:
-				for sampleLog in filteredTrackLog:
-					for sampleLogLayer in sampleLog:
-						sampleLogLayer[testTracker] = None
-
-			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasksFilt, filteredTrackLog, self.currentParams))
-
-		pool = Pool(processes=cpu_count())
-		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
-		pool.close()
-		pool.join()
-
-		testPerfs = []
-		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
-			model = perf['model']
-			del perf['model']
-			trackLogs = perf['trackLogs']
-			del perf['trackLogs']
-			config = perf['config']
-			del perf['config']
-
 
 			testPerfs.append((perf[self.metric], perf, test, testArgs, model, trackLogs, config))
 			self.log.write(str(test)+str(perf)+"\n")
@@ -568,12 +520,12 @@ def FeatureSelectRunScript(filteredSamples):
 		perfs = None
 		featureSelection.currentParams = currentParams
 
-		if count % 20 != 0:
+		if (count-10) % 20 != 0:
 			featureSelection.tracker = currentModel
 			numModelsToTest = 8
 			if count % 10 != 0:
 				featureSelection.SetTrackLog(trackLogs)
-				numModelsToTest = 64
+				numModelsToTest = 8 #Hack
 			else:
 				featureSelection.SplitSamples(filteredSamples)
 				featureSelection.ClearTrackLog()
@@ -581,8 +533,7 @@ def FeatureSelectRunScript(filteredSamples):
 				featureSelection.ClearTestOffsets()
 				numModelsToTest = 8 #Be a little lazy for full recomputation
 	
-			perfs = featureSelection.EvaluateForwardSteps(numModelsToTest)
-			perfs2 = featureSelection.EvaluateBackwardSteps(numModelsToTest)
+			perfs = featureSelection.EvaluateRandomSteps(numModelsToTest)
 			perfs.extend(perfs2)
 			
 		else:

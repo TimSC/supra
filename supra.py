@@ -232,8 +232,8 @@ class SupraCloud():
 
 	def SetParameters(self, params):
 		if 'trainingOffset' in params:
-			if self.trainingOffset != params['trainingOffset']:
-				self.ClearModels()
+			#if self.trainingOffset != params['trainingOffset']: #Hack to check effect
+			#	self.ClearModels()
 			self.trainingOffset = params['trainingOffset']
 			print "trainingOffset=", self.trainingOffset
 
