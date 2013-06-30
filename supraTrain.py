@@ -42,7 +42,7 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
 		currentModel, trLogPoint, logHitFrac = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
 		trLogOut.append(trLogPoint)
-		print "logHitFrac", logHitFrac
+		#print "logHitFrac", logHitFrac
 	return currentModel, trLogOut
 
 class TrainEval:
@@ -144,9 +144,6 @@ class TrainEval:
 			trackLogSample = None
 			if self.currentTrackLog is not None and sampleCount < len(self.currentTrackLog):
 				trackLogSample = self.currentTrackLog[sampleCount]
-
-			for layer in self.cloudTracker.layers:
-				print layer.supportPixHalfWidth, layer.trainingOffset
 
 			for count, testOff in enumerate(testOffs):
 
@@ -263,11 +260,11 @@ def EvalTrackerConfig(args):
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
 		startTi = time.clock()
-		currentConfig.Train(trainNormSamples, 1) #Hack
+		currentConfig.Train(trainNormSamples, 10)
 		trainTi = time.clock() - startTi
 
 		startTi = time.clock()
-		perf = currentConfig.Test(testNormSamples, 1) #Hack
+		perf = currentConfig.Test(testNormSamples, 10)
 		testTi = time.clock()
 
 		perf['trainTime'] = trainTi
@@ -329,24 +326,29 @@ class FeatureSelection:
 			self.currentConfig.SetFeatureMasks(self.currentMask)
 		
 		#Plan which componenets to test
-		componentsToTest = []
+		componentsToTestForward = []
 		for layerNum, (layers, fullMaskLayers) in enumerate(zip(self.currentMask,
 				self.currentConfig.fullMasks)):
 			for trackerNum, (mask, fullMask) in enumerate(zip(layers, fullMaskLayers)):
 				for component in fullMask:
 					if component not in mask:
-						componentsToTest.append((layerNum, trackerNum, component, "Forward"))
+						componentsToTestForward.append((layerNum, trackerNum, component, "Forward"))
 
+		componentsToTestBackward = []
 		for layerNum, layers in enumerate(self.currentMask):
 			for trackerNum, mask in enumerate(layers):
 				for component in mask:
-					componentsToTest.append((layerNum, trackerNum, component, "Backward"))
+					componentsToTestBackward.append((layerNum, trackerNum, component, "Backward"))
 
-		print "Num components to test in forward step", len(componentsToTest)
+		print "Num components to test in forward step", len(componentsToTestForward)
+		print "Num components to test in backward step", len(componentsToTestBackward)
 
 		if numTests is None:
-			numTests = len(componentsToTest)
-		componentsToTest = random.sample(componentsToTest, numTests)
+			componentsToTest = componentsToTestForward
+			componentsToTest.extend(componentsToTestBackward)
+		else:
+			componentsToTest = random.sample(componentsToTestForward, numTests/2)
+			componentsToTest.extend(random.sample(componentsToTestBackward, numTests - (numTests/2)))
 
 		print "Using a sample of size", len(componentsToTest)
 
@@ -388,6 +390,8 @@ class FeatureSelection:
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()
+		self.fsdetail.write("Evaluated "+len(testArgList)+" feature masks in "+str(time.clock() - startTi))
+		self.fsdetail.flush()
 
 		testPerfs = []
 		for perf, test, testArgs in zip(evalPerfs, componentsToTest, testArgList):
@@ -435,10 +439,13 @@ class FeatureSelection:
 		for config in configs:
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, self.currentMask, None, config))
 
+		startTi = time.clock()
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()
+		self.fsdetail.write("Evaluated "+len(configs)+" configs in "+str(time.clock() - startTi))
+		self.fsdetail.flush()
 
 		testPerfs = []
 		for perf, config, testArgs in zip(evalPerfs, configs, testArgList):
@@ -525,7 +532,7 @@ def FeatureSelectRunScript(filteredSamples):
 			numModelsToTest = 8
 			if count % 10 != 0:
 				featureSelection.SetTrackLog(trackLogs)
-				numModelsToTest = 8 #Hack
+				numModelsToTest = 64
 			else:
 				featureSelection.SplitSamples(filteredSamples)
 				featureSelection.ClearTrackLog()
@@ -534,7 +541,6 @@ def FeatureSelectRunScript(filteredSamples):
 				numModelsToTest = 8 #Be a little lazy for full recomputation
 	
 			perfs = featureSelection.EvaluateRandomSteps(numModelsToTest)
-			perfs.extend(perfs2)
 			
 		else:
 			featureSelection.tracker = currentModel
