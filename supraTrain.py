@@ -159,6 +159,7 @@ class TrainEval:
 
 				#Make predicton
 				predModel = self.cloudTracker.Predict(sample, testPos, prevFrameFeat)
+				trackLog = None
 				#predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogIn)
 
 				#Store result
@@ -381,7 +382,9 @@ class FeatureSelection:
 			filteredTrackLog = copy.deepcopy(self.currentTrackLog)
 			if filteredTrackLog is not None:
 				for sampleLog in filteredTrackLog:
+					if sampleLog is None: continue
 					for sampleLogLayer in sampleLog:
+						if sampleLogLayer is None: continue
 						sampleLogLayer[testTracker] = None
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog, self.currentParams))
