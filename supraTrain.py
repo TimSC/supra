@@ -188,11 +188,6 @@ class TrainEval:
 		correls, signScores = [], []
 		for ptNum in range(testOffStoreArr.shape[2]):
 			
-			print "a",testPreds.shape
-			#print "b",testOffsCollect[:,ptNum,0]
-			#print "c",testPreds[:,ptNum,0]
-			print "d",testOffsCollect[:,ptNum,0].shape
-			print "e",testPreds[:,ptNum,0].shape
 			assert testOffsCollect.shape[0] == testPreds.shape[0]
 			correlX = np.corrcoef(testOffsCollect[:,ptNum,0], testPreds[:,ptNum,0])[0,1]
 			correlY = np.corrcoef(testOffsCollect[:,ptNum,1], testPreds[:,ptNum,1])[0,1]
@@ -262,8 +257,8 @@ def EvalTrackerConfig(args):
 		currentConfig.SetParameters(params)
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
-		currentConfig.Train(trainNormSamples, 1)#Hack
-		perf = currentConfig.Test(testNormSamples, 1)#Hack
+		currentConfig.Train(trainNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 10)
 		del currentConfig
 
 	except Exception as err:
@@ -564,17 +559,16 @@ def FeatureSelectRunScript(filteredSamples):
 	running = True
 	count = 0
 	currentModel = featureSelection.tracker
-	featureSelection.SplitSamples(filteredSamples) #Hack to disable
+	featureSelection.SplitSamples(filteredSamples)
 	trackLogs = None
 	currentParams = [{'trainingOffset': 0.2}, {'trainingOffset': 0.05}]
 
 	while running:
 		
 		perfs = None
-		evalFeatureMask = 0
 		featureSelection.currentParams = currentParams
 
-		if evalFeatureMask:
+		if count % 20 != 0:
 			featureSelection.tracker = currentModel
 			numModelsToTest = 8
 			if count % 10 != 0:
@@ -597,7 +591,7 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearModels()
 			featureSelection.ClearTestOffsets()
-			numModelsToTest = 4 #Be a little lazy for full recomputation
+			numModelsToTest = 8 #Be a little lazy for full recomputation
 	
 			perfs = featureSelection.EvaluateParameters(numModelsToTest)
 
