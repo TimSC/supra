@@ -306,6 +306,8 @@ class SupraLayers:
 		self.layers = [SupraCloud(0.3,0.2,self.numPoints),SupraCloud(0.3,0.05,self.numPoints)]
 
 	def SetParameters(self, params):
+		if len(params) != len(self.layers):
+			raise Exception("Incorrect number of param layers")
 		for player, layer in zip(params, self.layers):
 			layer.SetParameters(player)
 

@@ -42,7 +42,7 @@ def PredictLayers(tracker, sample, model, prevFrameFeatures, trLogIn = None):
 	for layerNum, (layer, trLogPoint) in enumerate(zip(tracker.layers, trLogIn)):
 		currentModel, trLogPoint, logHitFrac = PredictPoint(layer, sample, currentModel, prevFrameFeatures, trLogPoint)
 		trLogOut.append(trLogPoint)
-		#print "logHitFrac", logHitFrac
+		print "logHitFrac", logHitFrac
 	return currentModel, trLogOut
 
 class TrainEval:
@@ -141,9 +141,9 @@ class TrainEval:
 			print "test", sampleCount, len(testNormSamples), sample.info['roiId']
 			prevFrameFeat = self.cloudTracker.CalcPrevFrameFeatures(sample, sample.GetProcrustesNormedModel())
 		
-			trackLogSample = None
-			if self.currentTrackLog is not None and sampleCount < len(self.currentTrackLog):
-				trackLogSample = self.currentTrackLog[sampleCount]
+			#trackLogSample = None
+			#if self.currentTrackLog is not None and sampleCount < len(self.currentTrackLog):
+			#	trackLogSample = self.currentTrackLog[sampleCount]
 
 			for count, testOff in enumerate(testOffs):
 
@@ -154,11 +154,12 @@ class TrainEval:
 					testPos.append((pt[0] + off[0], pt[1] + off[1]))
 
 				trackLogIn = None
-				if trackLogSample is not None and count < len(trackLogSample):
-					trackLogIn = copy.deepcopy(trackLogSample[count])
+				if self.currentTrackLog is not None:
+					trackLogIn = self.currentTrackLog[len(trackLogs)]
 
 				#Make predicton
-				predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogSample)
+				predModel = self.cloudTracker.Predict(sample, testPos, prevFrameFeat)
+				#predModel, trackLog = PredictLayers(self.cloudTracker, sample, testPos, prevFrameFeat, trackLogIn)
 
 				#Store result
 				testPredModels.append(predModel)
@@ -260,11 +261,11 @@ def EvalTrackerConfig(args):
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
 		startTi = time.clock()
-		currentConfig.Train(trainNormSamples, 10)
+		currentConfig.Train(trainNormSamples, 2)#Hack
 		trainTi = time.clock() - startTi
 
 		startTi = time.clock()
-		perf = currentConfig.Test(testNormSamples, 10)
+		perf = currentConfig.Test(testNormSamples, 2)#Hack
 		testTi = time.clock()
 
 		perf['trainTime'] = trainTi
