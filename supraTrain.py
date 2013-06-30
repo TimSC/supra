@@ -385,12 +385,13 @@ class FeatureSelection:
 
 			testArgList.append((self.currentConfig, self.trainNormSamples, self.testNormSamples, testMasks, filteredTrackLog, self.currentParams))
 
-		print "Forward step evaluate"
+		print "Random feature mask step evaluate"
+		startTi = time.clock()
 		pool = Pool(processes=cpu_count())
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()
-		self.fsdetail.write("Evaluated "+len(testArgList)+" feature masks in "+str(time.clock() - startTi))
+		self.fsdetail.write("Evaluated "+str(len(testArgList))+" feature masks in "+str(time.clock() - startTi)+"\n")
 		self.fsdetail.flush()
 
 		testPerfs = []
@@ -444,7 +445,7 @@ class FeatureSelection:
 		evalPerfs = pool.map(EvalTrackerConfig, testArgList)
 		pool.close()
 		pool.join()
-		self.fsdetail.write("Evaluated "+len(configs)+" configs in "+str(time.clock() - startTi))
+		self.fsdetail.write("Evaluated "+str(len(configs))+" configs in "+str(time.clock() - startTi)+"\n")
 		self.fsdetail.flush()
 
 		testPerfs = []
