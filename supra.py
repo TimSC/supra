@@ -134,6 +134,7 @@ class SupraAxisSet():
 		self.trainIntDb[str(len(self.trainOffX))] = featComp
 		self.trainOffX.append(xOff)
 		self.trainOffY.append(yOff)
+		return 1
 
 	def PrepareModel(self):
 
@@ -159,6 +160,7 @@ class SupraAxisSet():
 			axis.PrepareModel(self.trainInt, trainOff)
 
 		self.trainInt = None
+		return 1
 
 	def ClearTraining(self):
 		self.trainInt = None
@@ -239,6 +241,7 @@ class SupraCloud():
 
 	def AddTraining(self, sample, numExamples, extraFeatures):
 
+		mod = 0
 		for sampleCount in range(numExamples):
 			perturb = []
 			for num in range(sample.NumPoints()):
@@ -246,12 +249,17 @@ class SupraCloud():
 					np.random.normal(scale=self.trainingOffset)))
 
 			for count, tracker in enumerate(self.trackers):
-				tracker.AddTraining(sample, perturb, extraFeatures)
+				mod += tracker.AddTraining(sample, perturb, extraFeatures)
+		if mod == 0:
+			raise Exception("No training added")
 
 	def PrepareModel(self):
+		mod = 0
 		for tracker in self.trackers:
-			tracker.PrepareModel()
-
+			mod += tracker.PrepareModel()
+		if mod == 0:
+			raise Exception("No change in model")
+	
 	def ClearTraining(self):
 		for tracker in self.trackers:
 			tracker.ClearTraining()

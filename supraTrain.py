@@ -262,7 +262,7 @@ def EvalTrackerConfig(args):
 		currentConfig.SetFeatureMasks(testMasks)
 		currentConfig.SetTrackLog(trackLogs)
 		startTi = time.clock()
-		currentConfig.Train(trainNormSamples, 2)#Hack
+		currentConfig.Train(trainNormSamples, 10)#Hack
 		trainTi = time.clock() - startTi
 
 		startTi = time.clock()
@@ -537,13 +537,13 @@ def FeatureSelectRunScript(filteredSamples):
 			numModelsToTest = 8
 			if count % 10 != 0:
 				featureSelection.SetTrackLog(trackLogs)
-				numModelsToTest = 64
+				numModelsToTest = 8
 			else:
 				featureSelection.SplitSamples(filteredSamples)
 				featureSelection.ClearTrackLog()
 				featureSelection.ClearModels()
 				featureSelection.ClearTestOffsets()
-				numModelsToTest = 8 #Be a little lazy for full recomputation
+				numModelsToTest = 8
 	
 			perfs = featureSelection.EvaluateRandomSteps(numModelsToTest)
 			
@@ -553,7 +553,7 @@ def FeatureSelectRunScript(filteredSamples):
 			featureSelection.ClearTrackLog()
 			featureSelection.ClearModels()
 			featureSelection.ClearTestOffsets()
-			numModelsToTest = 8 #Be a little lazy for full recomputation
+			numModelsToTest = 8
 	
 			perfs = featureSelection.EvaluateParameters(numModelsToTest)
 
