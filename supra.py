@@ -203,12 +203,13 @@ class SupraAxisSet():
 		return totalx / weightx, totaly / weighty
 
 	def SetFeatureMask(self, mask):
-		if not ListCompare(mask, self.featureMask):
+		#if not ListCompare(mask, self.featureMask):#Hack, this should be done selectively
+		if 1:
 			self.featureMask = mask
 			self.featureGen.SetFeatureMask(mask)
-			if self.axes is not None:
-				for axis in self.axes:
-					axis.ClearModel()
+			self.ClearModels()
+			return 1
+		return 0
 
 	def GetFeatureList(self):
 		return self.featureGen.GetFeatureList()
@@ -285,10 +286,12 @@ class SupraCloud():
 		return currentModel
 
 	def SetFeatureMasks(self, masks):
+		changed = 0
 		if len(self.trackers) != len(masks):
 			raise Exception("Number of trackers is incorrect")
 		for tracker, mask in zip(self.trackers, masks):
-			tracker.SetFeatureMask(mask)
+			changed += tracker.SetFeatureMask(mask)
+		return changed
 
 	def GetFeatureList(self):
 		masks = []
@@ -364,10 +367,12 @@ class SupraLayers:
 		return currentModel
 
 	def SetFeatureMasks(self, masks):
+		changed = 0
 		if len(self.layers) != len(masks):
 			raise Exception("Number of layers is incorrect")
 		for layer, masksIt in zip(self.layers, masks):
-			layer.SetFeatureMasks(masksIt)
+			changed += layer.SetFeatureMasks(masksIt)
+		return changed
 
 	def GetFeatureList(self):
 		out = []

@@ -74,7 +74,7 @@ class TrainEval:
 			filtMasks = self.masks
 
 		self.cloudTracker.SetParameters(self.currentParams)
-		self.cloudTracker.SetFeatureMasks(filtMasks)
+		print "changed", self.cloudTracker.SetFeatureMasks(filtMasks)
 
 		for sampleCount, sample in enumerate(trainNormSamples):
 			print "train", sampleCount, len(trainNormSamples)
