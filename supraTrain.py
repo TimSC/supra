@@ -517,15 +517,23 @@ def EvalSingleConfig(filteredSamples):
 def FeatureSelectRunScript(filteredSamples):
 
 	featureSelection = FeatureSelection(filteredSamples)
-	pickle.dump(featureSelection.tracker, open("fsmodel.dat", "wb"), protocol = -1)
-	fslog = open("fslog.txt","wt")
 
 	running = True
-	count = 0
+	count = 556 #0
 	currentModel = featureSelection.tracker
 	featureSelection.SplitSamples(filteredSamples)
 	trackLogs = None
-	currentParams = [{'trainingOffset': 0.2}, {'trainingOffset': 0.05}]
+
+	if count==0:
+		currentParams = [{'trainingOffset': 0.2}, {'trainingOffset': 0.05}]
+		pickle.dump(featureSelection.tracker, open("fsmodel.dat", "wb"), protocol = -1)
+		fslog = open("fslog.txt","wt")
+	else:
+		currentParams = pickle.load(open("config{0}.dat".format(count)))
+		featureSelection.SetFeatureMasks(pickle.load(open("masks{0}.dat".format(count))))
+		featureSelection.tracker = pickle.load(open("fsmodel.dat"))
+		fslog = open("fslog.txt","at")
+		count += 1
 
 	while running:
 		
