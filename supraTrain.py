@@ -489,7 +489,10 @@ def EvalSingleConfig(filteredSamples):
 		random.shuffle(filteredSamples)
 		trainNormSamples = filteredSamples[:halfInd]
 		testNormSamples = filteredSamples[halfInd:]
-		trainTracker = TrainEval(trainNormSamples)
+		trainTracker = TrainEval(trainNormSamples, pickle.load(open("model861.dat")))
+		
+		trainTracker.SetParameters(pickle.load(open("config861.dat")))
+		trainTracker.SetFeatureMasks(pickle.load(open("masks861.dat")))
 
 		if 1:
 			#Reflect images to increase training data
@@ -499,7 +502,7 @@ def EvalSingleConfig(filteredSamples):
 
 			#Create and train tracker
 			#trainTracker.InitRandomMask()
-			cloudTracker = trainTracker.Train(trainNormSamples, 1)#Hack
+			cloudTracker = trainTracker.Train(trainNormSamples, 50)#Hack
 			
 			cloudTracker = trainTracker.cloudTracker
 			print cloudTracker
